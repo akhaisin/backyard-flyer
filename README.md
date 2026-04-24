@@ -25,3 +25,5 @@ Use can export any of code version as a zip file (JSZip) or user can import prev
 
 User has a study guide which guides user into full implementation of control code.
 Each step of the guide results in a another version of code.
+
+Every guide step consist of two versions of code - initial code with removed targeted parts and TODOs in place. The other version is completed exrcise which could be used as an example.
