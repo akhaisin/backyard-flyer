@@ -1,0 +1,36 @@
+/* ── Theme tokens ───────────────────────────────────────────────────────── */
+/*
+ * Set data-theme="dark" on <html> to activate the dark theme.
+ * All colour/font values used in the app must reference these variables.
+ */
+
+:root {
+  --color-bg:          #ffffff;
+  --color-bg-subtle:   #fafafa;
+  --color-bg-elevated: #f5f5f5;
+  --color-bg-active:   #e8e8e8;
+  --color-border:      #e0e0e0;
+  --color-border-soft: #dddddd;
+  --color-text:        #333333;
+  --color-text-muted:  #666666;
+  --color-text-faint:  #888888;
+  --color-text-ghost:  #999999;
+  --color-accent:      #333333;
+
+  --font-ui:   system-ui, sans-serif;
+  --font-mono: monospace;
+}
+
+[data-theme="dark"] {
+  --color-bg:          #1c1c1c;
+  --color-bg-subtle:   #232323;
+  --color-bg-elevated: #2c2c2c;
+  --color-bg-active:   #383838;
+  --color-border:      #383838;
+  --color-border-soft: #303030;
+  --color-text:        #e8e8e8;
+  --color-text-muted:  #aaaaaa;
+  --color-text-faint:  #777777;
+  --color-text-ghost:  #555555;
+  --color-accent:      #e8e8e8;
+}

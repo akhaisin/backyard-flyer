@@ -1,0 +1,70 @@
+/* Component styles for the app shell.
+ * Theme tokens  → src/styles/tokens.css
+ * Prose/chapter → src/styles/typography.css
+ * Panel widget  → CollapsibleSidePanel.module.css
+ */
+
+/* ── PageShell layout ───────────────────────────────────────────────────── */
+
+.app-root        { height: 100vh; }
+.app-h-group     { height: 100%; }
+.app-h-separator { width: 4px;  background: var(--color-border); cursor: col-resize; flex-shrink: 0; }
+.app-v-separator { height: 4px; background: var(--color-border); cursor: row-resize; flex-shrink: 0; }
+.app-main-panel  { display: flex; flex-direction: column; overflow: hidden; }
+.app-v-group     { flex: 1; }
+.content-panel   { display: flex; flex-direction: column; overflow: hidden; }
+.chapter-content { flex: 1; overflow: auto; }
+.panel-placeholder { padding: 16px; }
+
+/* ── Tab bar ────────────────────────────────────────────────────────────── */
+
+.tab-bar    { display: flex; border-bottom: 1px solid var(--color-border-soft); background: var(--color-bg-subtle); flex-shrink: 0; }
+.tab-button {
+  padding: 8px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--color-text);
+}
+.tab-button--active {
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ── TableOfContents ────────────────────────────────────────────────────── */
+
+.toc         { padding: 8px; background: var(--color-bg); }
+.toc-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-faint);
+  padding: 4px 6px 8px;
+}
+.toc-list    { list-style: none; padding-left: 12px; }
+.toc-item    { margin: 2px 0; }
+.toc-dir     { display: block; padding: 3px 6px; font-size: 12px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+button.toc-dir { background: none; border: none; font-family: inherit; cursor: pointer; text-align: left; width: 100%; }
+.toc-leaf    {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 3px 6px;
+  background: transparent;
+  font-weight: 400;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.toc-leaf--active { background: var(--color-bg-active); font-weight: 600; }
+
+/* ── Tab placeholders ───────────────────────────────────────────────────── */
+
+.source-tab { padding: 24px; font-family: var(--font-mono); color: var(--color-text); }
+.vis-tab    { padding: 24px; color: var(--color-text); }

@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backyard Flyer</title>
+    <style>
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg-subtle);
+      }
+      .card {
+        max-width: 480px;
+        padding: 48px;
+        background: var(--color-bg);
+        border-radius: 12px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+        text-align: center;
+      }
+      h1 { font-size: 2rem; margin-bottom: 12px; }
+      p  { color: var(--color-text-muted); line-height: 1.6; margin-bottom: 32px; }
+      a  {
+        display: inline-block;
+        padding: 12px 28px;
+        background: var(--color-text);
+        color: var(--color-bg);
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      a:hover { opacity: 0.8; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Backyard Flyer</h1>
+      <p>An educational app for learning quadcopter control fundamentals through articles, exercises, and a live coding sandbox.</p>
+      <a href="/pages">Get Started</a>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+---
+order: 2
+simId: sim-demo/floater
+modelId: floater
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Floater — multi-block physics
+
+**Floater** is a sphere that flies through a sequence of waypoints in 3D space.
+It demonstrates a realistic multi-block model: each block has a single responsibility and communicates only through the shared state.
+
+The simulation runs at **50 ms per tick** (20 Hz). Three blocks execute in order each tick:
+
+```
+mission → fc → world
+```
+
+## Block overview
+
+### `mission.ts` — waypoint sequencer
+
+Measures the distance to the current target waypoint. When the floater comes within `THRESHOLD` (1.5 m), it advances to the next waypoint and writes the new target's coordinates into the state.
+
+**Outputs to state:** `targetIdx`, `dist`, `targetX`, `targetY`, `targetZ`
+
+### `fc.ts` — flight controller
+
+Reads `targetX/Y/Z` directly from state and computes the acceleration needed to move toward that point. Uses a proportional gain `K` and velocity damping `DRAG` to avoid overshooting. Adds `GRAVITY` on the Y axis to cancel out what `world.ts` subtracts.
+
+**Outputs to state:** `ax`, `ay`, `az`
+
+### `world.ts` — physics integrator
+
+Integrates acceleration into velocity and velocity into position using Euler integration with `DT = 0.05 s`. Applies gravity (`9.81 m/s²` downward). Bounces off the ground at `y = 0`.
+
+**Outputs to state:** `x`, `y`, `z`, `vx`, `vy`, `vz`
+
+## Waypoints
+
+The waypoints live only in `mission.ts`. The flight controller reads the resolved coordinates from state — there is no second copy.
+
+| # | x | y | z |
+|---|---|---|---|
+| 0 | 0 | 5 | 0 |
+| 1 | 10 | 5 | 0 |
+| 2 | 10 | 10 | 10 |
+| 3 | 0 | 5 | 15 |
+
+The floater starts at the origin (ground level) and first climbs to waypoint 0, then cycles through the route.
+
+---
+
+## Step 1 — Read and edit `mission.ts`
+
+The editor below shows only the `mission` block. Read through the code, then try changing one of the waypoint coordinates and staging the change with **Stage (Ctrl+Enter)**.
+
+The change will not take effect until you press **Start** in the visualisation below.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## Step 2 — Run the simulation
+
+Press **Start** to apply any staged changes and watch the floater fly.
+The orange markers are waypoints; the green one is the current target.
+The blue trail shows the path flown so far.
+
+Drag the **rewind slider** to scrub back through history.
+
+<SimVis client:only="react" />
+
+---
+
+## Step 3 — Watch the coordinates converge
+
+Each chart shows the floater's actual position (solid) alongside the current target coordinate (light). Notice how the floater overshoots slightly before settling — that is the proportional controller at work.
+
+When a waypoint is reached, the target line steps to the next value.
+
+<SimCharts varIds={[['x','targetX'],['y','targetY'],['z','targetZ']]} client:only="react" />
+
+---
+
+## Things to experiment with
+
+- Increase `K` in `fc.ts` — faster response, but oscillation appears
+- Decrease `DRAG` in `fc.ts` — less damping, more overshoot on the charts
+- Change `THRESHOLD` in `mission.ts` — advance waypoints sooner (loose) or later (tight)
+- Add a fifth waypoint to the `WAYPOINTS` array in `mission.ts`
+- Remove the ground bounce in `world.ts` and observe what happens on `y`

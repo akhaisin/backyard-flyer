@@ -1,0 +1,15 @@
+@import './tokens.css';
+@import './typography.css';
+
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+
+body {
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}

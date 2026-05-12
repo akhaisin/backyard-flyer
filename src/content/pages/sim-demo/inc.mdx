@@ -1,0 +1,49 @@
+---
+order: 1
+simId: sim-demo/inc
+modelId: inc
+---
+
+# Inc — minimal simulation
+
+**Inc** is the simplest possible simulation: a single number that increments by one on every tick (once per second).
+
+Its purpose is to verify the full engine workflow with the smallest possible model:
+
+- one block (`inc.ts`) with one function
+- editable live in the **Source** tab
+- history recorded and plotted in the **Visualisation** tab
+- value displayed in the 3D scene as a floating number
+
+## How to use
+
+1. Open the **Visualisation** tab and press **Start**.
+2. Watch the value increment in the 3D view and the chart below it.
+3. Switch to the **Source** tab to edit `inc.ts`.
+4. Change the increment — for example `state.value + 2` or `state.value * 2`.
+5. Click **Stage (Ctrl+Enter)**, then go back to **Visualisation** and press **Apply & Start**.
+
+## Block: `inc.ts`
+
+```typescript
+type IncState = { value: number };
+
+export function l1(state: IncState): IncState {
+  return { value: state.value + 1 };
+}
+```
+
+The function receives a slice of model state (`{ value }`) and returns an updated slice.
+The engine reads `mapStateIn` from the config to build this slice, runs the function, then
+writes the result back using `mapStateOut`.
+
+## Engine concepts demonstrated
+
+| Concept | Where |
+|---|---|
+| Single-block model | `inc.config.ts` |
+| `mapStateIn` / `mapStateOut` | slices the full state down to what this block needs |
+| `tickFrequency: 1` | block runs every tick |
+| TS type stripping + eval | edit the function and stage it |
+| History | chart grows tick by tick; scrub slider rewinds |
+| Scene handler | `inc.scene.ts` renders the number as a 3D sprite |
