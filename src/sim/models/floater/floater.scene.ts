@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SceneHandler, ModelState } from '../../engine/types';
+import { makeAxes } from '../../sceneUtils';
 
 const TRAIL_LENGTH = 400;
 
@@ -13,6 +14,7 @@ export function createFloaterSceneHandler(): SceneHandler {
   let waypointMeshes: Map<number, THREE.Mesh> = new Map();
   let trailLine: THREE.Line | null = null;
   let trailGeo: THREE.BufferGeometry | null = null;
+  let axisObjects: THREE.Object3D[] = [];
 
   function ensureWaypoint(scene: THREE.Scene, idx: number, x: number, y: number, z: number): void {
     if (waypointMeshes.has(idx)) return;
@@ -37,6 +39,7 @@ export function createFloaterSceneHandler(): SceneHandler {
 
       const grid = new THREE.GridHelper(30, 30, 0x222244, 0x111133);
       scene.add(grid);
+      axisObjects = makeAxes(scene);
 
       const geo = new THREE.SphereGeometry(0.4, 16, 16);
       const mat = new THREE.MeshPhongMaterial({ color: 0x44aaff, emissive: 0x001133 });
@@ -103,6 +106,8 @@ export function createFloaterSceneHandler(): SceneHandler {
       [floaterMesh, velocityArrow, trailLine].forEach(obj => { if (obj) scene.remove(obj); });
       waypointMeshes.forEach(m => scene.remove(m));
       waypointMeshes.clear();
+      axisObjects.forEach(obj => scene.remove(obj));
+      axisObjects = [];
       trailGeo?.dispose();
       floaterMesh = null;
       velocityArrow = null;

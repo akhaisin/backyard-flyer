@@ -10,8 +10,9 @@ export function stripTypes(src: string): string {
     .replace(/\bexport /g, '')
     // Remove return type annotation before opening brace: ): TypeName {
     .replace(/\)\s*:\s*\w+\s*\{/g, ') {')
-    // Remove parameter type annotations: only TS type names (PascalCase or primitives), not object values
-    .replace(/: (?:[A-Z]\w*|string|number|boolean|void|any|never|unknown)(?=[,)\s])/g, '')
+    // Remove parameter type annotations: PascalCase types (must have a lowercase after first char) or primitives.
+    // Excludes ALL_CAPS identifiers like GRAVITY or MAX_ACC which are constants, not types.
+    .replace(/: (?:[A-Z][a-z]\w*|string|number|boolean|void|any|never|unknown)(?=[,)\s])/g, '')
     // Remove line comments
     .replace(/^ *\/\/.*/gm, '');
 }

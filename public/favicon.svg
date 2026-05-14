@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- arms -->
+  <line x1="32" y1="32" x2="10" y2="10" stroke="#555" stroke-width="4" stroke-linecap="round"/>
+  <line x1="32" y1="32" x2="54" y2="10" stroke="#555" stroke-width="4" stroke-linecap="round"/>
+  <line x1="32" y1="32" x2="10" y2="54" stroke="#555" stroke-width="4" stroke-linecap="round"/>
+  <line x1="32" y1="32" x2="54" y2="54" stroke="#555" stroke-width="4" stroke-linecap="round"/>
+  <!-- rotors -->
+  <ellipse cx="10" cy="10" rx="9" ry="4" fill="#888" opacity="0.7"/>
+  <ellipse cx="54" cy="10" rx="9" ry="4" fill="#888" opacity="0.7"/>
+  <ellipse cx="10" cy="54" rx="9" ry="4" fill="#888" opacity="0.7"/>
+  <ellipse cx="54" cy="54" rx="9" ry="4" fill="#888" opacity="0.7"/>
+  <!-- body -->
+  <rect x="24" y="24" width="16" height="16" rx="4" fill="#333"/>
+</svg>

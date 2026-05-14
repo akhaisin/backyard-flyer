@@ -12,15 +12,26 @@ const WAYPOINTS = [
 ];
 
 const THRESHOLD = 1.5;
+const MAX_LOOPS = 3;
 
 export function mission(state: MissionIn): MissionOut {
   const idx = Math.round(state.targetIdx) % WAYPOINTS.length;
+  const loops = Math.round(state.targetIdx / WAYPOINTS.length)
+
+  if (loops > MAX_LOOPS) {
+    const distZero = Math.sqrt(state.x * state.x + state.y * state.y + state.z * state.z);
+    return { targetIdx: state.targetIdx, dist: distZero, targetX: 0, targetY: 0, targetZ: 0 };  
+  }
+
+
   const wp = WAYPOINTS[idx];
 
   const dx = wp.x - state.x;
   const dy = wp.y - state.y;
   const dz = wp.z - state.z;
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  
+
 
   if (dist < THRESHOLD) {
     const next = (idx + 1) % WAYPOINTS.length;

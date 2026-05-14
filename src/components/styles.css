@@ -68,3 +68,119 @@ button.toc-dir { background: none; border: none; font-family: inherit; cursor: p
 
 .source-tab { padding: 24px; font-family: var(--font-mono); color: var(--color-text); }
 .vis-tab    { padding: 24px; color: var(--color-text); }
+
+/* ── Overlay buttons (repo + help) ──────────────────────────────────────── */
+
+.repo-link,
+.help-btn {
+  position: fixed;
+  bottom: 1rem;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  z-index: 20;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.repo-link svg,
+.help-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: currentColor;
+}
+
+.repo-link:hover,
+.help-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-text-muted);
+}
+
+/* standalone: MeflyNav hidden/absent → repo at 1rem, help at 3.75rem */
+.repo-link { left: 1rem; }
+.help-btn  { left: 3.75rem; }
+
+/* embedded in iframe: MeflyNav occupies 1rem slot → shift both right */
+.app-root--embedded .repo-link { left: 3.75rem; }
+.app-root--embedded .help-btn  { left: 6.5rem; }
+
+@keyframes help-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  50%       { box-shadow: 0 0 0 3px rgba(100, 100, 100, 0.25); }
+}
+
+.help-btn--glow { animation: help-glow 2s ease-in-out infinite; }
+
+/* ── MeflyNav receiver (local impl — no react-router-dom) ───────────────── */
+
+.mfly-nav-root {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.mfly-nav-trigger {
+  width: var(--mefly-nav-trigger-size, 36px);
+  height: var(--mefly-nav-trigger-size, 36px);
+  border-radius: 50%;
+  border: var(--mefly-nav-trigger-border, none);
+  background: var(--mefly-nav-trigger-bg, #1a1a1a);
+  color: var(--mefly-nav-trigger-color, #fff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--mefly-nav-trigger-shadow, 0 2px 8px rgba(0,0,0,.35));
+  transition: background .15s, border-color .15s, transform .12s;
+  flex-shrink: 0;
+}
+
+.mfly-nav-trigger:hover {
+  background: var(--mefly-nav-trigger-bg-hover, #333);
+  transform: var(--mefly-nav-trigger-hover-transform, none);
+}
+
+.mfly-nav-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfly-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 20px;
+  background: rgba(26,26,26,0.875);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  text-decoration: none;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: background .12s;
+}
+
+.mfly-nav-item:not(.mfly-nav-item--disabled):hover { background: rgba(51,51,51,0.95); }
+.mfly-nav-icon  { width: 22px; height: 22px; border-radius: 4px; object-fit: contain; flex-shrink: 0; }
+.mfly-nav-label { line-height: 1; }
+.mfly-nav-item--disabled { opacity: .4; cursor: default; }
+.mfly-nav-item--devonly::after { content: "●"; font-size: .5rem; color: #f90; margin-left: 4px; vertical-align: middle; }
+.mfly-nav-item--active { outline: 1px solid rgba(255,255,255,.3); }

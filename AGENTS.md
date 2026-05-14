@@ -331,6 +331,19 @@ React components use these in `useEffect` to drive live updates.
 5. Create an MDX page with `simId` and `modelId` frontmatter
 6. Embed sim components directly in the MDX as needed (`SimSource`, `SimVis`, `SimCharts`) — no props required; context is injected via DOM
 
+## TODO
+
+### PageShell "decramping"
+
+- [ ] 1. Hash-based routing — `parseHash`, `hashchange` listener, `navigate`/`switchView` callbacks, `pageId`/`view` state
+- [ ] 2. Host communication (iframe sync) — receiving `NAVIGATE_TO_HASH` and posting `HASH_CHANGED` back to the parent window
+- [ ] 3. DOM-based page content swapping — `ChapterContent` reads pre-rendered MDX from `#page-store` and moves DOM nodes in/out
+- [ ] 4. Tab bar rendering — the `Chapter / Source / Visualisation` switcher UI
+- [ ] 5. Panel layout — the resizable 3-column + bottom-charts split using `react-resizable-panels`
+- [ ] 6. Sim context resolution — deriving `simId`/`modelId` from the current page and passing them down to tabs and side panels
+- [ ] 7. Overlay widgets — `MeflyNavReceiver` (dots menu), GitHub repo link button, help/tour button with `helpSeen` persistence
+- [ ] 8. `ChartsPanel` — a tiny wrapper that resolves sim context and renders `SimCharts`
+
 ## Notes
 
 - `PageShell` is mounted with `client:only="react"` — never SSR'd, safe to access `window`

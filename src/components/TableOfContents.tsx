@@ -78,7 +78,6 @@ export default function TableOfContents({ pageIds, currentPage, onNavigate, tocN
   const tree = buildTree(pageIds);
   return (
     <nav className="toc">
-      <div className="toc-heading">Pages</div>
       <TreeNodes nodes={tree.children} currentPage={currentPage} onNavigate={onNavigate} tocNames={tocNames} />
     </nav>
   );

@@ -30,15 +30,20 @@ interface SimInstance {
 
 const instances: Record<string, SimInstance> = {};
 
-function compileBlock(code: string, exportName: string): BlockFn | null {
+function compileBlock(code: string, exportName: string): { fn: BlockFn | null; error: string | null } {
   const js = stripTypes(code);
   try {
     const mod: Record<string, unknown> = {};
     new Function('exports', `${js}\nexports['${exportName}'] = typeof ${exportName} !== 'undefined' ? ${exportName} : undefined;`)(mod);
     const fn = mod[exportName];
-    return typeof fn === 'function' ? (fn as BlockFn) : null;
-  } catch {
-    return null;
+    if (typeof fn !== 'function') {
+      return { fn: null, error: `Export "${exportName}" not found — check the function name` };
+    }
+    return { fn: fn as BlockFn, error: null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[sim] Compile error in "${exportName}":`, e);
+    return { fn: null, error: msg };
   }
 }
 
@@ -49,8 +54,8 @@ export function initSim(simId: string, config: ModelConfig): void {
   for (const block of config.blocks) {
     const stored = localStorage.getItem(lsKey(simId, block.sourceId));
     if (stored) {
-      const compiled = compileBlock(stored, block.exportName);
-      activeFns[block.sourceId] = compiled ?? block.defaultFn;
+      const { fn } = compileBlock(stored, block.exportName);
+      activeFns[block.sourceId] = fn ?? block.defaultFn;
     } else {
       activeFns[block.sourceId] = block.defaultFn;
     }
@@ -92,6 +97,7 @@ function doTick(simId: string): void {
     } catch (e) {
       stopSim(simId);
       const error = e instanceof Error ? e : new Error(String(e));
+      console.error(`[sim:${simId}] Runtime error in block "${block.sourceId}":`, e);
       inst.error = error;
       inst.errorListeners.forEach(cb => cb(error));
       return;
@@ -150,8 +156,8 @@ export function stageBlock(simId: string, sourceId: string, code: string): { ok:
   const block = inst.config.blocks.find(b => b.sourceId === sourceId);
   if (!block) return { ok: false, error: `Block "${sourceId}" not found` };
 
-  const compiled = compileBlock(code, block.exportName);
-  if (!compiled) return { ok: false, error: 'Compilation failed — check syntax or function name' };
+  const { fn: compiled, error: compileError } = compileBlock(code, block.exportName);
+  if (!compiled) return { ok: false, error: compileError ?? 'Compilation failed — check syntax or function name' };
 
   inst.pendingFns[sourceId] = compiled;
   inst.hasPending = true;

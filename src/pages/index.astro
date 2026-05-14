@@ -1,5 +1,62 @@
 ---
 import '../styles/global.css';
+import PageShell from '../components/PageShell';
+
+// Astro.glob was removed in Astro 6; use import.meta.glob with eager:true.
+const mdxModules = import.meta.glob('../content/pages/**/*.mdx', { eager: true }) as Record<
+  string,
+  { default: any; frontmatter?: Record<string, unknown> }
+>;
+
+const allPages = Object.entries(mdxModules).map(([path, mod]) => {
+  const id = path.replace('../content/pages/', '').replace(/\.mdx$/, '');
+  const modelId = (mod.frontmatter?.modelId as string) ?? undefined;
+  return {
+    id,
+    Content: mod.default,
+    modelId,
+    simId: modelId ? ((mod.frontmatter?.simId as string) ?? id) : undefined,
+    order: (mod.frontmatter?.order as number) ?? Infinity,
+    tocName: (mod.frontmatter?.['toc-name'] as string) ?? undefined,
+  };
+});
+
+// Build folder order map from default.mdx files.
+// Key: folder path (e.g. "sim-demo"), value: that folder's order.
+const folderOrderMap: Record<string, number> = {};
+for (const page of allPages) {
+  const parts = page.id.split('/');
+  if (parts[parts.length - 1] === 'default') {
+    folderOrderMap[parts.slice(0, -1).join('/')] = page.order;
+  }
+}
+
+function sortKey(page: { id: string; order: number }): [number, number] {
+  const parts = page.id.split('/');
+  if (parts.length === 1) return [page.order, 0];
+  const folderPath = parts.slice(0, -1).join('/');
+  const folderOrder = folderOrderMap[folderPath] ?? Infinity;
+  const isDefault = parts[parts.length - 1] === 'default';
+  return [folderOrder, isDefault ? -Infinity : page.order];
+}
+
+const pages = allPages.sort((a, b) => {
+  const [aFo, aPo] = sortKey(a);
+  const [bFo, bPo] = sortKey(b);
+  return aFo !== bFo ? aFo - bFo : aPo - bPo;
+});
+
+const pageSimIds: Record<string, string> = Object.fromEntries(
+  pages.filter(p => p.simId).map(p => [p.id, p.simId!]),
+);
+
+const pageModelIds: Record<string, string> = Object.fromEntries(
+  pages.filter(p => p.modelId).map(p => [p.id, p.modelId!]),
+);
+
+const pageTocNames: Record<string, string> = Object.fromEntries(
+  pages.filter(p => p.tocName).map(p => [p.id, p.tocName!]),
+);
 ---
 
 <!doctype html>
@@ -9,41 +66,20 @@ import '../styles/global.css';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Backyard Flyer</title>
     <style>
-      body {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-bg-subtle);
-      }
-      .card {
-        max-width: 480px;
-        padding: 48px;
-        background: var(--color-bg);
-        border-radius: 12px;
-        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
-        text-align: center;
-      }
-      h1 { font-size: 2rem; margin-bottom: 12px; }
-      p  { color: var(--color-text-muted); line-height: 1.6; margin-bottom: 32px; }
-      a  {
-        display: inline-block;
-        padding: 12px 28px;
-        background: var(--color-text);
-        color: var(--color-bg);
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-      }
-      a:hover { opacity: 0.8; }
+      html, body { height: 100%; overflow: hidden; }
+      #page-store { display: none; }
     </style>
   </head>
   <body>
-    <div class="card">
-      <h1>Backyard Flyer</h1>
-      <p>An educational app for learning quadcopter control fundamentals through articles, exercises, and a live coding sandbox.</p>
-      <a href="/pages">Get Started</a>
+    <!-- Server-rendered MDX content; React reads via innerHTML -->
+    <div id="page-store">
+      {pages.map(({ id, simId, modelId, Content }) => (
+        <div data-page-id={id} data-sim-id={simId} data-model-id={modelId}>
+          <Content />
+        </div>
+      ))}
     </div>
+
+    <PageShell pageIds={pages.map(p => p.id)} pageSimIds={pageSimIds} pageModelIds={pageModelIds} pageTocNames={pageTocNames} client:only="react" />
   </body>
 </html>

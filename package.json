@@ -11,6 +11,8 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "driver.js": "^1.4.0",
+    "mefly-nav": "github:akhaisin/mefly-nav#v0.1.3",
     "@astrojs/mdx": "^5.0.4",
     "@astrojs/react": "^5.0.4",
     "@types/react": "^19.2.14",

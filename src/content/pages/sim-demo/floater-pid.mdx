@@ -1,0 +1,93 @@
+---
+order: 3
+simId: sim-demo/floater-pid
+modelId: floater-pid
+toc-name: floater-PID
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# P vs PID — two controllers, one route
+
+Two floaters fly the same waypoints simultaneously. The **blue one** uses a pure proportional controller — nothing but `K × error`. The **orange one** uses a full PID controller.
+
+Both share identical missions and identical physics. The only difference is how they compute acceleration.
+
+```
+mission1 → mission2 → fc1 (P) → fc_pid (PID) → world (both)
+```
+
+---
+
+## The proportional controller (blue)
+
+The `fc1.ts` block computes acceleration purely from the current position error:
+
+```
+ax = KP × (targetX − x)
+ay = GRAVITY + KP × (targetY − y)
+az = KP × (targetZ − z)
+```
+
+With no velocity term, the controller behaves like a spring. The floater accelerates hard toward the target, overshoots, then accelerates back. It oscillates indefinitely around each waypoint rather than settling.
+
+<SimSource sourceIds={['fc1']} autoHeight client:only="react" />
+
+---
+
+## The PID controller (orange)
+
+`fc_pid.ts` adds two more terms on top of the proportional gain:
+
+**Integral (I)** — accumulates position error over time. If the floater is consistently offset from the target, the integral grows and pushes harder. It eliminates steady-state error.
+
+**Derivative (D)** — applied to velocity (the derivative of position error for a stationary target). It damps the motion before the floater overshoots, acting like air resistance but fully under your control.
+
+```
+ex += (targetX − x) × DT        ← integrate error
+ax = KP×error + KI×ex − KD×vx   ← P + I − D
+```
+
+<SimSource sourceIds={['fc_pid']} autoHeight client:only="react" />
+
+---
+
+## Run both side by side
+
+Press **Start** to launch both floaters from the same position along the same route.
+
+- **Blue (P-only)** — oscillates around each waypoint, never fully settling
+- **Orange (PID)** — converges smoothly, arrives and holds position
+
+<SimVis client:only="react" />
+
+---
+
+## Compare on the charts
+
+Each chart shows one axis. Four series per chart:
+
+| Series | Meaning |
+|---|---|
+| P x (solid red) | Blue floater actual position |
+| P tgt-x (light red) | Blue floater target |
+| PID x (solid blue) | Orange floater actual position |
+| PID tgt-x (light blue) | Orange floater target |
+
+Watch the P-only lines oscillate around their targets while the PID lines converge and hold.
+
+<SimCharts chartId="X Position" client:only="react" />
+<SimCharts chartId="Y Position" client:only="react" />
+<SimCharts chartId="Z Position" client:only="react" />
+
+---
+
+## Things to experiment with
+
+- Raise `KP` in `fc1.ts` — faster but wilder oscillation
+- Set `KD = 0` in `fc_pid.ts` — watch the PID start oscillating too (I alone can't damp)
+- Set `KI = 0` in `fc_pid.ts` — the orange floater will lag behind targets (no integral to close the gap)
+- Reduce `KP` in `fc_pid.ts` below 1.0 — sluggish response; the integral eventually compensates but slowly
+- Change `THRESHOLD` in `mission1.ts` or `mission2.ts` independently — give one floater looser waypoint acceptance than the other and watch them diverge routes
