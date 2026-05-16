@@ -1,18 +1,21 @@
-// PID flight controller. Outputs desired thrust vector as throttle % (0-100).
-// - Proportional: pulls toward the target
-// - Integral: eliminates steady-state error; accumulator stored in state.err
-// - Derivative: damps oscillation by penalising velocity
+// Pure PID flight controller — no physical knowledge of mass or gravity.
+// Outputs desired thrust vector as throttle % (0-100).
+//
+// Unlike fc_pd (which feeds-forward MASS·GRAVITY to compensate for the
+// constant downward pull), this controller is given only the position error
+// and must rely on its integral term to discover any constant disturbance.
+// Note: hovering requires the integral to provide ~9.81 N upward. With KI
+// and MAX_INT below, the integral may saturate before it reaches that
+// magnitude — observe the steady-state y-axis behaviour.
 
 type Vec3 = { x: number; y: number; z: number };
-type FcIn = { pos: Vec3; vel: Vec3; target: Vec3; err: Vec3 };
-type FcOut = { desired: Vec3; err: Vec3 };
+type FcIn = { pos: Vec3; vel: Vec3; target: Vec3; err: Vec3; errPrev: Vec3 };
+type FcOut = { desired: Vec3; err: Vec3; errPrev: Vec3 };
 
-const KP = 4.5;            // strong proportional pull — exceeds PD's KP=3.0
-const KI = 0.3;            // modest integral; large values cause windup on moving targets
-const KD = 1.5;            // damping ratio ζ ≈ 0.35 — suppresses oscillation without over-braking
-const MAX_INT = 15.0;      // integral clamp — prevents windup
-const MASS = 1.0;
-const GRAVITY = 9.81;
+const KP = 4.5;
+const KI = 1.0;
+const KD = 1.5;
+const MAX_INT = 40.0;
 const MAX_THRUST_N = 30;
 const DT = 0.05;
 
@@ -21,23 +24,27 @@ function clamp(v: number, limit: number): number {
 }
 
 export function fc_pid(state: FcIn): FcOut {
-  const dx = state.target.x - state.pos.x;
-  const dy = state.target.y - state.pos.y;
-  const dz = state.target.z - state.pos.z;
+  const ex = state.target.x - state.pos.x;
+  const ey = state.target.y - state.pos.y;
+  const ez = state.target.z - state.pos.z;
 
-  // Integral accumulator (clamped to avoid windup)
-  const ex = clamp(state.err.x + dx * DT, MAX_INT);
-  const ey = clamp(state.err.y + dy * DT, MAX_INT);
-  const ez = clamp(state.err.z + dz * DT, MAX_INT);
+  const ix = clamp(state.err.x + ex * DT, MAX_INT);
+  const iy = clamp(state.err.y + ey * DT, MAX_INT);
+  const iz = clamp(state.err.z + ez * DT, MAX_INT);
 
-  // PID law → desired force (Newtons, world frame)
-  const fx = MASS * (KP * dx + KI * ex - KD * state.vel.x);
-  const fy = MASS * (KP * dy + KI * ey - KD * state.vel.y) + MASS * GRAVITY;
-  const fz = MASS * (KP * dz + KI * ez - KD * state.vel.z);
+  const dex = (ex - state.errPrev.x) / DT;
+  const dey = (ey - state.errPrev.y) / DT;
+  const dez = (ez - state.errPrev.z) / DT;
+
+  // Pure PID law — no MASS, no gravity feedforward.
+  const fx = KP * ex + KI * ix + KD * dex;
+  const fy = KP * ey + KI * iy + KD * dey;
+  const fz = KP * ez + KI * iz + KD * dez;
 
   const k = 100 / MAX_THRUST_N;
   return {
     desired: { x: fx * k, y: fy * k, z: fz * k },
-    err: { x: ex, y: ey, z: ez },
+    err: { x: ix, y: iy, z: iz },
+    errPrev: { x: ex, y: ey, z: ez },
   };
 }

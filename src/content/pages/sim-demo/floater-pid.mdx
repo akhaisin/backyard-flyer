@@ -75,12 +75,15 @@ This is the *minimum viable* controller. It converges, but it overshoots and lea
 ### PID (`fc_pid.ts`)
 
 ```
-thrust = KP · error + KI · ∫error · dt − KD · velocity
+thrust = KP · error + KI · ∫error · dt + KD · d(error)/dt
 ```
 
-The **integral** term is the new addition: it accumulates persistent error over time and pushes harder if the floater is consistently offset. This closes the steady-state gap that PD alone can't.
+This is *pure* PID — no mass, no gravity feedforward. Unlike PD, the PID controller is not told that `MASS · GRAVITY` of upward thrust is needed to hold altitude. Whatever the floater needs to fight gravity has to come out of the **integral** term as it accumulates the constant error.
 
-The PID gains (`KP=4.5, KI=0.3, KD=1.5`, integral clamp `MAX_INT=15`) are tuned to beat PD on lap time: a stronger proportional pull than PD's `KP=3.0`, combined with enough derivative damping (ζ ≈ 0.35) to suppress the oscillation that costs PD its convergence speed. The integral stays modest — on a racing task with moving targets, large `KI` causes windup and overshoot.
+- **Integral**: closes steady-state error. Here it has the harder job of discovering gravity on its own — note `MAX_INT=15`, so the integral can contribute at most `KI · MAX_INT = 4.5 N`, less than the `9.81 N` needed to hover. The floater will tend to sag below each y-target until the proportional term re-engages.
+- **Derivative**: here operating on the *error* rather than velocity. For a stationary target the two are equivalent (`de/dt = −v`), but when the mission advances to the next waypoint the error jumps discontinuously, producing a brief thrust spike *toward* the new target. The HW spool/gimbal limits absorb the spike, but the kick effectively pre-charges the actuator before normal control resumes.
+
+The PID gains (`KP=4.5, KI=0.3, KD=1.5`, integral clamp `MAX_INT=15`) keep the proportional pull stronger than PD's `KP=3.0` and damping just below critical (ζ ≈ 0.35). The lesson encoded here: without modeling assistance (mass + gravity), even a well-tuned PID can be out-performed by a simpler PD that knows the plant.
 
 ---
 

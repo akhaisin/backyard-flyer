@@ -57,8 +57,12 @@ export const floaterPidConfig: ModelConfig = {
   initialState: {
     vehicles: {
       v1: vehicleInit(),
-      // v2 carries an additional integral accumulator for the PID controller
-      v2: { ...vehicleInit(), err: { x: 0, y: 0, z: 0 } },
+      // v2 carries integral accumulator + previous error for the PID controller
+      v2: {
+        ...vehicleInit(),
+        err: { x: 0, y: 0, z: 0 },
+        errPrev: { x: 0, y: 0, z: 0 },
+      },
     },
   },
   blocks: [
@@ -142,11 +146,12 @@ export const floaterPidConfig: ModelConfig = {
           pos: v.pos, vel: v.vel,
           target: (v.mission as ModelState).target,
           err: v.err,
+          errPrev: v.errPrev,
         };
       },
       mapStateOut: (out, s) => {
         const withThrust = writeThrust(s, 'v2', { desired: out.desired });
-        return writeVehicle(withThrust, 'v2', { err: out.err });
+        return writeVehicle(withThrust, 'v2', { err: out.err, errPrev: out.errPrev });
       },
       tickFrequency: 1,
     },
