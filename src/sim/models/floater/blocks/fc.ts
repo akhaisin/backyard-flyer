@@ -2,8 +2,9 @@
 // Outputs desired thrust vector in world frame, scaled as throttle % (0-100).
 // HW translates % to Newtons and applies inertia/limits.
 
-type FcIn = { x: number; y: number; z: number; vx: number; vy: number; vz: number; targetX: number; targetY: number; targetZ: number };
-type FcOut = { tdx: number; tdy: number; tdz: number };
+type Vec3 = { x: number; y: number; z: number };
+type FcIn = { pos: Vec3; vel: Vec3; target: Vec3 };
+type FcOut = { desired: Vec3 };
 
 const K = 3.0;             // position gain
 const KV = 1.5;            // velocity damping
@@ -14,11 +15,11 @@ const MAX_THRUST_N = 30;   // must match HW
 export function fc(state: FcIn): FcOut {
   // Desired net force (Newtons, world frame): proportional pull to target,
   // velocity damping, gravity compensation.
-  const fx = MASS * (K * (state.targetX - state.x) - KV * state.vx);
-  const fy = MASS * (K * (state.targetY - state.y) - KV * state.vy) + MASS * GRAVITY;
-  const fz = MASS * (K * (state.targetZ - state.z) - KV * state.vz);
+  const fx = MASS * (K * (state.target.x - state.pos.x) - KV * state.vel.x);
+  const fy = MASS * (K * (state.target.y - state.pos.y) - KV * state.vel.y) + MASS * GRAVITY;
+  const fz = MASS * (K * (state.target.z - state.pos.z) - KV * state.vel.z);
 
   // Convert to throttle % (HW saturates if > 100)
   const k = 100 / MAX_THRUST_N;
-  return { tdx: fx * k, tdy: fy * k, tdz: fz * k };
+  return { desired: { x: fx * k, y: fy * k, z: fz * k } };
 }

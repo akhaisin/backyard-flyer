@@ -6,6 +6,16 @@ const TRAIL_LENGTH = 400;
 
 const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);
 
+// Typed view of the floater state — kept here so the scene handler can read
+// nested fields without per-access casts.
+type Vec3 = { x: number; y: number; z: number };
+interface FloaterState {
+  pos: Vec3;
+  vel: Vec3;
+  mission: { targetIdx: number; target: Vec3 };
+}
+const view = (s: ModelState): FloaterState => s as unknown as FloaterState;
+
 export function createFloaterSceneHandler(): SceneHandler {
   return (() => {
   let sceneRef: THREE.Scene | null = null;
@@ -69,13 +79,15 @@ export function createFloaterSceneHandler(): SceneHandler {
     update(state: ModelState, _tick: number, history: ModelState[]): void {
       if (!floaterMesh || !velocityArrow || !trailGeo || !sceneRef) return;
 
-      const { x, y, z, vx, vy, vz, targetIdx, targetX, targetY, targetZ } = state;
+      const s = view(state);
+      const { pos, vel, mission: { targetIdx, target } } = s;
 
       // Discover waypoints from history and current state
-      for (const s of history) {
-        ensureWaypoint(sceneRef, Math.round(s.targetIdx), s.targetX, s.targetY, s.targetZ);
+      for (const h of history) {
+        const hs = view(h);
+        ensureWaypoint(sceneRef, Math.round(hs.mission.targetIdx), hs.mission.target.x, hs.mission.target.y, hs.mission.target.z);
       }
-      ensureWaypoint(sceneRef, Math.round(targetIdx), targetX, targetY, targetZ);
+      ensureWaypoint(sceneRef, Math.round(targetIdx), target.x, target.y, target.z);
 
       // Highlight current target waypoint
       const currentIdx = Math.round(targetIdx);
@@ -83,13 +95,13 @@ export function createFloaterSceneHandler(): SceneHandler {
         (m.material as THREE.MeshPhongMaterial).color.setHex(i === currentIdx ? 0x00ff88 : 0xff6622);
       });
 
-      floaterMesh.position.set(x, y, z);
+      floaterMesh.position.set(pos.x, pos.y, pos.z);
 
-      const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-      velocityArrow.position.set(x, y, z);
+      const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+      velocityArrow.position.set(pos.x, pos.y, pos.z);
       if (speed > 0.05) {
         velocityArrow.visible = true;
-        velocityArrow.setDirection(new THREE.Vector3(vx, vy, vz).normalize());
+        velocityArrow.setDirection(new THREE.Vector3(vel.x, vel.y, vel.z).normalize());
         velocityArrow.setLength(Math.min(speed * 0.4, 4), 0.3, 0.15);
       } else {
         velocityArrow.visible = false;
@@ -97,7 +109,10 @@ export function createFloaterSceneHandler(): SceneHandler {
 
       const trail = history.slice(-TRAIL_LENGTH);
       const positions = trailGeo.attributes.position as THREE.BufferAttribute;
-      trail.forEach((s, i) => { positions.setXYZ(i, s.x, s.y, s.z); });
+      trail.forEach((h, i) => {
+        const hs = view(h);
+        positions.setXYZ(i, hs.pos.x, hs.pos.y, hs.pos.z);
+      });
       positions.needsUpdate = true;
       trailGeo.setDrawRange(0, trail.length);
     },

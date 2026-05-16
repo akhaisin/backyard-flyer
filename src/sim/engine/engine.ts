@@ -63,7 +63,7 @@ export function initSim(simId: string, config: ModelConfig): void {
 
   instances[simId] = {
     config,
-    state: { ...config.initialState },
+    state: structuredClone(config.initialState),
     history: [],
     tick: 0,
     activeFns,
@@ -106,7 +106,7 @@ function doTick(simId: string): void {
 
   inst.state = state;
   inst.tick++;
-  inst.history.push({ ...state });
+  inst.history.push(structuredClone(state));
   inst.stateListeners.forEach(cb => cb(state, inst.tick));
 }
 
@@ -118,7 +118,7 @@ export function startSim(simId: string): void {
     Object.assign(inst.activeFns, inst.pendingFns);
     inst.pendingFns = {};
     inst.hasPending = false;
-    inst.state = { ...inst.config.initialState };
+    inst.state = structuredClone(inst.config.initialState);
     inst.history = [];
     inst.tick = 0;
     inst.error = null;
@@ -144,7 +144,7 @@ export function stopSim(simId: string): void {
 export function resetSim(simId: string): void {
   const inst = getInstance(simId);
   stopSim(simId);
-  inst.state = { ...inst.config.initialState };
+  inst.state = structuredClone(inst.config.initialState);
   inst.history = [];
   inst.tick = 0;
   inst.error = null;

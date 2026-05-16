@@ -2,8 +2,9 @@
 // Adds gravity, integrates F=ma into velocity and position.
 // Bounces off the ground (y = 0).
 
-type WorldIn = { x: number; y: number; z: number; vx: number; vy: number; vz: number; tx: number; ty: number; tz: number };
-type WorldOut = { x: number; y: number; z: number; vx: number; vy: number; vz: number; ax: number; ay: number; az: number };
+type Vec3 = { x: number; y: number; z: number };
+type WorldIn = { pos: Vec3; vel: Vec3; actual: Vec3 };
+type WorldOut = { pos: Vec3; vel: Vec3; acc: Vec3 };
 
 const DT = 0.05;
 const MASS = 1.0;
@@ -11,22 +12,22 @@ const GRAVITY = 9.81;
 
 export function world(state: WorldIn): WorldOut {
   // Sum of forces → acceleration
-  const ax = state.tx / MASS;
-  const ay = (state.ty - MASS * GRAVITY) / MASS;
-  const az = state.tz / MASS;
+  const ax = state.actual.x / MASS;
+  const ay = (state.actual.y - MASS * GRAVITY) / MASS;
+  const az = state.actual.z / MASS;
 
   // Semi-implicit Euler
-  let vx = state.vx + ax * DT;
-  let vy = state.vy + ay * DT;
-  let vz = state.vz + az * DT;
-  let x = state.x + vx * DT;
-  let y = state.y + vy * DT;
-  let z = state.z + vz * DT;
+  let vx = state.vel.x + ax * DT;
+  let vy = state.vel.y + ay * DT;
+  let vz = state.vel.z + az * DT;
+  let x = state.pos.x + vx * DT;
+  let y = state.pos.y + vy * DT;
+  let z = state.pos.z + vz * DT;
 
   if (y < 0) {
     y = 0;
     vy = Math.abs(vy) * 0.3;
   }
 
-  return { x, y, z, vx, vy, vz, ax, ay, az };
+  return { pos: { x, y, z }, vel: { x: vx, y: vy, z: vz }, acc: { x: ax, y: ay, z: az } };
 }

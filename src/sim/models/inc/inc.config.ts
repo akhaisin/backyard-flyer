@@ -10,7 +10,7 @@ export const incConfig: ModelConfig = {
     {
       sourceId: 'inc',
       exportName: 'l1',
-      defaultFn: (s) => ({ value: (s.value ?? 0) + 1 }),
+      defaultFn: (s) => ({ value: ((s.value as number) ?? 0) + 1 }),
       defaultCode: incCode,
       mapStateIn: (s) => ({ value: s.value }),
       mapStateOut: (out, s) => ({ ...s, value: out.value }),

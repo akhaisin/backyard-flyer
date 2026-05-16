@@ -1,22 +1,23 @@
 // Hardware: actuator model. Translates desired throttle (%) to actual thrust force (N).
 // Models real engine limits: max thrust, spool-up rate, gimbal slew rate.
 
-type HwIn = { tdx: number; tdy: number; tdz: number; tx: number; ty: number; tz: number };
-type HwOut = { tx: number; ty: number; tz: number };
+type Vec3 = { x: number; y: number; z: number };
+type HwIn = { desired: Vec3; actual: Vec3 };
+type HwOut = { actual: Vec3 };
 
 const MAX_THRUST_N = 30;            // saturation
 const THRUST_RATE_N_PER_S = 60;     // spool: 0 → max in 0.5 s
-const DIR_RATE_RAD_PER_S = 5.0;     // gimbal: ~170°/s
+const DIR_RATE_RAD_PER_S = 5.0;     // gimbal
 const DT = 0.05;
 
 export function hw(state: HwIn): HwOut {
   // 1. Convert desired throttle % to Newtons and saturate magnitude
-  const dx = (state.tdx / 100) * MAX_THRUST_N;
-  const dy = (state.tdy / 100) * MAX_THRUST_N;
-  const dz = (state.tdz / 100) * MAX_THRUST_N;
+  const dx = (state.desired.x / 100) * MAX_THRUST_N;
+  const dy = (state.desired.y / 100) * MAX_THRUST_N;
+  const dz = (state.desired.z / 100) * MAX_THRUST_N;
   const desMagRaw = Math.sqrt(dx * dx + dy * dy + dz * dz);
   const desMag = Math.min(MAX_THRUST_N, desMagRaw);
-  const actMag = Math.sqrt(state.tx * state.tx + state.ty * state.ty + state.tz * state.tz);
+  const actMag = Math.sqrt(state.actual.x * state.actual.x + state.actual.y * state.actual.y + state.actual.z * state.actual.z);
 
   // 2. Rate-limit magnitude (spool inertia)
   const maxDelta = THRUST_RATE_N_PER_S * DT;
@@ -27,7 +28,7 @@ export function hw(state: HwIn): HwOut {
     ? [dx / desMagRaw, dy / desMagRaw, dz / desMagRaw]
     : null;
   const actDir = actMag > 1e-6
-    ? [state.tx / actMag, state.ty / actMag, state.tz / actMag]
+    ? [state.actual.x / actMag, state.actual.y / actMag, state.actual.z / actMag]
     : null;
 
   // 4. Rotate actual direction toward desired by at most DIR_RATE * DT (slerp)
@@ -50,6 +51,6 @@ export function hw(state: HwIn): HwOut {
     }
   }
 
-  if (!newDir) return { tx: 0, ty: 0, tz: 0 };
-  return { tx: newDir[0] * newMag, ty: newDir[1] * newMag, tz: newDir[2] * newMag };
+  if (!newDir) return { actual: { x: 0, y: 0, z: 0 } };
+  return { actual: { x: newDir[0] * newMag, y: newDir[1] * newMag, z: newDir[2] * newMag } };
 }

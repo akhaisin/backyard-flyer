@@ -5,6 +5,16 @@ import { makeAxes } from '../../sceneUtils';
 const TRAIL_LENGTH = 400;
 const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);
 
+// This model still uses flat state — single typed view at the boundary.
+interface PidState {
+  x1: number; y1: number; z1: number; targetIdx1: number;
+  targetX1: number; targetY1: number; targetZ1: number;
+  x2: number; y2: number; z2: number; targetIdx2: number;
+  targetX2: number; targetY2: number; targetZ2: number;
+  [key: string]: number;
+}
+const view = (s: ModelState): PidState => s as unknown as PidState;
+
 
 export function createFloaterPidSceneHandler(): SceneHandler {
   return (() => {
@@ -42,7 +52,10 @@ export function createFloaterPidSceneHandler(): SceneHandler {
     function updateTrail(geo: THREE.BufferGeometry, history: ModelState[], xk: string, yk: string, zk: string): void {
       const trail = history.slice(-TRAIL_LENGTH);
       const pos = geo.attributes.position as THREE.BufferAttribute;
-      trail.forEach((s, i) => pos.setXYZ(i, s[xk], s[yk], s[zk]));
+      trail.forEach((s, i) => {
+        const v = view(s);
+        pos.setXYZ(i, v[xk], v[yk], v[zk]);
+      });
       pos.needsUpdate = true;
       geo.setDrawRange(0, trail.length);
     }
@@ -85,18 +98,20 @@ export function createFloaterPidSceneHandler(): SceneHandler {
 
       update(state: ModelState, _tick: number, history: ModelState[]): void {
         if (!mesh1 || !mesh2 || !trail1Geo || !trail2Geo || !sceneRef) return;
+        const v = view(state);
 
         // Discover waypoints for each floater from history
         for (const s of history) {
-          ensureWaypoint(sceneRef, waypointMeshes1, Math.round(s.targetIdx1), s.targetX1, s.targetY1, s.targetZ1, 0x4488ff);
-          ensureWaypoint(sceneRef, waypointMeshes2, Math.round(s.targetIdx2), s.targetX2, s.targetY2, s.targetZ2, 0xff8800);
+          const vs = view(s);
+          ensureWaypoint(sceneRef, waypointMeshes1, Math.round(vs.targetIdx1), vs.targetX1, vs.targetY1, vs.targetZ1, 0x4488ff);
+          ensureWaypoint(sceneRef, waypointMeshes2, Math.round(vs.targetIdx2), vs.targetX2, vs.targetY2, vs.targetZ2, 0xff8800);
         }
-        ensureWaypoint(sceneRef, waypointMeshes1, Math.round(state.targetIdx1), state.targetX1, state.targetY1, state.targetZ1, 0x4488ff);
-        ensureWaypoint(sceneRef, waypointMeshes2, Math.round(state.targetIdx2), state.targetX2, state.targetY2, state.targetZ2, 0xff8800);
+        ensureWaypoint(sceneRef, waypointMeshes1, Math.round(v.targetIdx1), v.targetX1, v.targetY1, v.targetZ1, 0x4488ff);
+        ensureWaypoint(sceneRef, waypointMeshes2, Math.round(v.targetIdx2), v.targetX2, v.targetY2, v.targetZ2, 0xff8800);
 
         // Highlight each floater's active waypoint
-        const activeIdx1 = Math.round(state.targetIdx1);
-        const activeIdx2 = Math.round(state.targetIdx2);
+        const activeIdx1 = Math.round(v.targetIdx1);
+        const activeIdx2 = Math.round(v.targetIdx2);
         waypointMeshes1.forEach((m, i) => {
           (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx1 ? 0x00ff88 : 0x4488ff);
         });
@@ -104,8 +119,8 @@ export function createFloaterPidSceneHandler(): SceneHandler {
           (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx2 ? 0x00ff88 : 0xff8800);
         });
 
-        mesh1.position.set(state.x1, state.y1, state.z1);
-        mesh2.position.set(state.x2, state.y2, state.z2);
+        mesh1.position.set(v.x1, v.y1, v.z1);
+        mesh2.position.set(v.x2, v.y2, v.z2);
 
         updateTrail(trail1Geo, history, 'x1', 'y1', 'z1');
         updateTrail(trail2Geo, history, 'x2', 'y2', 'z2');

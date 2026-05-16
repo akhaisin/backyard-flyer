@@ -49,7 +49,7 @@ export function createIncSceneHandler(): SceneHandler {
     },
 
     update(state: ModelState): void {
-      drawValue(Math.round(state.value ?? 0));
+      drawValue(Math.round((state.value as number) ?? 0));
     },
 
     dispose(scene: THREE.Scene): void {

@@ -1,7 +1,21 @@
 import type { Scene, PerspectiveCamera } from 'three';
 
-export type ModelState = Record<string, number>;
+// Recursive: leaves are numbers, sub-trees are nested objects.
+// Flat states (e.g. `{ value: 0 }`) remain valid — they're just trees with depth 1.
+export type ModelState = { [key: string]: number | ModelState };
 export type BlockFn = (local: ModelState) => ModelState;
+
+// Resolve a dotted path to a number leaf. Returns 0 if the path is missing
+// or doesn't land on a number. Used by charts to plot deeply-nested values.
+export function getPath(state: ModelState, path: string): number {
+  const parts = path.split('.');
+  let cur: number | ModelState | undefined = state;
+  for (const p of parts) {
+    if (typeof cur !== 'object' || cur === null) return 0;
+    cur = (cur as ModelState)[p];
+  }
+  return typeof cur === 'number' ? cur : 0;
+}
 
 export interface BlockConfig {
   sourceId: string;

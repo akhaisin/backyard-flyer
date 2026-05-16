@@ -4,7 +4,7 @@ import 'uplot/dist/uPlot.min.css';
 import { subscribe, getHistory } from '../engine/engine';
 import { resolveSimContext } from '../useSim';
 import type { SimContext } from '../useSim';
-import type { ChartConfig } from '../engine/types';
+import { getPath, type ChartConfig } from '../engine/types';
 import './sim.css';
 
 // Pairs of solid/light colors cycling per series slot across charts
@@ -108,7 +108,7 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     const history = getHistory(simId);
     dataRef.current = [
       history.map((_, i) => i),
-      ...chart.series.map(s => history.map(h => h[s.var] ?? 0)),
+      ...chart.series.map(s => history.map(h => getPath(h, s.var))),
     ];
 
     plotRef.current?.destroy();
@@ -122,7 +122,7 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     const unsub = subscribe(simId, (state, tick) => {
       dataRef.current[0].push(tick);
       chart.series.forEach((s, i) => {
-        dataRef.current[i + 1].push(state[s.var] ?? 0);
+        dataRef.current[i + 1].push(getPath(state, s.var));
       });
       plotRef.current?.setData(dataRef.current as uPlot.AlignedData);
     });
