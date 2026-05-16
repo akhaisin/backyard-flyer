@@ -80,14 +80,16 @@ export function createFloaterSceneHandler(): SceneHandler {
       if (!floaterMesh || !velocityArrow || !trailGeo || !sceneRef) return;
 
       const s = view(state);
-      const { pos, vel, mission: { targetIdx, target } } = s;
+      const { pos, vel, mission: { targetIdx } } = s;
 
-      // Discover waypoints from history and current state
+      // Waypoints come only from mission's actual outputs (history entries).
+      // We deliberately do NOT seed from the current state here: before the
+      // first tick has run, state.mission.target still holds the initial-state
+      // placeholder, which would create a ghost waypoint at the wrong spot.
       for (const h of history) {
         const hs = view(h);
         ensureWaypoint(sceneRef, Math.round(hs.mission.targetIdx), hs.mission.target.x, hs.mission.target.y, hs.mission.target.z);
       }
-      ensureWaypoint(sceneRef, Math.round(targetIdx), target.x, target.y, target.z);
 
       // Highlight current target waypoint
       const currentIdx = Math.round(targetIdx);

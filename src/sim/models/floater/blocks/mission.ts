@@ -6,7 +6,7 @@ type MissionIn = { pos: Vec3; targetIdx: number };
 type MissionOut = { targetIdx: number; dist: number; target: Vec3 };
 
 const WAYPOINTS: Vec3[] = [
-  { x: 0, y: 5, z: 0 },
+  { x: -2, y: 5, z: -3 },
   { x: 10, y: 5, z: 0 },
   { x: 10, y: 10, z: 10 },
   { x: 0, y: 5, z: 15 },

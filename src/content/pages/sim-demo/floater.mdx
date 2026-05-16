@@ -8,36 +8,97 @@ import SimSource from '../../../sim/components/SimSource'
 import SimVis from '../../../sim/components/SimVis'
 import SimCharts from '../../../sim/components/SimCharts'
 
-# Floater — multi-block physics
+# Floater — multi-block model with simulated hardware
 
 **Floater** is a sphere that flies through a sequence of waypoints in 3D space.
-It demonstrates a realistic multi-block model: each block has a single responsibility and communicates only through the shared state.
+It demonstrates a four-block model where each block has a single responsibility and communicates only through shared state.
 
-The simulation runs at **50 ms per tick** (20 Hz). Three blocks execute in order each tick:
+The simulation runs at **50 ms per tick** (20 Hz). Four blocks execute in order each tick:
 
 ```
-mission → fc → world
+mission → fc → hw → world
 ```
 
-## Block overview
+- **`mission`** — picks the next waypoint when the floater is close enough
+- **`fc`** — flight controller; computes the desired thrust vector
+- **`hw`** — hardware/actuator; applies real-engine inertia and limits
+- **`world`** — physics; integrates the resulting force into motion
+
+The `hw` block sits between the controller and the physics. It simulates real engine inertia and limits, so the controller's command no longer goes straight into motion: it has to fight a slow-spooling, slow-gimbaling actuator.
+
+The state is structured into sub-trees (`pos`, `vel`, `thrust.desired`, `thrust.actual`, `mission.target`, …) so related variables stay together — easier to extend than a flat namespace.
+
+---
+
+## See it fly
+
+Press **Start** to run. The orange markers are waypoints; the green one is the current target. The blue trail shows the path flown so far.
+
+Drag the **rewind slider** to scrub back through history.
+
+<SimVis client:only="react" />
+
+---
+
+## Watch the coordinates converge
+
+Each chart shows the floater's actual position (solid) alongside the current target coordinate (light). Notice how the floater settles toward each waypoint with a soft overshoot — that's the combined effect of the proportional controller and the gimbal/spool lag introduced by `hw`.
+
+When a waypoint is reached, the target line steps to the next value.
+
+<SimCharts varIds={[['pos.x','mission.target.x'],['pos.y','mission.target.y'],['pos.z','mission.target.z']]} client:only="react" />
+
+---
+
+## Edit the mission
+
+The `mission` block is the simplest place to start editing. It just picks the next waypoint when the floater is close enough — no physics, no controllers.
+
+Try changing a waypoint coordinate, or tightening `THRESHOLD`. Stage with **Ctrl+Enter**, then press **Start** in the visualisation above to apply the change.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## How it works — four blocks
 
 ### `mission.ts` — waypoint sequencer
 
-Measures the distance to the current target waypoint. When the floater comes within `THRESHOLD` (1.5 m), it advances to the next waypoint and writes the new target's coordinates into the state.
+Measures distance to the current target waypoint. When the floater is within `THRESHOLD` (1.5 m), it advances to the next waypoint and writes the new target into state.
 
-**Outputs to state:** `targetIdx`, `dist`, `targetX`, `targetY`, `targetZ`
+**Outputs:** `mission.targetIdx`, `mission.dist`, `mission.target.{x,y,z}`
 
 ### `fc.ts` — flight controller
 
-Reads `targetX/Y/Z` directly from state and computes the acceleration needed to move toward that point. Uses a proportional gain `K` and velocity damping `DRAG` to avoid overshooting. Adds `GRAVITY` on the Y axis to cancel out what `world.ts` subtracts.
+Reads `pos`, `vel`, and `mission.target` and computes the *desired thrust* as a world-frame vector. The vector's length is the throttle setting (`0–100 %`); its direction is where the engine should push.
 
-**Outputs to state:** `ax`, `ay`, `az`
+Uses a proportional gain `K` and velocity damping `KV`. Gravity is compensated as a force (`MASS · GRAVITY`) so the floater can hover.
 
-### `world.ts` — physics integrator
+This is a deliberately simple P-only controller — the next model introduces PID and compares the two.
 
-Integrates acceleration into velocity and velocity into position using Euler integration with `DT = 0.05 s`. Applies gravity (`9.81 m/s²` downward). Bounces off the ground at `y = 0`.
+**Outputs:** `thrust.desired.{x,y,z}` (% throttle, world frame)
 
-**Outputs to state:** `x`, `y`, `z`, `vx`, `vy`, `vz`
+### `hw.ts` — hardware
+
+The actuator model. Translates desired throttle (%) into actual thrust force (Newtons) while simulating real-engine limits:
+
+- **Saturation** — magnitude clamped to `MAX_THRUST_N`
+- **Spool inertia** — magnitude can only change at `THRUST_RATE_N_PER_S`
+- **Gimbal slew** — direction can only rotate at `DIR_RATE_RAD_PER_S` (slerp)
+
+The block lags behind the FC's command. This lag is the main reason a perfect controller still overshoots — and the reason real autopilots need integral and derivative terms.
+
+**Outputs:** `thrust.actual.{x,y,z}` (Newtons, world frame)
+
+### `world.ts` — physics
+
+Receives the actual thrust force, adds gravity as a separate force, and integrates `F = m·a` with semi-implicit Euler. Bounces off the ground at `y = 0`.
+
+`world` doesn't know anything about controllers or hardware — it only knows mass, gravity, and the force currently acting on the floater.
+
+**Outputs:** `pos.{x,y,z}`, `vel.{x,y,z}`, `acc.{x,y,z}`
+
+---
 
 ## Waypoints
 
@@ -54,42 +115,13 @@ The floater starts at the origin (ground level) and first climbs to waypoint 0, 
 
 ---
 
-## Step 1 — Read and edit `mission.ts`
-
-The editor below shows only the `mission` block. Read through the code, then try changing one of the waypoint coordinates and staging the change with **Stage (Ctrl+Enter)**.
-
-The change will not take effect until you press **Start** in the visualisation below.
-
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
-
----
-
-## Step 2 — Run the simulation
-
-Press **Start** to apply any staged changes and watch the floater fly.
-The orange markers are waypoints; the green one is the current target.
-The blue trail shows the path flown so far.
-
-Drag the **rewind slider** to scrub back through history.
-
-<SimVis client:only="react" />
-
----
-
-## Step 3 — Watch the coordinates converge
-
-Each chart shows the floater's actual position (solid) alongside the current target coordinate (light). Notice how the floater overshoots slightly before settling — that is the proportional controller at work.
-
-When a waypoint is reached, the target line steps to the next value.
-
-<SimCharts varIds={[['pos.x','mission.target.x'],['pos.y','mission.target.y'],['pos.z','mission.target.z']]} client:only="react" />
-
----
-
 ## Things to experiment with
 
-- Increase `K` in `fc.ts` — faster response, but oscillation appears
-- Decrease `DRAG` in `fc.ts` — less damping, more overshoot on the charts
-- Change `THRESHOLD` in `mission.ts` — advance waypoints sooner (loose) or later (tight)
-- Add a fifth waypoint to the `WAYPOINTS` array in `mission.ts`
-- Remove the ground bounce in `world.ts` and observe what happens on `y`
+- **`K` in `fc.ts`** — proportional gain. Higher = faster pull toward target, but more overshoot.
+- **`KV` in `fc.ts`** — velocity damping. Lower = oscillation appears; higher = sluggish but stable.
+- **`DIR_RATE_RAD_PER_S` in `hw.ts`** — gimbal slew rate. Drop it to ~1.0 and the engine can't turn fast enough — the floater orbits past each waypoint before recovering.
+- **`THRUST_RATE_N_PER_S` in `hw.ts`** — spool rate. Lower it for a sluggish engine that lags FC commands; you'll see the actual thrust trail the desired thrust.
+- **`MAX_THRUST_N` in `hw.ts`** and `world.ts` — saturation. Reduce it and the engine can't keep up with aggressive controller commands.
+- **`THRESHOLD` in `mission.ts`** — advance waypoints sooner (loose, ~3) or later (tight, ~0.5).
+- Add a fifth waypoint to the `WAYPOINTS` array in `mission.ts`.
+- Remove the ground bounce in `world.ts` and observe what happens on `y`.
