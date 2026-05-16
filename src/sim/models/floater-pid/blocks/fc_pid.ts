@@ -23,8 +23,8 @@ const DT = 0.05;
 // before the controller sees them. Knob: NOISE_PCT.
 //   0   = perfect sensor
 //   100 = jitter up to ±NOISE_SCALE_M on each axis
-const NOISE_PCT = 2;
-const NOISE_SCALE_M = 5;
+const NOISE_PCT = 1;
+const NOISE_SCALE_M = 3;
 
 function clamp(v: number, limit: number): number {
   return Math.max(-limit, Math.min(limit, v));
