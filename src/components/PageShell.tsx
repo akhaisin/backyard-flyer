@@ -15,6 +15,13 @@ import './styles.css';
 const TRUSTED_ORIGINS = ['https://mefly.dev', 'https://www.mefly.dev'];
 const GITHUB_REPO = 'https://github.com/akhaisin/backyard-flyer';
 
+// Accept messages from production hosts plus localhost (dev). Without the
+// localhost branch, hash sync from mefly.dev → backyard-flyer is silently
+// dropped during local development.
+function isTrustedHost(origin: string): boolean {
+  return TRUSTED_ORIGINS.includes(origin) || /^https?:\/\/localhost(:\d+)?$/.test(origin);
+}
+
 export interface PageShellProps {
   pageIds: string[];
   pageSimIds: Record<string, string>;
@@ -103,7 +110,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
   useEffect(() => {
     if (!isEmbedded) return;
     function onMessage(e: MessageEvent) {
-      if (!TRUSTED_ORIGINS.includes(e.origin)) return;
+      if (!isTrustedHost(e.origin)) return;
       if (e.data?.type !== 'NAVIGATE_TO_HASH') return;
       const hash: string = e.data.hash ?? '';
       if (!hash) return;

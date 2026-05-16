@@ -65,6 +65,36 @@ const pageTocNames: Record<string, string> = Object.fromEntries(
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Backyard Flyer</title>
+
+    {/*
+      Bootstrap hash sync — registers a message listener at HTML parse time so
+      we catch the host's initial NAVIGATE_TO_HASH (which is posted on the
+      iframe.load event, before React's useEffect has had a chance to run).
+      Applies the hash to window.location directly; React's hashchange
+      listener picks it up from there.
+
+      Lives in plain JS / inline script so it runs synchronously, before any
+      module imports. PageShell still registers its own listener for
+      subsequent NAVIGATE_TO_HASH messages — both listeners are idempotent.
+    */}
+    <script is:inline>
+      (function () {
+        if (window.parent === window) return;
+        var TRUSTED = ['https://mefly.dev', 'https://www.mefly.dev'];
+        function isTrusted(origin) {
+          return TRUSTED.indexOf(origin) !== -1 || /^https?:\/\/localhost(:\d+)?$/.test(origin);
+        }
+        window.addEventListener('message', function (e) {
+          if (!isTrusted(e.origin || '')) return;
+          if (!e.data || e.data.type !== 'NAVIGATE_TO_HASH') return;
+          var hash = e.data.hash || '';
+          if (!hash) return;
+          var next = hash.charAt(0) === '#' ? hash : '#' + hash;
+          if (window.location.hash !== next) window.location.hash = next;
+        });
+      })();
+    </script>
+
     <style>
       html, body { height: 100%; overflow: hidden; }
       #page-store { display: none; }
