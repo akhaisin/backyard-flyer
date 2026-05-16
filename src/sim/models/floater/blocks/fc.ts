@@ -1,27 +1,24 @@
-// Flight controller: computes acceleration towards the current waypoint.
-// Compensates gravity so the floater can hover.
-// Target coordinates are resolved by mission.ts and passed via state.
+// Flight controller: simple proportional control.
+// Outputs desired thrust vector in world frame, scaled as throttle % (0-100).
+// HW translates % to Newtons and applies inertia/limits.
 
 type FcIn = { x: number; y: number; z: number; vx: number; vy: number; vz: number; targetX: number; targetY: number; targetZ: number };
-type FcOut = { ax: number; ay: number; az: number };
+type FcOut = { tdx: number; tdy: number; tdz: number };
 
-const K = 3.0;      // proportional gain
-const DRAG = 1.5;   // velocity damping
-const GRAVITY = 9.81;
-const MAX_ACC = 20.0;
-
-function clamp(v: number): number {
-  return Math.max(-MAX_ACC, Math.min(MAX_ACC, v));
-}
+const K = 3.0;             // position gain
+const KV = 1.5;            // velocity damping
+const MASS = 1.0;          // kg
+const GRAVITY = 9.81;      // m/s²
+const MAX_THRUST_N = 30;   // must match HW
 
 export function fc(state: FcIn): FcOut {
-  const dx = state.targetX - state.x;
-  const dy = state.targetY - state.y;
-  const dz = state.targetZ - state.z;
+  // Desired net force (Newtons, world frame): proportional pull to target,
+  // velocity damping, gravity compensation.
+  const fx = MASS * (K * (state.targetX - state.x) - KV * state.vx);
+  const fy = MASS * (K * (state.targetY - state.y) - KV * state.vy) + MASS * GRAVITY;
+  const fz = MASS * (K * (state.targetZ - state.z) - KV * state.vz);
 
-  return {
-    ax: clamp(dx * K - state.vx * DRAG),
-    ay: GRAVITY + clamp(dy * K - state.vy * DRAG),
-    az: clamp(dz * K - state.vz * DRAG),
-  };
+  // Convert to throttle % (HW saturates if > 100)
+  const k = 100 / MAX_THRUST_N;
+  return { tdx: fx * k, tdy: fy * k, tdz: fz * k };
 }
