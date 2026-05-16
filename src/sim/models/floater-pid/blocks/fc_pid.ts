@@ -19,14 +19,31 @@ const MAX_INT = 40.0;
 const MAX_THRUST_N = 30;
 const DT = 0.05;
 
+// Position sensor noise — uniform per-axis jitter applied to pos readings
+// before the controller sees them. Knob: NOISE_PCT.
+//   0   = perfect sensor
+//   100 = jitter up to ±NOISE_SCALE_M on each axis
+const NOISE_PCT = 2;
+const NOISE_SCALE_M = 5;
+
 function clamp(v: number, limit: number): number {
   return Math.max(-limit, Math.min(limit, v));
 }
 
+function jitter(v: number): number {
+  const amp = (NOISE_PCT / 100) * NOISE_SCALE_M;
+  return v + (Math.random() - 0.5) * 2 * amp;
+}
+
 export function fc_pid(state: FcIn): FcOut {
-  const ex = state.target.x - state.pos.x;
-  const ey = state.target.y - state.pos.y;
-  const ez = state.target.z - state.pos.z;
+  // Noisy position reading — controller never sees true pos directly.
+  const px = jitter(state.pos.x);
+  const py = jitter(state.pos.y);
+  const pz = jitter(state.pos.z);
+
+  const ex = state.target.x - px;
+  const ey = state.target.y - py;
+  const ez = state.target.z - pz;
 
   const ix = clamp(state.err.x + ex * DT, MAX_INT);
   const iy = clamp(state.err.y + ey * DT, MAX_INT);

@@ -13,9 +13,15 @@ interface Vehicle {
   mission: { targetIdx: number; target: Vec3 };
 }
 interface PidState {
+  wind: { fx: number; fz: number };
   vehicles: { v1: Vehicle; v2: Vehicle };
 }
 const view = (s: ModelState): PidState => s as unknown as PidState;
+
+// Wind indicator placement / scaling — tweak freely.
+const WIND_ARROW_POS = new THREE.Vector3(0, 13, 0);
+const WIND_ARROW_LENGTH_PER_N = 1.5;
+const WIND_ARROW_COLOR = 0x00ffff;
 
 export function createFloaterPidSceneHandler(): SceneHandler {
   return (() => {
@@ -28,6 +34,9 @@ export function createFloaterPidSceneHandler(): SceneHandler {
     let mesh2: THREE.Mesh | null = null;
     let trail2Geo: THREE.BufferGeometry | null = null;
     let trail2Line: THREE.Line | null = null;
+
+    let windArrow: THREE.ArrowHelper | null = null;
+    let windBase: THREE.Mesh | null = null;
 
     const waypointMeshes1: Map<number, THREE.Mesh> = new Map();
     const waypointMeshes2: Map<number, THREE.Mesh> = new Map();
@@ -120,6 +129,24 @@ export function createFloaterPidSceneHandler(): SceneHandler {
         const t2 = makeTrail(scene, 0xff8800);
         trail2Geo = t2.geo; trail2Line = t2.line;
 
+        // Wind indicator — small marker at the anchor + arrow that rotates
+        // and scales with the current gust.
+        windBase = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15, 8, 8),
+          new THREE.MeshPhongMaterial({ color: WIND_ARROW_COLOR, emissive: WIND_ARROW_COLOR, emissiveIntensity: 0.5 }),
+        );
+        windBase.position.copy(WIND_ARROW_POS);
+        scene.add(windBase);
+        windArrow = new THREE.ArrowHelper(
+          new THREE.Vector3(1, 0, 0),
+          WIND_ARROW_POS,
+          1,
+          WIND_ARROW_COLOR,
+          0.6,
+          0.4,
+        );
+        scene.add(windArrow);
+
         camera.position.set(0, 18, 30);
         camera.lookAt(0, 5, 5);
       },
@@ -130,10 +157,24 @@ export function createFloaterPidSceneHandler(): SceneHandler {
           v => v.vehicles.v1, state, history);
         paintVehicle(mesh2, trail2Geo, waypointMeshes2, 0xff8800, 0x00ff88,
           v => v.vehicles.v2, state, history);
+
+        // Wind arrow
+        if (windArrow) {
+          const w = view(state).wind;
+          const mag = Math.sqrt(w.fx * w.fx + w.fz * w.fz);
+          if (mag > 0.01) {
+            windArrow.visible = true;
+            windArrow.setDirection(new THREE.Vector3(w.fx, 0, w.fz).normalize());
+            const len = mag * WIND_ARROW_LENGTH_PER_N;
+            windArrow.setLength(len, Math.min(0.6, len * 0.25), Math.min(0.4, len * 0.18));
+          } else {
+            windArrow.visible = false;
+          }
+        }
       },
 
       dispose(scene: THREE.Scene): void {
-        [mesh1, trail1Line, mesh2, trail2Line].forEach(obj => { if (obj) scene.remove(obj); });
+        [mesh1, trail1Line, mesh2, trail2Line, windArrow, windBase].forEach(obj => { if (obj) scene.remove(obj); });
         waypointMeshes1.forEach(m => scene.remove(m));
         waypointMeshes1.clear();
         waypointMeshes2.forEach(m => scene.remove(m));
@@ -143,6 +184,7 @@ export function createFloaterPidSceneHandler(): SceneHandler {
         trail1Geo?.dispose(); trail2Geo?.dispose();
         mesh1 = null; trail1Line = null; trail1Geo = null;
         mesh2 = null; trail2Line = null; trail2Geo = null;
+        windArrow = null; windBase = null;
         sceneRef = null;
       },
     };

@@ -10,6 +10,8 @@ import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
+import windCode from './blocks/wind.ts?raw';
+import { wind } from './blocks/wind';
 import { createFloaterPidSceneHandler } from './floater-pid.scene';
 import type { ModelConfig, ModelState } from '../../engine/types';
 
@@ -55,6 +57,9 @@ export const floaterPidConfig: ModelConfig = {
   modelId: 'floater-pid',
   tickIntervalMs: 50,
   initialState: {
+    // Shared environment — both vehicles experience the same wind gust.
+    // ticksLeft starts at 0 so a fresh gust is sampled on the first tick.
+    wind: { fx: 0, fz: 0, ticksLeft: 0 },
     vehicles: {
       v1: vehicleInit(),
       // v2 carries integral accumulator + previous error for the PID controller
@@ -66,6 +71,17 @@ export const floaterPidConfig: ModelConfig = {
     },
   },
   blocks: [
+    // --- Shared environment ---
+    {
+      sourceId: 'wind',
+      exportName: 'wind',
+      defaultFn: (s) => wind(s as Parameters<typeof wind>[0]),
+      defaultCode: windCode,
+      mapStateIn: (s) => s.wind as ModelState,
+      mapStateOut: (out, s) => ({ ...s, wind: out }),
+      tickFrequency: 1,
+    },
+
     // --- Vehicle 1 (P-only) ---
     {
       sourceId: 'mission_pd',
@@ -112,7 +128,12 @@ export const floaterPidConfig: ModelConfig = {
       defaultCode: worldCode,
       mapStateIn: (s) => {
         const v = vehicle(s, 'v1');
-        return { pos: v.pos, vel: v.vel, actual: (v.thrust as ModelState).actual };
+        const w = s.wind as ModelState;
+        return {
+          pos: v.pos, vel: v.vel,
+          actual: (v.thrust as ModelState).actual,
+          windFx: w.fx, windFz: w.fz,
+        };
       },
       mapStateOut: (out, s) => writeVehicle(s, 'v1', {
         pos: out.pos, vel: out.vel, acc: out.acc,
@@ -174,7 +195,12 @@ export const floaterPidConfig: ModelConfig = {
       defaultCode: worldCode,
       mapStateIn: (s) => {
         const v = vehicle(s, 'v2');
-        return { pos: v.pos, vel: v.vel, actual: (v.thrust as ModelState).actual };
+        const w = s.wind as ModelState;
+        return {
+          pos: v.pos, vel: v.vel,
+          actual: (v.thrust as ModelState).actual,
+          windFx: w.fx, windFz: w.fz,
+        };
       },
       mapStateOut: (out, s) => writeVehicle(s, 'v2', {
         pos: out.pos, vel: out.vel, acc: out.acc,
@@ -205,6 +231,13 @@ export const floaterPidConfig: ModelConfig = {
       series: [
         { var: 'vehicles.v1.mission.loops', label: 'PD',  color: '#4488ff' },
         { var: 'vehicles.v2.mission.loops', label: 'PID', color: '#ff8800' },
+      ],
+    },
+    {
+      label: 'Wind force (N)',
+      series: [
+        { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
+        { var: 'wind.fz', label: 'wind fz', color: '#888888' },
       ],
     },
   ],

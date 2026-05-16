@@ -17,10 +17,27 @@ const MASS = 1.0;
 const GRAVITY = 9.81;
 const MAX_THRUST_N = 30;
 
+// Position sensor noise — uniform per-axis jitter applied to pos readings
+// before the controller sees them. Knob: NOISE_PCT.
+//   0   = perfect sensor
+//   100 = jitter up to ±NOISE_SCALE_M on each axis
+const NOISE_PCT = 2;
+const NOISE_SCALE_M = 5;
+
+function jitter(v: number): number {
+  const amp = (NOISE_PCT / 100) * NOISE_SCALE_M;
+  return v + (Math.random() - 0.5) * 2 * amp;
+}
+
 export function fc_pd(state: FcIn): FcOut {
-  const fx = MASS * (KP * (state.target.x - state.pos.x) - KV * state.vel.x);
-  const fy = MASS * (KP * (state.target.y - state.pos.y) - KV * state.vel.y) + MASS * GRAVITY;
-  const fz = MASS * (KP * (state.target.z - state.pos.z) - KV * state.vel.z);
+  // Noisy position reading — controller never sees the true pos directly.
+  const px = jitter(state.pos.x);
+  const py = jitter(state.pos.y);
+  const pz = jitter(state.pos.z);
+
+  const fx = MASS * (KP * (state.target.x - px) - KV * state.vel.x);
+  const fy = MASS * (KP * (state.target.y - py) - KV * state.vel.y) + MASS * GRAVITY;
+  const fz = MASS * (KP * (state.target.z - pz) - KV * state.vel.z);
 
   const k = 100 / MAX_THRUST_N;
   return { desired: { x: fx * k, y: fy * k, z: fz * k } };

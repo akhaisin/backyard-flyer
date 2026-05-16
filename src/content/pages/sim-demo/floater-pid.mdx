@@ -34,6 +34,15 @@ Press **Start** and watch the two trajectories develop in parallel.
 
 - The blue floater (**PD**) settles near each waypoint with visible overshoot before the velocity term reins it in.
 - The orange floater (**PID**) damps harder and uses an integral term, so it settles smoothly with little overshoot.
+- The cyan **wind arrow** at the top of the scene shows the current gust — direction matches a horizontal compass, length grows with magnitude.
+
+**What to watch over time:**
+
+1. **Settle.** After the first lap or two, the orange (PID) trajectory locks in tight around its waypoints. The integral has caught up to the steady-state wind and pre-loads the right counter-thrust each tick. PD stays a step behind — it has no memory of the disturbance and gets nudged downwind on every approach.
+2. **Strong gust.** Watch for the wind arrow to lengthen sharply and swing to a new direction. Both floaters get knocked off course — PID more than you'd expect, because its integral was tuned for the *previous* gust and now points the wrong way. There's a brief window where PD actually looks better.
+3. **Re-stabilise.** Within ~1–2 seconds PID's integral has unwound the stale bias and re-accumulated for the new wind. The orange trajectory snaps back to its tight pattern; PD remains visibly worse.
+
+That cycle — *settle, perturbation, recover* — is exactly the loop real autopilots run continuously. The lap counter chart is the cleanest summary of the net effect.
 
 <SimVis client:only="react" />
 
@@ -86,6 +95,15 @@ This is *pure* PID — no mass, no gravity feedforward. Unlike PD, the PID contr
 The PID gains (`KP=4.5, KI=0.3, KD=1.5`, integral clamp `MAX_INT=15`) keep the proportional pull stronger than PD's `KP=3.0` and damping just below critical (ζ ≈ 0.35). The lesson encoded here: without modeling assistance (mass + gravity), even a well-tuned PID can be out-performed by a simpler PD that knows the plant.
 
 ---
+
+## Disturbances and noise
+
+A separate top-level `wind` block generates random horizontal gusts that affect both vehicles equally. Both FC blocks also receive their position readings with sensor jitter. The knobs:
+
+- **`FORCE_MAX_PCT` in `wind.ts`** *(default 15%)* — peak gust magnitude as a fraction of max thrust. Each gust picks a random direction in the X–Z plane, a random magnitude up to this limit, and a random duration between **`DURATION_MIN_TICKS`** (1 s) and **`DURATION_MAX_TICKS`** (10 s). When the duration expires, a fresh gust is sampled.
+- **`NOISE_PCT` in `fc_pd.ts` and `fc_pid.ts`** *(default 2%)* — uniform per-axis jitter added to the position reading before the control law runs. At 2% (±0.1 m peak) it's barely visible. Crank it past ~20% and the derivative term — especially in the error-derivative form, with its `1/DT` amplification — starts shaking the floater.
+
+What to watch on the **Wind force (N)** chart: a step-like trace as gusts come and go. PD will drift in whichever direction the current gust pushes; PID's integral chases the bias but takes time to catch up before the next gust changes everything. The two knobs interact — noisy sensors make the integral wander, which slows PID's tracking of changing wind. That interaction is most of what real autopilot tuning is about.
 
 ## State shape
 
