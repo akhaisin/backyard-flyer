@@ -1,52 +1,134 @@
-import mission1Code from './blocks/mission1.ts?raw';
-import { mission1 } from './blocks/mission1';
-import mission2Code from './blocks/mission2.ts?raw';
-import { mission2 } from './blocks/mission2';
-import fc1Code from './blocks/fc1.ts?raw';
-import { fc1 } from './blocks/fc1';
+import missionPdCode from './blocks/mission_pd.ts?raw';
+import { mission_pd } from './blocks/mission_pd';
+import missionPidCode from './blocks/mission_pid.ts?raw';
+import { mission_pid } from './blocks/mission_pid';
+import fcPdCode from './blocks/fc_pd.ts?raw';
+import { fc_pd } from './blocks/fc_pd';
 import fcPidCode from './blocks/fc_pid.ts?raw';
 import { fc_pid } from './blocks/fc_pid';
+import hwCode from './blocks/hw.ts?raw';
+import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
 import { createFloaterPidSceneHandler } from './floater-pid.scene';
-import type { ModelConfig } from '../../engine/types';
+import type { ModelConfig, ModelState } from '../../engine/types';
+
+// Helpers for nested state access ------------------------------------------------
+// Two vehicles live under `state.vehicles.v1` and `state.vehicles.v2`. Each block
+// works on a single vehicle's sub-tree, so mapStateIn/Out pluck the right slice.
+
+const vehicle = (s: ModelState, key: 'v1' | 'v2'): ModelState =>
+  (s.vehicles as ModelState)[key] as ModelState;
+
+const writeVehicle = (s: ModelState, key: 'v1' | 'v2', patch: ModelState): ModelState => ({
+  ...s,
+  vehicles: {
+    ...(s.vehicles as ModelState),
+    [key]: { ...vehicle(s, key), ...patch },
+  },
+});
+
+const writeMission = (s: ModelState, key: 'v1' | 'v2', m: ModelState): ModelState => {
+  const v = vehicle(s, key);
+  return writeVehicle(s, key, { mission: { ...(v.mission as ModelState), ...m } });
+};
+
+const writeThrust = (s: ModelState, key: 'v1' | 'v2', t: ModelState): ModelState => {
+  const v = vehicle(s, key);
+  return writeVehicle(s, key, { thrust: { ...(v.thrust as ModelState), ...t } });
+};
+
+// Initial state ------------------------------------------------------------------
+
+const vehicleInit = (): ModelState => ({
+  pos: { x: 0, y: 0, z: 0 },
+  vel: { x: 0, y: 0, z: 0 },
+  acc: { x: 0, y: 0, z: 0 },
+  thrust: {
+    desired: { x: 0, y: 0, z: 0 },
+    actual: { x: 0, y: 0, z: 0 },
+  },
+  mission: { targetIdx: 0, dist: 0, target: { x: 0, y: 0, z: 0 }, loops: 0 },
+});
 
 export const floaterPidConfig: ModelConfig = {
   modelId: 'floater-pid',
   tickIntervalMs: 50,
   initialState: {
-    x1: 0, y1: 0, z1: 0, vx1: 0, vy1: 0, vz1: 0, ax1: 0, ay1: 0, az1: 0,
-    targetIdx1: 0, dist1: 0, targetX1: 0, targetY1: 0, targetZ1: 0,
-    x2: 0, y2: 0, z2: 0, vx2: 0, vy2: 0, vz2: 0, ax2: 0, ay2: 0, az2: 0,
-    targetIdx2: 0, dist2: 0, targetX2: 0, targetY2: 0, targetZ2: 0,
-    ex2: 0, ey2: 0, ez2: 0,
+    vehicles: {
+      v1: vehicleInit(),
+      // v2 carries an additional integral accumulator for the PID controller
+      v2: { ...vehicleInit(), err: { x: 0, y: 0, z: 0 } },
+    },
   },
   blocks: [
+    // --- Vehicle 1 (P-only) ---
     {
-      sourceId: 'mission1',
-      exportName: 'mission1',
-      defaultFn: (s) => mission1(s as Parameters<typeof mission1>[0]),
-      defaultCode: mission1Code,
-      mapStateIn: (s) => ({ x1: s.x1, y1: s.y1, z1: s.z1, targetIdx1: s.targetIdx1 }),
-      mapStateOut: (out, s) => ({ ...s, targetIdx1: out.targetIdx1, dist1: out.dist1, targetX1: out.targetX1, targetY1: out.targetY1, targetZ1: out.targetZ1 }),
+      sourceId: 'mission_pd',
+      exportName: 'mission_pd',
+      defaultFn: (s) => mission_pd(s as Parameters<typeof mission_pd>[0]),
+      defaultCode: missionPdCode,
+      mapStateIn: (s) => {
+        const m = vehicle(s, 'v1').mission as ModelState;
+        return { pos: vehicle(s, 'v1').pos, targetIdx: m.targetIdx, loops: m.loops };
+      },
+      mapStateOut: (out, s) => writeMission(s, 'v1', {
+        targetIdx: out.targetIdx, dist: out.dist, target: out.target, loops: out.loops,
+      }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'mission2',
-      exportName: 'mission2',
-      defaultFn: (s) => mission2(s as Parameters<typeof mission2>[0]),
-      defaultCode: mission2Code,
-      mapStateIn: (s) => ({ x2: s.x2, y2: s.y2, z2: s.z2, targetIdx2: s.targetIdx2 }),
-      mapStateOut: (out, s) => ({ ...s, targetIdx2: out.targetIdx2, dist2: out.dist2, targetX2: out.targetX2, targetY2: out.targetY2, targetZ2: out.targetZ2 }),
+      sourceId: 'fc_pd',
+      exportName: 'fc_pd',
+      defaultFn: (s) => fc_pd(s as Parameters<typeof fc_pd>[0]),
+      defaultCode: fcPdCode,
+      mapStateIn: (s) => {
+        const v = vehicle(s, 'v1');
+        return { pos: v.pos, vel: v.vel, target: (v.mission as ModelState).target };
+      },
+      mapStateOut: (out, s) => writeThrust(s, 'v1', { desired: out.desired }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'fc1',
-      exportName: 'fc1',
-      defaultFn: (s) => fc1(s as Parameters<typeof fc1>[0]),
-      defaultCode: fc1Code,
-      mapStateIn: (s) => ({ x: s.x1, y: s.y1, z: s.z1, vx: s.vx1, vy: s.vy1, vz: s.vz1, targetX: s.targetX1, targetY: s.targetY1, targetZ: s.targetZ1 }),
-      mapStateOut: (out, s) => ({ ...s, ax1: out.ax, ay1: out.ay, az1: out.az }),
+      sourceId: 'hw_pd',
+      exportName: 'hw',
+      defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
+      defaultCode: hwCode,
+      mapStateIn: (s) => {
+        const t = (vehicle(s, 'v1').thrust as ModelState);
+        return { desired: t.desired, actual: t.actual };
+      },
+      mapStateOut: (out, s) => writeThrust(s, 'v1', { actual: out.actual }),
+      tickFrequency: 1,
+    },
+    {
+      sourceId: 'world_pd',
+      exportName: 'world',
+      defaultFn: (s) => world(s as Parameters<typeof world>[0]),
+      defaultCode: worldCode,
+      mapStateIn: (s) => {
+        const v = vehicle(s, 'v1');
+        return { pos: v.pos, vel: v.vel, actual: (v.thrust as ModelState).actual };
+      },
+      mapStateOut: (out, s) => writeVehicle(s, 'v1', {
+        pos: out.pos, vel: out.vel, acc: out.acc,
+      }),
+      tickFrequency: 1,
+    },
+
+    // --- Vehicle 2 (PID) ---
+    {
+      sourceId: 'mission_pid',
+      exportName: 'mission_pid',
+      defaultFn: (s) => mission_pid(s as Parameters<typeof mission_pid>[0]),
+      defaultCode: missionPidCode,
+      mapStateIn: (s) => {
+        const m = vehicle(s, 'v2').mission as ModelState;
+        return { pos: vehicle(s, 'v2').pos, targetIdx: m.targetIdx, loops: m.loops };
+      },
+      mapStateOut: (out, s) => writeMission(s, 'v2', {
+        targetIdx: out.targetIdx, dist: out.dist, target: out.target, loops: out.loops,
+      }),
       tickFrequency: 1,
     },
     {
@@ -54,47 +136,70 @@ export const floaterPidConfig: ModelConfig = {
       exportName: 'fc_pid',
       defaultFn: (s) => fc_pid(s as Parameters<typeof fc_pid>[0]),
       defaultCode: fcPidCode,
-      mapStateIn: (s) => ({ x: s.x2, y: s.y2, z: s.z2, vx: s.vx2, vy: s.vy2, vz: s.vz2, targetX: s.targetX2, targetY: s.targetY2, targetZ: s.targetZ2, ex: s.ex2, ey: s.ey2, ez: s.ez2 }),
-      mapStateOut: (out, s) => ({ ...s, ax2: out.ax, ay2: out.ay, az2: out.az, ex2: out.ex, ey2: out.ey, ez2: out.ez }),
+      mapStateIn: (s) => {
+        const v = vehicle(s, 'v2');
+        return {
+          pos: v.pos, vel: v.vel,
+          target: (v.mission as ModelState).target,
+          err: v.err,
+        };
+      },
+      mapStateOut: (out, s) => {
+        const withThrust = writeThrust(s, 'v2', { desired: out.desired });
+        return writeVehicle(withThrust, 'v2', { err: out.err });
+      },
       tickFrequency: 1,
     },
     {
-      sourceId: 'world',
+      sourceId: 'hw_pid',
+      exportName: 'hw',
+      defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
+      defaultCode: hwCode,
+      mapStateIn: (s) => {
+        const t = (vehicle(s, 'v2').thrust as ModelState);
+        return { desired: t.desired, actual: t.actual };
+      },
+      mapStateOut: (out, s) => writeThrust(s, 'v2', { actual: out.actual }),
+      tickFrequency: 1,
+    },
+    {
+      sourceId: 'world_pid',
       exportName: 'world',
       defaultFn: (s) => world(s as Parameters<typeof world>[0]),
       defaultCode: worldCode,
-      mapStateIn: (s) => ({ x1: s.x1, y1: s.y1, z1: s.z1, vx1: s.vx1, vy1: s.vy1, vz1: s.vz1, ax1: s.ax1, ay1: s.ay1, az1: s.az1, x2: s.x2, y2: s.y2, z2: s.z2, vx2: s.vx2, vy2: s.vy2, vz2: s.vz2, ax2: s.ax2, ay2: s.ay2, az2: s.az2 }),
-      mapStateOut: (out, s) => ({ ...s, x1: out.x1, y1: out.y1, z1: out.z1, vx1: out.vx1, vy1: out.vy1, vz1: out.vz1, x2: out.x2, y2: out.y2, z2: out.z2, vx2: out.vx2, vy2: out.vy2, vz2: out.vz2 }),
+      mapStateIn: (s) => {
+        const v = vehicle(s, 'v2');
+        return { pos: v.pos, vel: v.vel, actual: (v.thrust as ModelState).actual };
+      },
+      mapStateOut: (out, s) => writeVehicle(s, 'v2', {
+        pos: out.pos, vel: out.vel, acc: out.acc,
+      }),
       tickFrequency: 1,
     },
   ],
   sceneHandler: createFloaterPidSceneHandler,
   charts: [
     {
-      label: 'X Position',
+      label: 'Y position — PD (blue) vs PID (orange)',
       series: [
-        { var: 'x1',       label: 'P  x',      color: '#e74c3c' },
-        { var: 'targetX1', label: 'P  tgt-x',  color: '#f1948a' },
-        { var: 'x2',       label: 'PID x',     color: '#2980b9' },
-        { var: 'targetX2', label: 'PID tgt-x', color: '#85c1e9' },
+        { var: 'vehicles.v1.pos.y',            label: 'PD  y',      color: '#4488ff' },
+        { var: 'vehicles.v1.mission.target.y', label: 'PD  target', color: '#aaccff' },
+        { var: 'vehicles.v2.pos.y',            label: 'PID y',      color: '#ff8800' },
+        { var: 'vehicles.v2.mission.target.y', label: 'PID target', color: '#ffcc88' },
       ],
     },
     {
-      label: 'Y Position',
+      label: 'Distance to target',
       series: [
-        { var: 'y1',       label: 'P  y',      color: '#e74c3c' },
-        { var: 'targetY1', label: 'P  tgt-y',  color: '#f1948a' },
-        { var: 'y2',       label: 'PID y',     color: '#2980b9' },
-        { var: 'targetY2', label: 'PID tgt-y', color: '#85c1e9' },
+        { var: 'vehicles.v1.mission.dist', label: 'PD',  color: '#4488ff' },
+        { var: 'vehicles.v2.mission.dist', label: 'PID', color: '#ff8800' },
       ],
     },
     {
-      label: 'Z Position',
+      label: 'Laps completed',
       series: [
-        { var: 'z1',       label: 'P  z',      color: '#e74c3c' },
-        { var: 'targetZ1', label: 'P  tgt-z',  color: '#f1948a' },
-        { var: 'z2',       label: 'PID z',     color: '#2980b9' },
-        { var: 'targetZ2', label: 'PID tgt-z', color: '#85c1e9' },
+        { var: 'vehicles.v1.mission.loops', label: 'PD',  color: '#4488ff' },
+        { var: 'vehicles.v2.mission.loops', label: 'PID', color: '#ff8800' },
       ],
     },
   ],

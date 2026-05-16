@@ -5,16 +5,17 @@ import { makeAxes } from '../../sceneUtils';
 const TRAIL_LENGTH = 400;
 const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);
 
-// This model still uses flat state — single typed view at the boundary.
+// Typed view of the floater-pid state — single cast at the boundary.
+type Vec3 = { x: number; y: number; z: number };
+interface Vehicle {
+  pos: Vec3;
+  vel: Vec3;
+  mission: { targetIdx: number; target: Vec3 };
+}
 interface PidState {
-  x1: number; y1: number; z1: number; targetIdx1: number;
-  targetX1: number; targetY1: number; targetZ1: number;
-  x2: number; y2: number; z2: number; targetIdx2: number;
-  targetX2: number; targetY2: number; targetZ2: number;
-  [key: string]: number;
+  vehicles: { v1: Vehicle; v2: Vehicle };
 }
 const view = (s: ModelState): PidState => s as unknown as PidState;
-
 
 export function createFloaterPidSceneHandler(): SceneHandler {
   return (() => {
@@ -28,8 +29,8 @@ export function createFloaterPidSceneHandler(): SceneHandler {
     let trail2Geo: THREE.BufferGeometry | null = null;
     let trail2Line: THREE.Line | null = null;
 
-    let waypointMeshes1: Map<number, THREE.Mesh> = new Map();
-    let waypointMeshes2: Map<number, THREE.Mesh> = new Map();
+    const waypointMeshes1: Map<number, THREE.Mesh> = new Map();
+    const waypointMeshes2: Map<number, THREE.Mesh> = new Map();
     let axisObjects: THREE.Object3D[] = [];
 
     function ensureWaypoint(scene: THREE.Scene, map: Map<number, THREE.Mesh>, idx: number, x: number, y: number, z: number, baseColor: number): void {
@@ -49,15 +50,42 @@ export function createFloaterPidSceneHandler(): SceneHandler {
       return { geo, line };
     }
 
-    function updateTrail(geo: THREE.BufferGeometry, history: ModelState[], xk: string, yk: string, zk: string): void {
+    function updateTrail(geo: THREE.BufferGeometry, history: ModelState[], pick: (v: PidState) => Vec3): void {
       const trail = history.slice(-TRAIL_LENGTH);
       const pos = geo.attributes.position as THREE.BufferAttribute;
       trail.forEach((s, i) => {
-        const v = view(s);
-        pos.setXYZ(i, v[xk], v[yk], v[zk]);
+        const p = pick(view(s));
+        pos.setXYZ(i, p.x, p.y, p.z);
       });
       pos.needsUpdate = true;
       geo.setDrawRange(0, trail.length);
+    }
+
+    function paintVehicle(
+      mesh: THREE.Mesh,
+      trailGeo: THREE.BufferGeometry,
+      waypointMap: Map<number, THREE.Mesh>,
+      baseColor: number,
+      activeColor: number,
+      pick: (v: PidState) => Vehicle,
+      state: ModelState,
+      history: ModelState[],
+    ): void {
+      if (!sceneRef) return;
+      const v = pick(view(state));
+
+      // Waypoints: discover only from history (initial-state target is a placeholder)
+      for (const h of history) {
+        const hv = pick(view(h));
+        ensureWaypoint(sceneRef, waypointMap, Math.round(hv.mission.targetIdx), hv.mission.target.x, hv.mission.target.y, hv.mission.target.z, baseColor);
+      }
+      const activeIdx = Math.round(v.mission.targetIdx);
+      waypointMap.forEach((m, i) => {
+        (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx ? activeColor : baseColor);
+      });
+
+      mesh.position.set(v.pos.x, v.pos.y, v.pos.z);
+      updateTrail(trailGeo, history, vs => pick(vs).pos);
     }
 
     return {
@@ -74,7 +102,7 @@ export function createFloaterPidSceneHandler(): SceneHandler {
         scene.add(new THREE.GridHelper(30, 30, 0x222244, 0x111133));
         axisObjects = makeAxes(scene);
 
-        // Floater 1 — blue (P-only)
+        // Vehicle 1 (left, P) — blue
         mesh1 = new THREE.Mesh(
           new THREE.SphereGeometry(0.4, 16, 16),
           new THREE.MeshPhongMaterial({ color: 0x4488ff, emissive: 0x001133 }),
@@ -83,7 +111,7 @@ export function createFloaterPidSceneHandler(): SceneHandler {
         const t1 = makeTrail(scene, 0x4488ff);
         trail1Geo = t1.geo; trail1Line = t1.line;
 
-        // Floater 2 — orange (PID)
+        // Vehicle 2 (right, PID) — orange
         mesh2 = new THREE.Mesh(
           new THREE.SphereGeometry(0.4, 16, 16),
           new THREE.MeshPhongMaterial({ color: 0xff8800, emissive: 0x1a0500 }),
@@ -92,38 +120,16 @@ export function createFloaterPidSceneHandler(): SceneHandler {
         const t2 = makeTrail(scene, 0xff8800);
         trail2Geo = t2.geo; trail2Line = t2.line;
 
-        camera.position.set(25, 25, 25);
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, 18, 30);
+        camera.lookAt(0, 5, 5);
       },
 
       update(state: ModelState, _tick: number, history: ModelState[]): void {
-        if (!mesh1 || !mesh2 || !trail1Geo || !trail2Geo || !sceneRef) return;
-        const v = view(state);
-
-        // Discover waypoints for each floater from history
-        for (const s of history) {
-          const vs = view(s);
-          ensureWaypoint(sceneRef, waypointMeshes1, Math.round(vs.targetIdx1), vs.targetX1, vs.targetY1, vs.targetZ1, 0x4488ff);
-          ensureWaypoint(sceneRef, waypointMeshes2, Math.round(vs.targetIdx2), vs.targetX2, vs.targetY2, vs.targetZ2, 0xff8800);
-        }
-        ensureWaypoint(sceneRef, waypointMeshes1, Math.round(v.targetIdx1), v.targetX1, v.targetY1, v.targetZ1, 0x4488ff);
-        ensureWaypoint(sceneRef, waypointMeshes2, Math.round(v.targetIdx2), v.targetX2, v.targetY2, v.targetZ2, 0xff8800);
-
-        // Highlight each floater's active waypoint
-        const activeIdx1 = Math.round(v.targetIdx1);
-        const activeIdx2 = Math.round(v.targetIdx2);
-        waypointMeshes1.forEach((m, i) => {
-          (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx1 ? 0x00ff88 : 0x4488ff);
-        });
-        waypointMeshes2.forEach((m, i) => {
-          (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx2 ? 0x00ff88 : 0xff8800);
-        });
-
-        mesh1.position.set(v.x1, v.y1, v.z1);
-        mesh2.position.set(v.x2, v.y2, v.z2);
-
-        updateTrail(trail1Geo, history, 'x1', 'y1', 'z1');
-        updateTrail(trail2Geo, history, 'x2', 'y2', 'z2');
+        if (!mesh1 || !mesh2 || !trail1Geo || !trail2Geo) return;
+        paintVehicle(mesh1, trail1Geo, waypointMeshes1, 0x4488ff, 0x00ff88,
+          v => v.vehicles.v1, state, history);
+        paintVehicle(mesh2, trail2Geo, waypointMeshes2, 0xff8800, 0x00ff88,
+          v => v.vehicles.v2, state, history);
       },
 
       dispose(scene: THREE.Scene): void {

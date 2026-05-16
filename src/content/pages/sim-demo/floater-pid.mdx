@@ -5,89 +5,95 @@ modelId: floater-pid
 toc-name: floater-PID
 ---
 
-import SimSource from '../../../sim/components/SimSource'
 import SimVis from '../../../sim/components/SimVis'
 import SimCharts from '../../../sim/components/SimCharts'
 
-# P vs PID — two controllers, one route
+# PD vs PID — two controllers, side by side
 
-Two floaters fly the same waypoints simultaneously. The **blue one** uses a pure proportional controller — nothing but `K × error`. The **orange one** uses a full PID controller.
+Two floaters fly the same flight pattern mirrored across the X axis. The **left, blue** floater is driven by a **PD** controller (proportional + damping). The **right, orange** floater is driven by a full **PID** controller. Everything else — hardware model, physics, waypoint spacing — is identical.
 
-Both share identical missions and identical physics. The only difference is how they compute acceleration.
+The mirror means both vehicles step through the same Y and Z schedule, so the charts show two controllers tracking the *same* targets, just with a sign flip on X.
 
-```
-mission1 → mission2 → fc1 (P) → fc_pid (PID) → world (both)
-```
+## Why not pure P?
 
----
+Before getting into the comparison: why not start with a pure proportional controller — `thrust = K · error` and nothing else?
 
-## The proportional controller (blue)
+Because **pure P doesn't converge**. With no term that dissipates energy, the floater behaves like a frictionless spring: it accelerates toward the target, overshoots, decelerates on the far side, accelerates back, and oscillates forever. The waypoint threshold (1.5 m) never catches a stable approach, and the demo never progresses past waypoint 0.
 
-The `fc1.ts` block computes acceleration purely from the current position error:
+There's a familiar example of this exact failure mode at planetary scale:
 
-```
-ax = KP × (targetX − x)
-ay = GRAVITY + KP × (targetY − y)
-az = KP × (targetZ − z)
-```
+> The Moon orbits the Earth indefinitely. Earth's gravity is, conceptually, a "pure P" controller — a restoring force toward a target point, with no damping at all. There's no friction in space, so no energy is dissipated, and the Moon traces the same loop forever. Satellites in low Earth orbit *do* eventually fall — but only because the thin upper atmosphere provides a tiny amount of damping. Without it, they'd orbit forever too.
 
-With no velocity term, the controller behaves like a spring. The floater accelerates hard toward the target, overshoots, then accelerates back. It oscillates indefinitely around each waypoint rather than settling.
-
-<SimSource sourceIds={['fc1']} autoHeight client:only="react" />
+So the simplest controller that can actually settle on a waypoint needs at least one dissipative term. The blue floater uses the minimal addition: a derivative term applied as `−KV · velocity`, which pulls back against motion. That's PD.
 
 ---
 
-## The PID controller (orange)
+## See them fly
 
-`fc_pid.ts` adds two more terms on top of the proportional gain:
+Press **Start** and watch the two trajectories develop in parallel.
 
-**Integral (I)** — accumulates position error over time. If the floater is consistently offset from the target, the integral grows and pushes harder. It eliminates steady-state error.
-
-**Derivative (D)** — applied to velocity (the derivative of position error for a stationary target). It damps the motion before the floater overshoots, acting like air resistance but fully under your control.
-
-```
-ex += (targetX − x) × DT        ← integrate error
-ax = KP×error + KI×ex − KD×vx   ← P + I − D
-```
-
-<SimSource sourceIds={['fc_pid']} autoHeight client:only="react" />
-
----
-
-## Run both side by side
-
-Press **Start** to launch both floaters from the same position along the same route.
-
-- **Blue (P-only)** — oscillates around each waypoint, never fully settling
-- **Orange (PID)** — converges smoothly, arrives and holds position
+- The blue floater (**PD**) settles near each waypoint with visible overshoot before the velocity term reins it in.
+- The orange floater (**PID**) damps harder and uses an integral term, so it settles smoothly with little overshoot.
 
 <SimVis client:only="react" />
 
 ---
 
-## Compare on the charts
+## Watch the convergence
 
-Each chart shows one axis. Four series per chart:
+The first chart plots each floater's Y position alongside its own Y target. Both targets follow the same step pattern (the X mirror doesn't affect Y), so this is a fair side-by-side of how each controller tracks the same schedule.
 
-| Series | Meaning |
-|---|---|
-| P x (solid red) | Blue floater actual position |
-| P tgt-x (light red) | Blue floater target |
-| PID x (solid blue) | Orange floater actual position |
-| PID tgt-x (light blue) | Orange floater target |
+The second chart shows distance to the active waypoint — a controller-independent quality metric. The PD trace bounces toward zero; the PID trace decays cleanly.
 
-Watch the P-only lines oscillate around their targets while the PID lines converge and hold.
+The third chart is the most direct measure of "who's faster": each line is the number of full laps that controller has completed. Both floaters are racing the same circuit on opposite sides of the mirror, so a steeper slope means more laps per tick — that's PID winning by virtue of not wasting time oscillating.
 
-<SimCharts chartId="X Position" client:only="react" />
-<SimCharts chartId="Y Position" client:only="react" />
-<SimCharts chartId="Z Position" client:only="react" />
+<SimCharts client:only="react" />
 
 ---
 
-## Things to experiment with
+## How it works
 
-- Raise `KP` in `fc1.ts` — faster but wilder oscillation
-- Set `KD = 0` in `fc_pid.ts` — watch the PID start oscillating too (I alone can't damp)
-- Set `KI = 0` in `fc_pid.ts` — the orange floater will lag behind targets (no integral to close the gap)
-- Reduce `KP` in `fc_pid.ts` below 1.0 — sluggish response; the integral eventually compensates but slowly
-- Change `THRESHOLD` in `mission1.ts` or `mission2.ts` independently — give one floater looser waypoint acceptance than the other and watch them diverge routes
+Both floaters share the same four-block chain introduced by the [Floater model](#sim-demo/floater):
+
+```
+mission → fc → hw → world
+```
+
+`hw` and `world` are byte-identical between the two vehicles — same engine, same physics. Only `mission` (the waypoint table) and `fc` (the control law) differ.
+
+### PD (`fc_pd.ts`)
+
+```
+thrust = KP · (target − pos) − KV · velocity
+```
+
+- **Proportional** (`KP=3.0`): the main pull toward the target.
+- **Derivative** (`KV=0.5`, applied as `−KV · velocity`): pulls against motion, dissipating the energy that pure P would let bounce around forever.
+
+This is the *minimum viable* controller. It converges, but it overshoots and leaves a small steady-state error (gravity is compensated as a constant force, but any miscalibration accumulates as drift).
+
+### PID (`fc_pid.ts`)
+
+```
+thrust = KP · error + KI · ∫error · dt − KD · velocity
+```
+
+The **integral** term is the new addition: it accumulates persistent error over time and pushes harder if the floater is consistently offset. This closes the steady-state gap that PD alone can't.
+
+The PID gains (`KP=4.5, KI=0.3, KD=1.5`, integral clamp `MAX_INT=15`) are tuned to beat PD on lap time: a stronger proportional pull than PD's `KP=3.0`, combined with enough derivative damping (ζ ≈ 0.35) to suppress the oscillation that costs PD its convergence speed. The integral stays modest — on a racing task with moving targets, large `KI` causes windup and overshoot.
+
+---
+
+## State shape
+
+The state nests both vehicles under a `vehicles` sub-tree so each one carries its own physics and mission independently:
+
+```
+vehicles: {
+  v1: { pos, vel, acc, thrust: { desired, actual }, mission: { ... } },
+  v2: { pos, vel, acc, thrust: { desired, actual }, mission: { ... },
+        err: { x, y, z } },          // PID integral accumulator
+}
+```
+
+Only `v2` carries the PID integral. The two vehicles run independent block instances scoped to their own sub-trees — `hw` and `world` are the same function called twice per tick, once per floater.

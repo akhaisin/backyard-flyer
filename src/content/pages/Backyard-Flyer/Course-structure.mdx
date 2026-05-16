@@ -13,6 +13,6 @@ The course is a **work in progress**. The full curriculum will build up from a s
 
 - **[Floater — multi-block model with simulated hardware](#sim-demo/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
 
-- **[P vs PID — two controllers, one route](#sim-demo/floater-pid)** — two floaters fly the same waypoints side by side. One uses a pure proportional controller, the other a full PID. Same mission, same physics — the only difference is how acceleration is computed.
+- **[PD vs PID — two controllers, side by side](#sim-demo/floater-pid)** — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
 
 More models (attitude control, real-world disturbances, full quadcopter) will follow.

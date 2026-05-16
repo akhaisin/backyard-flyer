@@ -6,23 +6,18 @@ type MissionIn = { pos: Vec3; targetIdx: number };
 type MissionOut = { targetIdx: number; dist: number; target: Vec3 };
 
 const WAYPOINTS: Vec3[] = [
-  { x: -2, y: 5, z: -3 },
-  { x: 10, y: 5, z: 0 },
-  { x: 10, y: 10, z: 10 },
-  { x: 0, y: 5, z: 15 },
+  { x: -5,  y: 5,  z: -5 },
+  { x: -10, y: 5,  z: 5  },
+  { x: -10, y: 10, z: 10 },
+  { x: -5,  y: 5,  z: 15 },
 ];
 
 const THRESHOLD = 1.5;
-const MAX_LOOPS = 3;
+
 
 export function mission(state: MissionIn): MissionOut {
   const idx = Math.round(state.targetIdx) % WAYPOINTS.length;
-  const loops = Math.round(state.targetIdx / WAYPOINTS.length);
 
-  if (loops > MAX_LOOPS) {
-    const distZero = Math.sqrt(state.pos.x * state.pos.x + state.pos.y * state.pos.y + state.pos.z * state.pos.z);
-    return { targetIdx: state.targetIdx, dist: distZero, target: { x: 0, y: 0, z: 0 } };
-  }
 
   const wp = WAYPOINTS[idx];
   const dx = wp.x - state.pos.x;
