@@ -1,6 +1,6 @@
 import incCode from './blocks/inc.ts?raw';
 import { l1 } from './blocks/inc';
-import { createIncSceneHandler } from './inc.scene';
+import IncVis from './inc.vis';
 import type { ModelConfig } from '../../engine/types';
 
 export const incConfig: ModelConfig = {
@@ -18,7 +18,7 @@ export const incConfig: ModelConfig = {
       tickFrequency: 1,
     },
   ],
-  sceneHandler: createIncSceneHandler,
+  vis: IncVis,
   charts: [
     {
       label: 'Value',

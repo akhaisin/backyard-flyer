@@ -1,0 +1,44 @@
+---
+order: 3
+simId: sim-demo/pid-tutorial
+modelId: pid-tutorial
+---
+
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# PID control fundamentals
+
+A **PID controller** drives a system's output toward a desired target. It does so by computing the error between target and actual output, and emitting a control signal made of three terms:
+
+- **P** — proportional to current error
+- **I** — proportional to accumulated error over time
+- **D** — proportional to the rate of change of error
+
+The diagram below shows the three blocks wired in a feedback loop:
+
+```
+setpoint  ──error──→  controller  ──control──→  plant
+   ↑                                                │
+   └────────────────── plant.out ───────────────────┘
+```
+
+Drag the sliders to change the **target**, the **PID gains** (Kp, Ki, Kd), or the **plant** parameters (mass, damping). Press **Start** to run.
+
+Sliders apply live — you can adjust them while the simulation is running and watch the response change. **Reset** restores the slider defaults; **rewind** scrubs back through history (sliders are read-only and follow the historical values while you rewind).
+
+<SimVis client:only="react" />
+
+---
+
+## Behaviour to try
+
+- Start with **Kp = 1, Ki = 0, Kd = 0**. The output rises toward the target but settles slowly with a small steady-state error.
+- Crank **Kp** up to 5 or more. The response gets faster — but oscillates as Kp climbs.
+- Add **Kd** to damp the oscillation. The output settles more cleanly.
+- Add **Ki** to eliminate the steady-state offset. Watch out for windup at high values.
+- Reduce **Mass** or **Damping** in the plant to make the system "twitchier" — gains that were stable may no longer be.
+
+## Charts
+
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['setpoint.signal_error','controller.control']]} client:only="react" />

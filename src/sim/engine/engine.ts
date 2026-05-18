@@ -1,5 +1,6 @@
 import { stripTypes } from './stripTypes';
-import type { ModelConfig, ModelState, BlockFn } from './types';
+import { setPath } from './types';
+import type { BlockConfig, ModelConfig, ModelState, BlockFn } from './types';
 
 const LS_PREFIX = 'backyard-flyer.sims';
 const LS_VERSION = 'v1';
@@ -11,6 +12,7 @@ function lsKey(simId: string, sourceId: string): string {
 type StateListener = (state: ModelState, tick: number) => void;
 type RunningListener = (running: boolean) => void;
 type ErrorListener = (error: Error | null) => void;
+type InputsListener = (inputs: ModelState) => void;
 
 interface SimInstance {
   config: ModelConfig;
@@ -23,9 +25,21 @@ interface SimInstance {
   running: boolean;
   intervalId: ReturnType<typeof setInterval> | null;
   error: Error | null;
+  liveInputs: ModelState;
+  defaultInputs: ModelState;
   stateListeners: Set<StateListener>;
   runningListeners: Set<RunningListener>;
   errorListeners: Set<ErrorListener>;
+  inputsListeners: Set<InputsListener>;
+}
+
+function buildDefaultInputs(blocks: BlockConfig[]): ModelState {
+  const inputs: ModelState = {};
+  for (const block of blocks) {
+    if (!block.inputs) continue;
+    inputs[block.sourceId] = structuredClone(block.inputs);
+  }
+  return inputs;
 }
 
 const instances: Record<string, SimInstance> = {};
@@ -61,9 +75,14 @@ export function initSim(simId: string, config: ModelConfig): void {
     }
   }
 
+  const defaultInputs = buildDefaultInputs(config.blocks);
+  const liveInputs = structuredClone(defaultInputs);
+  const state = structuredClone(config.initialState);
+  state.inputs = structuredClone(liveInputs);
+
   instances[simId] = {
     config,
-    state: structuredClone(config.initialState),
+    state,
     history: [],
     tick: 0,
     activeFns,
@@ -72,9 +91,12 @@ export function initSim(simId: string, config: ModelConfig): void {
     running: false,
     intervalId: null,
     error: null,
+    liveInputs,
+    defaultInputs,
     stateListeners: new Set(),
     runningListeners: new Set(),
     errorListeners: new Set(),
+    inputsListeners: new Set(),
   };
 }
 
@@ -86,7 +108,10 @@ function getInstance(simId: string): SimInstance {
 
 function doTick(simId: string): void {
   const inst = getInstance(simId);
-  let state = inst.state;
+  // Snapshot live inputs into state at start of tick — every block in this tick
+  // sees the same input values, and the per-tick history entry will carry them.
+  // Relies on each block's mapStateOut preserving unrelated state keys.
+  let state: ModelState = { ...inst.state, inputs: structuredClone(inst.liveInputs) };
 
   for (const block of inst.config.blocks) {
     if (inst.tick % block.tickFrequency !== 0) continue;
@@ -118,7 +143,9 @@ export function startSim(simId: string): void {
     Object.assign(inst.activeFns, inst.pendingFns);
     inst.pendingFns = {};
     inst.hasPending = false;
-    inst.state = structuredClone(inst.config.initialState);
+    const freshState = structuredClone(inst.config.initialState);
+    freshState.inputs = structuredClone(inst.liveInputs);
+    inst.state = freshState;
     inst.history = [];
     inst.tick = 0;
     inst.error = null;
@@ -144,11 +171,15 @@ export function stopSim(simId: string): void {
 export function resetSim(simId: string): void {
   const inst = getInstance(simId);
   stopSim(simId);
-  inst.state = structuredClone(inst.config.initialState);
+  inst.liveInputs = structuredClone(inst.defaultInputs);
+  const freshState = structuredClone(inst.config.initialState);
+  freshState.inputs = structuredClone(inst.liveInputs);
+  inst.state = freshState;
   inst.history = [];
   inst.tick = 0;
   inst.error = null;
   inst.errorListeners.forEach(cb => cb(null));
+  inst.inputsListeners.forEach(cb => cb(inst.liveInputs));
 }
 
 export function stageBlock(simId: string, sourceId: string, code: string): { ok: boolean; error?: string } {
@@ -227,4 +258,24 @@ export function subscribeError(simId: string, cb: ErrorListener): () => void {
   const inst = getInstance(simId);
   inst.errorListeners.add(cb);
   return () => inst.errorListeners.delete(cb);
+}
+
+// ── Inputs channel ────────────────────────────────────────────
+// Sliders write here via setInput; values are applied to state at the start of
+// the next tick. Subscribers are notified on every change (including reset).
+
+export function setInput(simId: string, path: string, value: number | null): void {
+  const inst = getInstance(simId);
+  setPath(inst.liveInputs, path, value);
+  inst.inputsListeners.forEach(cb => cb(inst.liveInputs));
+}
+
+export function getLiveInputs(simId: string): ModelState {
+  return instances[simId]?.liveInputs ?? {};
+}
+
+export function subscribeInputs(simId: string, cb: InputsListener): () => void {
+  const inst = getInstance(simId);
+  inst.inputsListeners.add(cb);
+  return () => inst.inputsListeners.delete(cb);
 }

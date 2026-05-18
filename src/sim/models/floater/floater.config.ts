@@ -6,7 +6,7 @@ import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
-import { createFloaterSceneHandler } from './floater.scene';
+import FloaterVis from './floater.vis';
 import type { ModelConfig, ModelState } from '../../engine/types';
 
 export const floaterConfig: ModelConfig = {
@@ -103,7 +103,7 @@ export const floaterConfig: ModelConfig = {
       tickFrequency: 1,
     },
   ],
-  sceneHandler: createFloaterSceneHandler,
+  vis: FloaterVis,
   charts: [
     {
       label: 'Position',

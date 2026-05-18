@@ -1,13 +1,11 @@
 import * as THREE from 'three';
-import type { SceneHandler, ModelState } from '../../engine/types';
+import ThreeCanvas from '../../components/ThreeCanvas';
 import { makeAxes } from '../../sceneUtils';
+import type { SceneHandler, ModelState } from '../../engine/types';
 
 const TRAIL_LENGTH = 400;
-
 const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);
 
-// Typed view of the floater state — kept here so the scene handler can read
-// nested fields without per-access casts.
 type Vec3 = { x: number; y: number; z: number };
 interface FloaterState {
   pos: Vec3;
@@ -16,12 +14,11 @@ interface FloaterState {
 }
 const view = (s: ModelState): FloaterState => s as unknown as FloaterState;
 
-export function createFloaterSceneHandler(): SceneHandler {
-  return (() => {
+function createSceneHandler(): SceneHandler {
   let sceneRef: THREE.Scene | null = null;
   let floaterMesh: THREE.Mesh | null = null;
   let velocityArrow: THREE.ArrowHelper | null = null;
-  let waypointMeshes: Map<number, THREE.Mesh> = new Map();
+  const waypointMeshes: Map<number, THREE.Mesh> = new Map();
   let trailLine: THREE.Line | null = null;
   let trailGeo: THREE.BufferGeometry | null = null;
   let axisObjects: THREE.Object3D[] = [];
@@ -83,15 +80,13 @@ export function createFloaterSceneHandler(): SceneHandler {
       const { pos, vel, mission: { targetIdx } } = s;
 
       // Waypoints come only from mission's actual outputs (history entries).
-      // We deliberately do NOT seed from the current state here: before the
-      // first tick has run, state.mission.target still holds the initial-state
-      // placeholder, which would create a ghost waypoint at the wrong spot.
+      // Before the first tick has run, state.mission.target still holds the
+      // initial-state placeholder, which would create a ghost waypoint.
       for (const h of history) {
         const hs = view(h);
         ensureWaypoint(sceneRef, Math.round(hs.mission.targetIdx), hs.mission.target.x, hs.mission.target.y, hs.mission.target.z);
       }
 
-      // Highlight current target waypoint
       const currentIdx = Math.round(targetIdx);
       waypointMeshes.forEach((m, i) => {
         (m.material as THREE.MeshPhongMaterial).color.setHex(i === currentIdx ? 0x00ff88 : 0xff6622);
@@ -133,5 +128,8 @@ export function createFloaterSceneHandler(): SceneHandler {
       sceneRef = null;
     },
   };
-  })();
+}
+
+export default function FloaterVis() {
+  return <ThreeCanvas sceneHandler={createSceneHandler} />;
 }

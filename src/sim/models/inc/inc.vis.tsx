@@ -1,8 +1,8 @@
 import * as THREE from 'three';
+import ThreeCanvas from '../../components/ThreeCanvas';
 import type { SceneHandler, ModelState } from '../../engine/types';
 
-export function createIncSceneHandler(): SceneHandler {
-  return (() => {
+function createSceneHandler(): SceneHandler {
   let sprite: THREE.Sprite | null = null;
   let canvas: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
@@ -61,5 +61,8 @@ export function createIncSceneHandler(): SceneHandler {
       texture = null;
     },
   };
-  })();
+}
+
+export default function IncVis() {
+  return <ThreeCanvas sceneHandler={createSceneHandler} />;
 }

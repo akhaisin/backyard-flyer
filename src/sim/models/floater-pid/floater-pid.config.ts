@@ -12,7 +12,7 @@ import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
 import windCode from './blocks/wind.ts?raw';
 import { wind } from './blocks/wind';
-import { createFloaterPidSceneHandler } from './floater-pid.scene';
+import FloaterPidVis from './floater-pid.vis';
 import type { ModelConfig, ModelState } from '../../engine/types';
 
 // Helpers for nested state access ------------------------------------------------
@@ -208,7 +208,7 @@ export const floaterPidConfig: ModelConfig = {
       tickFrequency: 1,
     },
   ],
-  sceneHandler: createFloaterPidSceneHandler,
+  vis: FloaterPidVis,
   charts: [
     {
       label: 'Y position — PD (blue) vs PID (orange)',
