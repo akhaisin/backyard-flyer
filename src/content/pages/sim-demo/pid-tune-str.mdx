@@ -1,0 +1,95 @@
+---
+order: 4
+simId: sim-demo/pid-tune-str
+modelId: pid-tune-str
+---
+
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# PID auto-tuning — Self-Tuning Regulator
+
+> ⚠️ **Work in progress.** The STR identification here can occasionally drift into a stuck or off-model state during large setpoint moves. If the tuner stops adapting, press **RE-TUNE** (resets the RLS covariance) or toggle **AUTO → MANUAL → AUTO**. The next chapter shows a more robust auto-tuning approach.
+
+This chapter adds a **tuner** block that derives PID gains automatically — but unlike a constantly-probing tuner, this one only changes the gains when the **plant changes**. Setpoint changes leave the gains alone.
+
+## The idea
+
+A **Self-Tuning Regulator** (STR) is two stages glued together:
+
+1. **System identification.** Run Recursive Least Squares (RLS) online to estimate a small linear model of the plant from `(u, y)` pairs.
+2. **Controller design.** From the *identified* plant, compute PID gains via a closed-form design rule (here, pole placement).
+
+The key property: gains are a *function of the plant model*, not of the error signal. The setpoint never enters the identification regressor, so moving the setpoint cannot move the gains. Only when the *plant itself* changes does the identified model shift — and then the gains step to a new value.
+
+## What the tuner does each tick
+
+### 1. Identify the plant
+
+The mass-damper plant `m·ÿ + β·ẏ = u`, discretized with Euler at `dt=0.05s`, has the exact ARX(2,1) form:
+
+```
+y[k] = a₁·y[k−1] + a₂·y[k−2] + b₁·u[k−1]
+```
+
+with `a₁ = 2 − β·dt/m`, `a₂ = −(1 − β·dt/m)`, `b₁ = dt²/m`.
+
+RLS estimates `(a₁, a₂, b₁)` from the running `(u, y)` data. From those we recover physical parameters:
+
+```
+m̂ = dt² / b̂₁
+β̂ = (2 − â₁) · dt / b̂₁
+```
+
+### 2. Compute gains via pole placement
+
+The closed-loop characteristic polynomial of `mass-damper + PID` is
+
+```
+m·s³ + (β + kd)·s² + kp·s + ki
+```
+
+Match this against the desired `m·(s + ω)³ = m·(s³ + 3ω·s² + 3ω²·s + ω³)` and read off:
+
+```
+kp = 3·m̂·ω²
+ki =   m̂·ω³
+kd = 3·m̂·ω − β̂
+```
+
+`ω` is a design knob — the closed-loop bandwidth. Default: `ω = 1 rad/s`.
+
+## Diagram layout
+
+The Tuner sits *outside* the main signal flow: it observes the plant's input `u` and output `y` (taps), runs RLS+pole-placement, and emits a **parameter-adjustment arrow** (orange, dashed) back to the PID. That arrow modifies the controller's *gains*, not its signal — that's the textbook way to draw an STR.
+
+The **AUTO / MANUAL** switch on the Tuner block decides whether the STR-derived gains are applied:
+
+- **AUTO** (default): tuner pushes its gains into the PID, sliders are read-only and display the live tuner values, the adjust-arrow is bright.
+- **MANUAL**: PID sliders become editable, the controller uses *your* values, the adjust-arrow dims. RLS *pauses* while in MANUAL — the tuner's recommendation stays frozen at whatever it last estimated in AUTO, so transients from your hand-tuning can't drag the identification off. Click AUTO again to resume identification (with full memory of where it left off).
+
+<SimVis client:only="react" />
+
+## Charts
+
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['inputs.plant.mass','tuner.m_hat','inputs.plant.damping','tuner.beta_hat'],['tuner.kp','tuner.ki','tuner.kd']]} client:only="react" />
+
+## What you should see
+
+1. **Press Start.** In AUTO the tuner immediately applies `Kp≈3, Ki≈1, Kd≈2.5` (recovered from default plant params with `ω=1`). The system tracks the target.
+2. **Drag the target slider.** Gains **stay still** — the identified plant hasn't changed.
+3. **Drag the mass slider.** The plant changes; RLS notices a prediction-error spike; `m̂` adapts; the gains step to a new value.
+4. **Drag the damping slider.** Same story — gains step.
+5. **Click MANUAL.** PID sliders unlock. Try the old chapter's hand-tuning game with the values the tuner picked as a starting point. Watch the Identified-plant readouts (`m̂`, `β̂`) — RLS is still running, you just aren't applying its recommendations.
+6. **Click AUTO again.** Gains snap back to the STR values.
+
+## Why setpoint changes don't move the gains
+
+The regressor `φ = [y[k−1], y[k−2], u[k−1]]` uses only plant input/output. Setpoint enters the system through the controller, but the model RLS is fitting is **plant-only** — the controller is outside the box. A setpoint step does excite the plant (and that excitation is *useful* for identification), but it doesn't change *what* the plant is. RLS settles back to the same `(â₁, â₂, b̂₁)` and the gains stay put.
+
+## Things to experiment with
+
+- **`LAMBDA` in `tuner.ts`** — forgetting factor. Closer to `1` (e.g., `0.995`) → smoother gains, slower adaptation to plant changes. Lower (e.g., `0.95`) → tracks plant changes faster but noisier.
+- **`OMEGA` in `tuner.ts`** — desired closed-loop bandwidth. Higher = faster response but bigger gains. Try `0.5` (sluggish) or `2.0` (aggressive).
+- **`INITIAL_P` in `pid-tune.config.ts`** — initial covariance. Larger values make RLS trust early data more (faster initial convergence). Too large can cause numerical wobble.
+

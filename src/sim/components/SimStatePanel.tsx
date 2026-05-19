@@ -12,7 +12,7 @@ function flatten(state: ModelState, prefix = ''): Array<[string, number]> {
   for (const [key, value] of Object.entries(state)) {
     const path = prefix ? `${prefix}.${key}` : key;
     if (typeof value === 'number') out.push([path, value]);
-    else out.push(...flatten(value, path));
+    else if (value !== null) out.push(...flatten(value, path));
   }
   return out;
 }

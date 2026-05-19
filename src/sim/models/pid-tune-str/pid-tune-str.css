@@ -1,0 +1,152 @@
+/* Styles for the PID tutorial diagram. Imported from pid-tutorial.vis.tsx
+ * so they ship only with that model's bundle. */
+
+.pid-diagram {
+  position: relative;
+  width: 100%;
+  background: #0a0a14;
+  font-family: var(--font-mono);
+  flex: none;
+}
+
+.pid-diagram__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;  /* let HTML overlays own all interaction */
+}
+
+/* SVG styling — driven by classes so colors come from one place */
+.pid-block__box      { fill: #14141f; stroke: #ccc; stroke-width: 2.5; }
+.pid-block__divider  { stroke: #666; stroke-width: 1; stroke-dasharray: 2 3; }
+.pid-wire            { stroke: #aaa; stroke-width: 2; fill: none; }
+.pid-wire--feedback  { stroke: #888; stroke-dasharray: 4 3; }
+.pid-junction-dot    { fill: #aaa; }
+.pid-sign            { font: bold 16px var(--font-mono, monospace); }
+.pid-sign--plus      { fill: #6ec97a; }
+.pid-sign--minus     { fill: #e07070; }
+.pid-signal          { font: 12px var(--font-mono, monospace); fill: #dde; }
+.pid-signal--muted   { fill: #888; font-size: 11px; }
+.pid-title           { font: bold 14px var(--font-mono, monospace); fill: #ddd; }
+
+/* HTML overlays — absolutely positioned via percentages derived from viewBox */
+.pid-overlay {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.pid-slider {
+  display: grid;
+  grid-template-columns: 20px 1fr 28px;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  font-size: 11px;
+}
+
+.pid-slider--no-label {
+  grid-template-columns: 1fr 28px;
+}
+
+.pid-slider__label { color: #fff; }
+.pid-slider__input {
+  accent-color: #4488ff;
+  width: 100%;
+  min-width: 0;
+}
+.pid-slider__input:disabled { opacity: 0.4; }
+.pid-slider__value {
+  text-align: right;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tuner-specific additions ──────────────────────────────────────────── */
+
+/* "adjust gains" arrow: oblique, dashed, in tuner-accent color */
+.pid-wire--adjust {
+  stroke: #ffaa44;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  fill: none;
+}
+.pid-wire--adjust-off {
+  stroke: #555;
+  stroke-dasharray: 2 4;
+}
+.pid-signal--adjust {
+  fill: #ffaa44;
+  font: 11px var(--font-mono, monospace);
+  font-style: italic;
+}
+
+/* u/y taps off the main wires */
+.pid-wire--tap {
+  stroke: #888;
+  stroke-width: 1.5;
+}
+
+/* AUTO / MANUAL toggle button */
+.pid-switch {
+  width: 100%;
+  height: 100%;
+  font: bold 10px var(--font-mono, monospace);
+  letter-spacing: 0.5px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid;
+  padding: 0;
+}
+.pid-switch--on {
+  background: #ffaa44;
+  border-color: #cc7711;
+  color: #1a0d00;
+}
+.pid-switch--off {
+  background: transparent;
+  border-color: #666;
+  color: #aaa;
+}
+.pid-switch--retune {
+  background: transparent;
+  border-color: #4488ff;
+  color: #88bbff;
+}
+.pid-switch--retune:hover:not(:disabled) {
+  background: #1a2a44;
+  opacity: 1;
+}
+.pid-switch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pid-switch:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+/* Tuner readouts row */
+.pid-tuner-readouts {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  height: 100%;
+  font: 12px var(--font-mono, monospace);
+}
+.pid-tuner-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.pid-tuner-readout__label {
+  color: #fff;
+  font-size: 11px;
+}
+.pid-tuner-readout__value {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}

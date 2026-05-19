@@ -17,4 +17,8 @@ The course is a **work in progress**. The full curriculum will build up from a s
 
 - **[PD vs PID — two controllers, side by side](#sim-demo/floater-pid)** — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
 
+- **[PID auto-tuning — STR](#sim-demo/pid-tune-str)** ⚠️ *Work in progress.* Self-Tuning Regulator: identify the plant online with RLS, then derive PID gains via pole placement. Demonstrates the *idea* of model-based auto-tuning; the implementation can still drift or get stuck under aggressive setpoint changes — re-tune or toggle AUTO/MANUAL to recover. The next chapter shows a more robust approach.
+
+- **[PID auto-tuning — Relay-feedback](#sim-demo/pid-tune-relay)** — Åström–Hägglund's relay method. Press *Tune Now* and the system temporarily replaces the PID with a bang-bang relay; the resulting limit cycle gives `Ku` and `Tu`, and Ziegler-Nichols yields the gains. This is the algorithm behind the "auto-tune" button on most industrial PID controllers.
+
 More models (attitude control, real-world disturbances, full quadcopter) will follow.

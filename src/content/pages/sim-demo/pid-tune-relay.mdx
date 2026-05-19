@@ -1,0 +1,76 @@
+---
+order: 5
+simId: sim-demo/pid-tune-relay
+modelId: pid-tune-relay
+---
+
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# PID auto-tuning — Relay-feedback (Åström–Hägglund)
+
+Where STR tries to *continuously* identify the plant, **relay-feedback** does something simpler and much more robust: run a single, deliberate experiment on the closed loop, measure two numbers, and compute the PID gains from a textbook formula. This is the algorithm that sits behind the **"Tune"** button on most industrial PID controllers (Eurotherm, Honeywell, ABB, …).
+
+## The idea in one paragraph
+
+Replace the controller with a **bang-bang relay** that drives the plant input to `+d` whenever the error is positive and `−d` whenever it's negative. Any stable plant inside this relay loop will settle into a **sustained limit cycle** — a self-perpetuating oscillation. From that oscillation we read off two numbers: its **period** `Tu` and its **amplitude** `a`. A describing-function approximation gives us the *ultimate gain* `Ku = 4d/(π·a)`. From `Ku` and `Tu` the classic **Ziegler–Nichols rule** spits out PID gains.
+
+## What the tuner does each tick
+
+```
+state ∈ {idle, tuning}
+
+idle:
+   control_out  =  PID output (passthrough)
+
+tuning:
+   sign  =  +1 if error > 0 else −1
+   control_out  =  sign · RELAY_D       ← bang-bang
+   on each zero-crossing of error:
+      half_period = t − t_last_cross
+      track running max/min of plant.out
+      after 1 settling cycle + 4 measured cycles, exit
+        Tu = avg(2 · half_period)
+        a  = avg((peak_high − peak_low) / 2)
+        Ku = 4·RELAY_D / (π·a)
+        kp = 0.6·Ku,  ki = 1.2·Ku/Tu,  kd = 0.075·Ku·Tu
+        state ← idle
+```
+
+The block uses `RELAY_D = 2`, skips the first half-cycle (transient settling), averages over the next 4, and falls back to idle on a 30-second timeout if no oscillation develops.
+
+## Diagram layout
+
+The Tuner sits **in series** between PID and Plant — that's what "replaces the PID output" looks like in a block diagram. When the tuner is idle the wire from PID flows through the Tuner unchanged; when tuning, the wire's output is the relay's bang-bang signal (highlighted orange).
+
+Click **TUNE NOW** to start an experiment. The plant will oscillate visibly for about 5–10 seconds, then `kp / ki / kd` will jump into place on the PID sliders and the loop resumes with the new gains.
+
+<SimVis client:only="react" />
+
+## What you should see
+
+1. **Press Start.** Initial PID gains are weak (`Kp=1, Ki=0, Kd=0`); the system tracks the target sluggishly.
+2. **Press TUNE NOW.** The Tuner box turns orange. The plant starts oscillating around the setpoint as the relay flips back and forth.
+3. After ~5 seconds the `cycle 0/4 → 4/4` counter advances. `Ku` and `Tu` appear in the Tuner readout.
+4. The Tuner turns off, the PID sliders snap to the identified gains, and the loop resumes — now tracking the target tightly.
+5. **Drag the Mass slider.** The plant is different now. **Press TUNE NOW** again. The experiment runs against the new plant and updates the gains.
+
+## Why this is more robust than STR
+
+- **No covariance, no forgetting factor.** No drift, no blowup, no "stuck" state.
+- **Discrete event.** The button-press is a clear gesture; behaviour between presses is predictable (sliders + PID, the same as the previous chapter).
+- **Tightly bounded.** A single experiment runs for at most `MAX_TUNE_TIME = 30 s` and produces gains clamped to the slider ranges.
+- **Industrial pedigree.** Variants of this are the most common auto-tuners in real PLC / DCS systems.
+
+The trade-off: tuning *perturbs the plant on purpose*. In a real system you'd only press Tune when the process can tolerate a small oscillation around the setpoint. STR (the previous chapter) doesn't perturb anything; it just watches.
+
+## Things to experiment with
+
+- **`RELAY_D` in `tuner.ts`** — relay amplitude. Larger = bigger limit-cycle amplitude = lower estimated `Ku` (and faster cycles, since the plant moves more per half-cycle). Try `0.5` (gentle) or `5` (aggressive).
+- **`TARGET_CYCLES`** — how many half-cycles to average. More = more accurate `Ku, Tu` but slower experiment. Try `2` (fast & sloppy) or `8` (slow & precise).
+- **`SKIP_CYCLES`** — initial settling cycles to ignore. The default `1` is usually enough for this plant; raise if you see the first amplitude swing distorting the estimate.
+- **Ziegler-Nichols coefficients** at the end of `tuner.ts`. The standard `(0.6, 1.2, 0.075)` is aggressive; try **Tyreus–Luyben** (`Kp = Ku/2.2`, `Ki = Kp/(2.2·Tu)`, `Kd = Kp·Tu/6.3`) for a more conservative ride.
+
+## Charts
+
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['tuner.kp_new','tuner.ki_new','tuner.kd_new'],['tuner.ku','tuner.tu']]} client:only="react" />
