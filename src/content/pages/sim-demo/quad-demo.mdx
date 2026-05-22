@@ -10,7 +10,7 @@ import SimCharts from '../../../sim/components/SimCharts'
 
 # Quad Demo — full mission sequence
 
-**Quad Demo** is a simple quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm.
+**Quad Demo** is a quadcopter simulation that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm.
 
 The simulation runs at **50 ms per tick** (20 Hz). Four blocks execute in order each tick:
 
@@ -19,9 +19,56 @@ mission → fc → hw → world
 ```
 
 - **`mission`** — state machine that sequences all flight phases
-- **`fc`** — PD flight controller; computes desired thrust toward the current target
-- **`hw`** — actuator model with spool inertia and gimbal slew limits
-- **`world`** — physics; integrates force into velocity and position
+- **`fc`** — cascaded flight controller: position loop → attitude loop → motor mixing
+- **`hw`** — four independent motors with spool-up inertia
+- **`world`** — 6 DOF rigid-body physics: forces and torques → position and orientation
+
+---
+
+## Motor layout
+
+The quad uses an **X configuration** with four fixed-direction motors, all pointing straight up in the body frame. Differential thrust between motors produces roll, pitch, and yaw moments.
+
+```
+   forward (+X)
+       |
+  M0 · · M1        M0 front-left  (CCW)
+    \   /           M1 front-right (CW)
+    /   \           M2 rear-right  (CCW)
+  M3 · · M2        M3 rear-left   (CW)
+       |
+     right (+Z)
+```
+
+| Axis | Torque equation |
+|------|----------------|
+| Roll  (X) | `ARM · (M0 − M1 − M2 + M3)` |
+| Pitch (Z) | `ARM · (M0 + M1 − M2 − M3)` |
+| Yaw   (Y) | `K_DRAG · (−M0 + M1 − M2 + M3)` |
+
+---
+
+## Flight controller — cascaded loops
+
+The FC runs two loops in series every tick.
+
+**Outer loop — position → attitude setpoint**
+
+Position error and velocity feed a PD law that produces a desired acceleration. That acceleration is converted into a desired roll and pitch angle (small-angle approximation), clamped to ±17° to keep the motors out of saturation. Total thrust is scaled up to compensate for the reduced vertical component when the drone is tilted.
+
+**Inner loop — attitude → torques → motor mix**
+
+Attitude error and angular velocity feed a second PD law that produces desired roll, pitch, and yaw torques. The motor mixer then inverts the torque equations to compute the individual motor force required from each of the four motors, converts to 0–1 power fraction, and clamps.
+
+```
+position error → desired tilt angles (clamped ±17°)
+                         ↓
+attitude error → desired torques
+                         ↓
+              motor mix → M0, M1, M2, M3 (0–1)
+```
+
+> **Gain tuning and simulation timestep.** The attitude inner loop runs at the same 20 Hz as everything else. With I = 0.01 kg·m², the discrete stability limit for the derivative gain is `KD < 2·I/DT = 0.4`. Gains above that limit cause the angular velocity to flip sign every tick and diverge instantly — which looks like an uncontrolled pitch-down on the first waypoint leg.
 
 ---
 
@@ -41,15 +88,21 @@ mission → fc → hw → world
 
 ## Watch it fly
 
-Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown.
+Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown. The drone body rotates with the actual simulated attitude.
 
 <SimVis client:only="react" />
 
 ---
 
-## Position and mission charts
+## Position and attitude
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+
+---
+
+## Motor power and mission
+
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
 
 ---
 
@@ -64,6 +117,12 @@ Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
 ## Edit the flight controller
 
 <SimSource sourceIds={['fc']} autoHeight client:only="react" />
+
+---
+
+## Edit the hardware model
+
+<SimSource sourceIds={['hw']} autoHeight client:only="react" />
 
 ---
 

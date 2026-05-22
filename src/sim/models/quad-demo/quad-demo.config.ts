@@ -9,16 +9,20 @@ import { world } from './blocks/world';
 import QuadDemoVis from './quad-demo.vis';
 import type { ModelConfig, ModelState } from '../../engine/types';
 
+const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
+
 export const quadDemoConfig: ModelConfig = {
   modelId: 'quad-demo',
   tickIntervalMs: 50,
   initialState: {
-    pos: { x: 0, y: 0, z: 0 },
-    vel: { x: 0, y: 0, z: 0 },
-    acc: { x: 0, y: 0, z: 0 },
-    thrust: {
-      desired: { x: 0, y: 0, z: 0 },
-      actual: { x: 0, y: 0, z: 0 },
+    pos:        { x: 0, y: 0, z: 0 },
+    vel:        { x: 0, y: 0, z: 0 },
+    acc:        { x: 0, y: 0, z: 0 },
+    attitude:   { x: 0, y: 0, z: 0 },   // roll(x), yaw(y), pitch(z) in radians
+    angularVel: { x: 0, y: 0, z: 0 },   // rad/s, body frame
+    motors: {
+      desired: { ...motors0 },   // FC output  (0–1 per motor)
+      thrust:  { ...motors0 },   // HW output  (N per motor)
     },
     mission: {
       phase: 0,
@@ -36,22 +40,22 @@ export const quadDemoConfig: ModelConfig = {
       defaultFn: (s) => mission(s as Parameters<typeof mission>[0]),
       defaultCode: missionCode,
       mapStateIn: (s) => ({
-        pos: s.pos,
-        phase: (s.mission as ModelState).phase,
-        waypointIdx: (s.mission as ModelState).waypointIdx,
+        pos:          s.pos,
+        phase:        (s.mission as ModelState).phase,
+        waypointIdx:  (s.mission as ModelState).waypointIdx,
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
-        armed: (s.mission as ModelState).armed,
+        armed:        (s.mission as ModelState).armed,
       }),
       mapStateOut: (out, s) => ({
         ...s,
         mission: {
           ...(s.mission as ModelState),
-          phase: out.phase,
-          waypointIdx: out.waypointIdx,
+          phase:        out.phase,
+          waypointIdx:  out.waypointIdx,
           ticksInPhase: out.ticksInPhase,
-          armed: out.armed,
-          target: out.target,
-          dist: out.dist,
+          armed:        out.armed,
+          target:       out.target,
+          dist:         out.dist,
         },
       }),
       tickFrequency: 1,
@@ -62,16 +66,18 @@ export const quadDemoConfig: ModelConfig = {
       defaultFn: (s) => fc(s as Parameters<typeof fc>[0]),
       defaultCode: fcCode,
       mapStateIn: (s) => ({
-        pos: s.pos,
-        vel: s.vel,
-        target: (s.mission as ModelState).target,
-        armed: (s.mission as ModelState).armed,
+        pos:        s.pos,
+        vel:        s.vel,
+        attitude:   s.attitude,
+        angularVel: s.angularVel,
+        target:     (s.mission as ModelState).target,
+        armed:      (s.mission as ModelState).armed,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        thrust: {
-          ...(s.thrust as ModelState),
-          desired: out.desired,
+        motors: {
+          ...(s.motors as ModelState),
+          desired: out.motors,
         },
       }),
       tickFrequency: 1,
@@ -82,14 +88,14 @@ export const quadDemoConfig: ModelConfig = {
       defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
       defaultCode: hwCode,
       mapStateIn: (s) => ({
-        desired: (s.thrust as ModelState).desired,
-        actual: (s.thrust as ModelState).actual,
+        motors:     (s.motors as ModelState).desired,
+        thrustPrev: (s.motors as ModelState).thrust,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        thrust: {
-          ...(s.thrust as ModelState),
-          actual: out.actual,
+        motors: {
+          ...(s.motors as ModelState),
+          thrust: out.thrust,
         },
       }),
       tickFrequency: 1,
@@ -100,15 +106,19 @@ export const quadDemoConfig: ModelConfig = {
       defaultFn: (s) => world(s as Parameters<typeof world>[0]),
       defaultCode: worldCode,
       mapStateIn: (s) => ({
-        pos: s.pos,
-        vel: s.vel,
-        actual: (s.thrust as ModelState).actual,
+        pos:        s.pos,
+        vel:        s.vel,
+        attitude:   s.attitude,
+        angularVel: s.angularVel,
+        thrust:     (s.motors as ModelState).thrust,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        pos: out.pos,
-        vel: out.vel,
-        acc: out.acc,
+        pos:        out.pos,
+        vel:        out.vel,
+        acc:        out.acc,
+        attitude:   out.attitude,
+        angularVel: out.angularVel,
       }),
       tickFrequency: 1,
     },
@@ -118,25 +128,34 @@ export const quadDemoConfig: ModelConfig = {
     {
       label: 'Position',
       series: [
-        { var: 'pos.x', label: 'x', color: '#ff4444' },
+        { var: 'pos.x', label: 'x',   color: '#ff4444' },
         { var: 'pos.y', label: 'alt', color: '#44ff44' },
-        { var: 'pos.z', label: 'z', color: '#4488ff' },
+        { var: 'pos.z', label: 'z',   color: '#4488ff' },
+      ],
+    },
+    {
+      label: 'Attitude (rad)',
+      series: [
+        { var: 'attitude.x', label: 'roll',  color: '#ff8844' },
+        { var: 'attitude.z', label: 'pitch', color: '#44ffaa' },
+        { var: 'attitude.y', label: 'yaw',   color: '#cc88ff' },
+      ],
+    },
+    {
+      label: 'Motor power (0–1)',
+      series: [
+        { var: 'motors.desired.m0', label: 'M0 FL', color: '#ff4444' },
+        { var: 'motors.desired.m1', label: 'M1 FR', color: '#ffaa00' },
+        { var: 'motors.desired.m2', label: 'M2 RR', color: '#44ff88' },
+        { var: 'motors.desired.m3', label: 'M3 RL', color: '#4488ff' },
       ],
     },
     {
       label: 'Mission',
       series: [
         { var: 'mission.phase', label: 'phase', color: '#ffaa00' },
-        { var: 'mission.dist', label: 'dist (m)', color: '#ff66ff' },
+        { var: 'mission.dist',  label: 'dist',  color: '#ff66ff' },
         { var: 'mission.armed', label: 'armed', color: '#00ffaa' },
-      ],
-    },
-    {
-      label: 'Thrust actual (N)',
-      series: [
-        { var: 'thrust.actual.x', label: 'tx', color: '#ff6622' },
-        { var: 'thrust.actual.y', label: 'ty', color: '#22cc66' },
-        { var: 'thrust.actual.z', label: 'tz', color: '#4499ff' },
       ],
     },
   ],

@@ -1,43 +1,30 @@
-// Actuator model: translates desired throttle (%) to actual thrust force (N).
-// Models spool-up inertia and gimbal slew rate limits.
+// Hardware: 4 fixed-direction motors with spool-up inertia.
+// Each motor points straight up in the body frame.
+// Input:  desired motor power (0–1) per motor from FC.
+// Output: actual thrust force (N) per motor after slew-rate limiting.
 
-type Vec3 = { x: number; y: number; z: number };
-type HwIn = { desired: Vec3; actual: Vec3 };
-type HwOut = { actual: Vec3 };
+type Motors4 = { m0: number; m1: number; m2: number; m3: number };
+type HwIn = { motors: Motors4; thrustPrev: Motors4 };
+type HwOut = { thrust: Motors4 };
 
-const MAX_THRUST_N = 30;
-const THRUST_RATE_N_PER_S = 60;
-const DIR_RATE_RAD_PER_S = 5.0;
+const MAX_THRUST_N = 10;         // per motor
+const THRUST_RATE_N_PER_S = 40;  // max thrust change per second per motor
 const DT = 0.05;
 
+function slew(desired: number, current: number, maxDelta: number): number {
+  return current + Math.max(-maxDelta, Math.min(maxDelta, desired - current));
+}
+
 export function hw(state: HwIn): HwOut {
-  const dx = (state.desired.x / 100) * MAX_THRUST_N;
-  const dy = (state.desired.y / 100) * MAX_THRUST_N;
-  const dz = (state.desired.z / 100) * MAX_THRUST_N;
-  const desMagRaw = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  const desMag = Math.min(MAX_THRUST_N, desMagRaw);
-  const actMag = Math.sqrt(state.actual.x ** 2 + state.actual.y ** 2 + state.actual.z ** 2);
-
   const maxDelta = THRUST_RATE_N_PER_S * DT;
-  const newMag = actMag + Math.max(-maxDelta, Math.min(maxDelta, desMag - actMag));
-
-  const desDir = desMagRaw > 1e-6 ? [dx / desMagRaw, dy / desMagRaw, dz / desMagRaw] : null;
-  const actDir = actMag > 1e-6 ? [state.actual.x / actMag, state.actual.y / actMag, state.actual.z / actMag] : null;
-
-  let newDir = desDir;
-  if (actDir && desDir) {
-    const dot = Math.max(-1, Math.min(1, actDir[0] * desDir[0] + actDir[1] * desDir[1] + actDir[2] * desDir[2]));
-    const angle = Math.acos(dot);
-    const maxRot = DIR_RATE_RAD_PER_S * DT;
-    if (angle > maxRot && angle > 1e-6) {
-      const t = maxRot / angle;
-      const sinA = Math.sin(angle);
-      const a = Math.sin((1 - t) * angle) / sinA;
-      const b = Math.sin(t * angle) / sinA;
-      newDir = [a * actDir[0] + b * desDir[0], a * actDir[1] + b * desDir[1], a * actDir[2] + b * desDir[2]];
-    }
-  }
-
-  if (!newDir) return { actual: { x: 0, y: 0, z: 0 } };
-  return { actual: { x: newDir[0] * newMag, y: newDir[1] * newMag, z: newDir[2] * newMag } };
+  const des = state.motors;
+  const prev = state.thrustPrev;
+  return {
+    thrust: {
+      m0: slew(des.m0 * MAX_THRUST_N, prev.m0, maxDelta),
+      m1: slew(des.m1 * MAX_THRUST_N, prev.m1, maxDelta),
+      m2: slew(des.m2 * MAX_THRUST_N, prev.m2, maxDelta),
+      m3: slew(des.m3 * MAX_THRUST_N, prev.m3, maxDelta),
+    },
+  };
 }

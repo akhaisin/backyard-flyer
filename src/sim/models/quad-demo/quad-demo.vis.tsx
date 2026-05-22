@@ -17,11 +17,11 @@ const WP_POSITIONS = [
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
 
 type Vec3 = { x: number; y: number; z: number };
+type Motors4 = { m0: number; m1: number; m2: number; m3: number };
 interface QuadState {
   pos: Vec3;
-  vel: Vec3;
-  acc: Vec3;
-  thrust: { actual: Vec3 };
+  attitude: Vec3;  // roll(x), yaw(y), pitch(z) in radians
+  motors: { thrust: Motors4 };
   mission: { phase: number; waypointIdx: number; armed: number; target: Vec3 };
 }
 const view = (s: ModelState): QuadState => s as unknown as QuadState;
@@ -155,25 +155,25 @@ function createSceneHandler(): SceneHandler {
     update(state: ModelState, _tick: number, history: ModelState[]): void {
       if (!quadGroup || !trailGeo || !sceneRef) return;
       const s = view(state);
-      const { pos, vel, thrust, mission: { phase, waypointIdx, armed } } = s;
+      const { pos, attitude, motors, mission: { phase, waypointIdx, armed } } = s;
 
       // Position
       quadGroup.position.set(pos.x, pos.y, pos.z);
 
-      // Tilt based on horizontal velocity
-      const MAX_TILT = 0.35;
-      const TILT_K = 0.09;
-      quadGroup.rotation.x = Math.max(-MAX_TILT, Math.min(MAX_TILT, vel.z * TILT_K));
-      quadGroup.rotation.z = Math.max(-MAX_TILT, Math.min(MAX_TILT, -vel.x * TILT_K));
+      // Attitude from physics state (roll=x, yaw=y, pitch=z)
+      quadGroup.rotation.order = 'YZX';
+      quadGroup.rotation.x = attitude.x;  // roll
+      quadGroup.rotation.y = attitude.y;  // yaw
+      quadGroup.rotation.z = attitude.z;  // pitch
 
-      // Rotor spin — speed proportional to thrust, only when armed
+      // Rotor spin — speed proportional to each motor's thrust
       if (armed) {
-        const thrustMag = Math.sqrt(thrust.actual.x ** 2 + thrust.actual.y ** 2 + thrust.actual.z ** 2);
-        const spinRate = 0.05 + thrustMag * 0.012;
-        rotorAngle += spinRate;
-        rotorMeshes.forEach((r, i) => {
-          r.rotation.y = rotorAngle * (i % 2 === 0 ? 1 : -1);
-          (r.material as THREE.MeshPhongMaterial).color.setHex(armed ? 0x2255cc : 0x333344);
+        const thrusts = [motors.thrust.m0, motors.thrust.m1, motors.thrust.m2, motors.thrust.m3];
+        thrusts.forEach((t, i) => {
+          const spinRate = 0.03 + t * 0.05;
+          rotorAngle += spinRate;
+          rotorMeshes[i].rotation.y = rotorAngle * (i % 2 === 0 ? 1 : -1);
+          (rotorMeshes[i].material as THREE.MeshPhongMaterial).color.setHex(0x2255cc);
         });
       }
 
