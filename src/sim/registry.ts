@@ -4,6 +4,7 @@ import { floaterPidConfig } from './models/floater-pid/floater-pid.config';
 import { pidTutorialConfig } from './models/pid-tutorial/pid-tutorial.config';
 import { pidTuneStrConfig } from './models/pid-tune-str/pid-tune-str.config';
 import { pidTuneRelayConfig } from './models/pid-tune-relay/pid-tune-relay.config';
+import { quadDemoConfig } from './models/quad-demo/quad-demo.config';
 import type { ModelConfig } from './engine/types';
 
 export const modelRegistry: Record<string, ModelConfig> = {
@@ -13,4 +14,5 @@ export const modelRegistry: Record<string, ModelConfig> = {
   'pid-tutorial': pidTutorialConfig,
   'pid-tune-str': pidTuneStrConfig,
   'pid-tune-relay': pidTuneRelayConfig,
+  'quad-demo': quadDemoConfig,
 };

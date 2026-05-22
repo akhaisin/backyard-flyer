@@ -1,0 +1,66 @@
+---
+order: 10
+simId: sim-demo/quad-demo
+modelId: quad-demo
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad Demo — full mission sequence
+
+**Quad Demo** is a simple quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm.
+
+The simulation runs at **50 ms per tick** (20 Hz). Four blocks execute in order each tick:
+
+```
+mission → fc → hw → world
+```
+
+- **`mission`** — state machine that sequences all flight phases
+- **`fc`** — PD flight controller; computes desired thrust toward the current target
+- **`hw`** — actuator model with spool inertia and gimbal slew limits
+- **`world`** — physics; integrates force into velocity and position
+
+---
+
+## Mission phases
+
+| Phase | Name | What happens |
+|-------|------|--------------|
+| 0 | ARMING | Motors spin up (1 s) |
+| 1 | TAKEOFF | Climb to 5 m altitude |
+| 2 | NAVIGATE | Fly through 4 rectangular waypoints |
+| 3 | RTH | Return to home position at cruise altitude |
+| 4 | LAND | Descend to ground |
+| 5 | DISARMING | Motors spool down (1 s) |
+| 6 | DONE | Simulation complete |
+
+---
+
+## Watch it fly
+
+Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown.
+
+<SimVis client:only="react" />
+
+---
+
+## Position and mission charts
+
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+
+---
+
+## Edit the mission
+
+Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## Edit the flight controller
+
+<SimSource sourceIds={['fc']} autoHeight client:only="react" />
