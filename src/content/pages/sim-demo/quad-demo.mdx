@@ -64,3 +64,16 @@ Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
 ## Edit the flight controller
 
 <SimSource sourceIds={['fc']} autoHeight client:only="react" />
+
+---
+
+## Ground contact model
+
+`world.ts` uses a simple ground-contact rule. Every tick where the quad is at or below `y = 0`:
+
+- Vertical velocity is zeroed if downward (no bounce).
+- Horizontal velocities **vx** and **vz** are multiplied by **0.7** — roughly 30 % lost per tick.
+
+At 20 Hz that bleeds off nearly all lateral inertia in about half a second, standing in for ground friction without needing a full contact-dynamics model. Increase the factor toward 1.0 for an icy surface; drop it toward 0 for an instant stop.
+
+<SimSource sourceIds={['world']} autoHeight client:only="react" />

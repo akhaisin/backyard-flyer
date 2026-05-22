@@ -20,9 +20,11 @@ export function world(state: WorldIn): WorldOut {
   let y = state.pos.y + vy * DT;
   let z = state.pos.z + vz * DT;
 
-  if (y < 0) {
-    y = 0;
-    vy = Math.abs(vy) * 0.2;
+  if (y <= 0) {
+    y = Math.max(0, y);
+    if (vy < 0) vy = 0;
+    vx *= 0.7;
+    vz *= 0.7;
   }
 
   return { pos: { x, y, z }, vel: { x: vx, y: vy, z: vz }, acc: { x: ax, y: ay, z: az } };
