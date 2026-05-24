@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import ThreeCanvas from '../../components/ThreeCanvas';
-import { makeAxes } from '../../sceneUtils';
-import type { SceneHandler, ModelState } from '../../engine/types';
+import ThreeCanvas from '../../../components/ThreeCanvas';
+import { makeAxes } from '../../../sceneUtils';
+import type { SceneHandler, ModelState } from '../../../engine/types';
 
 const TRAIL_LENGTH = 600;
 const ARM_LEN = 0.65;
@@ -221,6 +221,6 @@ function createSceneHandler(): SceneHandler {
   };
 }
 
-export default function QuadDemoVis() {
+export default function QuadL1Vis() {
   return <ThreeCanvas sceneHandler={createSceneHandler} />;
 }

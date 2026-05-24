@@ -6,13 +6,13 @@ import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
-import QuadDemoVis from './quad-demo.vis';
-import type { ModelConfig, ModelState } from '../../engine/types';
+import QuadL1Vis from './quad-l1.vis';
+import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 
-export const quadDemoConfig: ModelConfig = {
-  modelId: 'quad-demo',
+export const quadL1Config: ModelConfig = {
+  modelId: 'quad/quad-l1',
   tickIntervalMs: 50,
   initialState: {
     pos:        { x: 0, y: 0, z: 0 },
@@ -123,7 +123,7 @@ export const quadDemoConfig: ModelConfig = {
       tickFrequency: 1,
     },
   ],
-  vis: QuadDemoVis,
+  vis: QuadL1Vis,
   charts: [
     {
       label: 'Position',
