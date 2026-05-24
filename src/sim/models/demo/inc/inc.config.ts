@@ -1,7 +1,7 @@
 import incCode from './blocks/inc.ts?raw';
 import { l1 } from './blocks/inc';
 import IncVis from './inc.vis';
-import type { ModelConfig } from '../../engine/types';
+import type { ModelConfig } from '../../../engine/types';
 
 export const incConfig: ModelConfig = {
   modelId: 'inc',

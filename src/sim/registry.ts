@@ -1,4 +1,4 @@
-import { incConfig } from './models/inc/inc.config';
+import { incConfig } from './models/demo/inc/inc.config';
 import { floaterConfig } from './models/floater/floater.config';
 import { floaterPidConfig } from './models/floater-pid/floater-pid.config';
 import { pidTutorialConfig } from './models/pid-tutorial/pid-tutorial.config';

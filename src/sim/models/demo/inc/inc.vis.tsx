@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import ThreeCanvas from '../../components/ThreeCanvas';
-import type { SceneHandler, ModelState } from '../../engine/types';
+import ThreeCanvas from '../../../components/ThreeCanvas';
+import type { SceneHandler, ModelState } from '../../../engine/types';
 
 function createSceneHandler(): SceneHandler {
   let sprite: THREE.Sprite | null = null;
