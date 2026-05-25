@@ -45,7 +45,7 @@ export function floaterMesh(
         if (speed > 0.05) {
           velocityArrow.visible = true;
           velocityArrow.setDirection(new THREE.Vector3(v.vel.x, v.vel.y, v.vel.z).normalize());
-          velocityArrow.setLength(Math.min(speed * 0.4, 4), 0.3, 0.15);
+          velocityArrow.setLength(speed * 0.15 + 0.3, 0.3, 0.15);
         } else {
           velocityArrow.visible = false;
         }

@@ -57,9 +57,10 @@ export interface SceneHandler {
 }
 
 export interface ChartSeries {
-  var: string;
+  var?: string;
   label: string;
   color: string;
+  fn?: (state: ModelState) => number;
 }
 
 export interface ChartConfig {

@@ -138,6 +138,17 @@ export const quadL1Config: ModelConfig = {
   vis: QuadVis,
   charts: [
     {
+      label: 'Speed (m/s)',
+      series: [{
+        label: 'speed',
+        color: '#aaffff',
+        fn: (s) => {
+          const v = s.vel as ModelState;
+          return Math.sqrt(((v.x as number) ?? 0) ** 2 + ((v.y as number) ?? 0) ** 2 + ((v.z as number) ?? 0) ** 2);
+        },
+      }],
+    },
+    {
       label: 'Position',
       series: [
         { var: 'pos.x', label: 'x',   color: '#ff4444' },

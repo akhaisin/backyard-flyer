@@ -21,14 +21,14 @@ const sceneHandler = composeScene(() => [
     directional: 0.8,
   }),
   // PD vehicle (blue)
-  floaterMesh(s => ({ pos: view(s).vehicles.v1.pos }), { color: 0x4488ff, emissive: 0x001133 }),
+  floaterMesh(s => ({ pos: view(s).vehicles.v1.pos, vel: view(s).vehicles.v1.vel }), { color: 0x4488ff, emissive: 0x001133 }),
   trail(s => view(s).vehicles.v1.pos, { color: 0x4488ff, length: 400, opacity: 0.6 }),
   waypointTracker(
     s => ({ waypointIdx: view(s).vehicles.v1.mission.targetIdx, target: view(s).vehicles.v1.mission.target }),
     { pendingColor: 0x4488ff },
   ),
   // PID vehicle (orange)
-  floaterMesh(s => ({ pos: view(s).vehicles.v2.pos }), { color: 0xff8800, emissive: 0x1a0500 }),
+  floaterMesh(s => ({ pos: view(s).vehicles.v2.pos, vel: view(s).vehicles.v2.vel }), { color: 0xff8800, emissive: 0x1a0500 }),
   trail(s => view(s).vehicles.v2.pos, { color: 0xff8800, length: 400, opacity: 0.6 }),
   waypointTracker(
     s => ({ waypointIdx: view(s).vehicles.v2.mission.targetIdx, target: view(s).vehicles.v2.mission.target }),

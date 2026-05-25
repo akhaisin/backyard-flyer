@@ -211,6 +211,27 @@ export const floaterPidConfig: ModelConfig = {
   vis: FloaterPidVis,
   charts: [
     {
+      label: 'Speed (m/s)',
+      series: [
+        {
+          label: 'PD speed',
+          color: '#4488ff',
+          fn: (s) => {
+            const v = ((s.vehicles as ModelState).v1 as ModelState).vel as ModelState;
+            return Math.sqrt(((v.x as number) ?? 0) ** 2 + ((v.y as number) ?? 0) ** 2 + ((v.z as number) ?? 0) ** 2);
+          },
+        },
+        {
+          label: 'PID speed',
+          color: '#ff8800',
+          fn: (s) => {
+            const v = ((s.vehicles as ModelState).v2 as ModelState).vel as ModelState;
+            return Math.sqrt(((v.x as number) ?? 0) ** 2 + ((v.y as number) ?? 0) ** 2 + ((v.z as number) ?? 0) ** 2);
+          },
+        },
+      ],
+    },
+    {
       label: 'Y position — PD (blue) vs PID (orange)',
       series: [
         { var: 'vehicles.v1.pos.y',            label: 'PD  y',      color: '#4488ff' },

@@ -108,7 +108,7 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     const history = getHistory(simId);
     dataRef.current = [
       history.map((_, i) => i),
-      ...chart.series.map(s => history.map(h => getPath(h, s.var))),
+      ...chart.series.map(s => history.map(h => s.fn ? s.fn(h) : getPath(h, s.var ?? ''))),
     ];
 
     plotRef.current?.destroy();
@@ -122,7 +122,7 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     const unsub = subscribe(simId, (state, tick) => {
       dataRef.current[0].push(tick);
       chart.series.forEach((s, i) => {
-        dataRef.current[i + 1].push(getPath(state, s.var));
+        dataRef.current[i + 1].push(s.fn ? s.fn(state) : getPath(state, s.var ?? ''));
       });
       plotRef.current?.setData(dataRef.current as uPlot.AlignedData);
     });
