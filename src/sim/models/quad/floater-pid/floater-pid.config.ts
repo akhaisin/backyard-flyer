@@ -13,7 +13,7 @@ import { world } from './blocks/world';
 import windCode from './blocks/wind.ts?raw';
 import { wind } from './blocks/wind';
 import FloaterPidVis from './floater-pid.vis';
-import type { ModelConfig, ModelState } from '../../engine/types';
+import type { ModelConfig, ModelState } from '../../../engine/types';
 
 // Helpers for nested state access ------------------------------------------------
 // Two vehicles live under `state.vehicles.v1` and `state.vehicles.v2`. Each block

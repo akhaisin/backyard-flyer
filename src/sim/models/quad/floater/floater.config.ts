@@ -7,7 +7,7 @@ import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
 import FloaterVis from './floater.vis';
-import type { ModelConfig, ModelState } from '../../engine/types';
+import type { ModelConfig, ModelState } from '../../../engine/types';
 
 export const floaterConfig: ModelConfig = {
   modelId: 'floater',

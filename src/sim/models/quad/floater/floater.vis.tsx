@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import ThreeCanvas from '../../components/ThreeCanvas';
-import { makeAxes } from '../../sceneUtils';
-import type { SceneHandler, ModelState } from '../../engine/types';
+import ThreeCanvas from '../../../components/ThreeCanvas';
+import { makeAxes } from '../../../sceneUtils';
+import type { SceneHandler, ModelState } from '../../../engine/types';
 
 const TRAIL_LENGTH = 400;
 const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);

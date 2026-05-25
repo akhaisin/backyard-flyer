@@ -13,9 +13,9 @@ The course is a **work in progress**. The full curriculum will build up from a s
 
 - **[PID tutorial — control fundamentals](#sim-demo/pid-tutorial)** — a single 1D plant driven by a PID controller. Live sliders for target, gains (Kp, Ki, Kd), and plant parameters (mass, damping) let you build intuition for what each term does — start with pure P, add D to damp oscillation, add I to kill steady-state error.
 
-- **[Floater — multi-block model with simulated hardware](#sim-demo/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
+- **[Floater — multi-block model with simulated hardware](#Backyard-Flyer/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
 
-- **[PD vs PID — two controllers, side by side](#sim-demo/floater-pid)** ⭐ *Recommended* — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
+- **[PD vs PID — two controllers, side by side](#Backyard-Flyer/floater-pid)** ⭐ *Recommended* — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
 
 - **[Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)** ⭐ *Recommended* — a quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm. The `mission` block is a seven-phase state machine; `world` includes a simple ground-contact model (per-tick horizontal friction on landing).
 

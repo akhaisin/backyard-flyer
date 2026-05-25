@@ -1,6 +1,6 @@
 import { incConfig } from './models/demo/inc/inc.config';
-import { floaterConfig } from './models/floater/floater.config';
-import { floaterPidConfig } from './models/floater-pid/floater-pid.config';
+import { floaterConfig } from './models/quad/floater/floater.config';
+import { floaterPidConfig } from './models/quad/floater-pid/floater-pid.config';
 import { pidTutorialConfig } from './models/pid-tutorial/pid-tutorial.config';
 import { pidTuneStrConfig } from './models/pid-tune-str/pid-tune-str.config';
 import { pidTuneRelayConfig } from './models/pid-tune-relay/pid-tune-relay.config';
