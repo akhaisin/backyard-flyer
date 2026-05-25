@@ -1,187 +1,42 @@
-import * as THREE from 'three';
 import ThreeCanvas from '../../../components/ThreeCanvas';
-import { makeAxes } from '../../../sceneUtils';
-import type { SceneHandler, ModelState } from '../../../engine/types';
-
-const TRAIL_LENGTH = 400;
-const wpGeo = new THREE.SphereGeometry(0.25, 8, 8);
+import { composeScene } from '../../../vis/scenePlugin';
+import { baseScene } from '../../../vis/plugins/baseScene';
+import { trail } from '../../../vis/plugins/trail';
+import { waypointTracker } from '../../../vis/plugins/waypointTracker';
+import { floaterMesh } from '../../../vis/plugins/floaterMesh';
+import { windArrow } from '../../../vis/plugins/windArrow';
+import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
-interface Vehicle {
-  pos: Vec3;
-  vel: Vec3;
-  mission: { targetIdx: number; target: Vec3 };
-}
-interface PidState {
-  wind: { fx: number; fz: number };
-  vehicles: { v1: Vehicle; v2: Vehicle };
-}
+interface Vehicle { pos: Vec3; vel: Vec3; mission: { targetIdx: number; target: Vec3 }; }
+interface PidState { wind: { fx: number; fz: number }; vehicles: { v1: Vehicle; v2: Vehicle }; }
 const view = (s: ModelState): PidState => s as unknown as PidState;
 
-const WIND_ARROW_POS = new THREE.Vector3(0, 13, 0);
-const WIND_ARROW_LENGTH_PER_N = 1.5;
-const WIND_ARROW_COLOR = 0x00ffff;
-
-function createSceneHandler(): SceneHandler {
-  let sceneRef: THREE.Scene | null = null;
-
-  let mesh1: THREE.Mesh | null = null;
-  let trail1Geo: THREE.BufferGeometry | null = null;
-  let trail1Line: THREE.Line | null = null;
-
-  let mesh2: THREE.Mesh | null = null;
-  let trail2Geo: THREE.BufferGeometry | null = null;
-  let trail2Line: THREE.Line | null = null;
-
-  let windArrow: THREE.ArrowHelper | null = null;
-  let windBase: THREE.Mesh | null = null;
-
-  const waypointMeshes1: Map<number, THREE.Mesh> = new Map();
-  const waypointMeshes2: Map<number, THREE.Mesh> = new Map();
-  let axisObjects: THREE.Object3D[] = [];
-
-  function ensureWaypoint(scene: THREE.Scene, map: Map<number, THREE.Mesh>, idx: number, x: number, y: number, z: number, baseColor: number): void {
-    if (map.has(idx)) return;
-    const mesh = new THREE.Mesh(wpGeo, new THREE.MeshPhongMaterial({ color: baseColor, emissive: 0x111111 }));
-    mesh.position.set(x, y, z);
-    scene.add(mesh);
-    map.set(idx, mesh);
-  }
-
-  function makeTrail(scene: THREE.Scene, color: number): { geo: THREE.BufferGeometry; line: THREE.Line } {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_LENGTH * 3), 3));
-    geo.setDrawRange(0, 0);
-    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color, opacity: 0.6, transparent: true }));
-    scene.add(line);
-    return { geo, line };
-  }
-
-  function updateTrail(geo: THREE.BufferGeometry, history: ModelState[], pick: (v: PidState) => Vec3): void {
-    const trail = history.slice(-TRAIL_LENGTH);
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    trail.forEach((s, i) => {
-      const p = pick(view(s));
-      pos.setXYZ(i, p.x, p.y, p.z);
-    });
-    pos.needsUpdate = true;
-    geo.setDrawRange(0, trail.length);
-  }
-
-  function paintVehicle(
-    mesh: THREE.Mesh,
-    trailGeo: THREE.BufferGeometry,
-    waypointMap: Map<number, THREE.Mesh>,
-    baseColor: number,
-    activeColor: number,
-    pick: (v: PidState) => Vehicle,
-    state: ModelState,
-    history: ModelState[],
-  ): void {
-    if (!sceneRef) return;
-    const v = pick(view(state));
-
-    for (const h of history) {
-      const hv = pick(view(h));
-      ensureWaypoint(sceneRef, waypointMap, Math.round(hv.mission.targetIdx), hv.mission.target.x, hv.mission.target.y, hv.mission.target.z, baseColor);
-    }
-    const activeIdx = Math.round(v.mission.targetIdx);
-    waypointMap.forEach((m, i) => {
-      (m.material as THREE.MeshPhongMaterial).color.setHex(i === activeIdx ? activeColor : baseColor);
-    });
-
-    mesh.position.set(v.pos.x, v.pos.y, v.pos.z);
-    updateTrail(trailGeo, history, vs => pick(vs).pos);
-  }
-
-  return {
-    init(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
-      sceneRef = scene;
-      waypointMeshes1.clear();
-      waypointMeshes2.clear();
-      scene.background = new THREE.Color(0x0a0a14);
-
-      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-      dir.position.set(10, 20, 10);
-      scene.add(dir);
-      scene.add(new THREE.GridHelper(30, 30, 0x222244, 0x111133));
-      axisObjects = makeAxes(scene);
-
-      mesh1 = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 16, 16),
-        new THREE.MeshPhongMaterial({ color: 0x4488ff, emissive: 0x001133 }),
-      );
-      scene.add(mesh1);
-      const t1 = makeTrail(scene, 0x4488ff);
-      trail1Geo = t1.geo; trail1Line = t1.line;
-
-      mesh2 = new THREE.Mesh(
-        new THREE.SphereGeometry(0.4, 16, 16),
-        new THREE.MeshPhongMaterial({ color: 0xff8800, emissive: 0x1a0500 }),
-      );
-      scene.add(mesh2);
-      const t2 = makeTrail(scene, 0xff8800);
-      trail2Geo = t2.geo; trail2Line = t2.line;
-
-      windBase = new THREE.Mesh(
-        new THREE.SphereGeometry(0.15, 8, 8),
-        new THREE.MeshPhongMaterial({ color: WIND_ARROW_COLOR, emissive: WIND_ARROW_COLOR, emissiveIntensity: 0.5 }),
-      );
-      windBase.position.copy(WIND_ARROW_POS);
-      scene.add(windBase);
-      windArrow = new THREE.ArrowHelper(
-        new THREE.Vector3(1, 0, 0),
-        WIND_ARROW_POS,
-        1,
-        WIND_ARROW_COLOR,
-        0.6,
-        0.4,
-      );
-      scene.add(windArrow);
-
-      camera.position.set(0, 18, 30);
-      camera.lookAt(0, 5, 5);
-    },
-
-    update(state: ModelState, _tick: number, history: ModelState[]): void {
-      if (!mesh1 || !mesh2 || !trail1Geo || !trail2Geo) return;
-      paintVehicle(mesh1, trail1Geo, waypointMeshes1, 0x4488ff, 0x00ff88,
-        v => v.vehicles.v1, state, history);
-      paintVehicle(mesh2, trail2Geo, waypointMeshes2, 0xff8800, 0x00ff88,
-        v => v.vehicles.v2, state, history);
-
-      if (windArrow) {
-        const w = view(state).wind;
-        const mag = Math.sqrt(w.fx * w.fx + w.fz * w.fz);
-        if (mag > 0.01) {
-          windArrow.visible = true;
-          windArrow.setDirection(new THREE.Vector3(w.fx, 0, w.fz).normalize());
-          const len = mag * WIND_ARROW_LENGTH_PER_N;
-          windArrow.setLength(len, Math.min(0.6, len * 0.25), Math.min(0.4, len * 0.18));
-        } else {
-          windArrow.visible = false;
-        }
-      }
-    },
-
-    dispose(scene: THREE.Scene): void {
-      [mesh1, trail1Line, mesh2, trail2Line, windArrow, windBase].forEach(obj => { if (obj) scene.remove(obj); });
-      waypointMeshes1.forEach(m => scene.remove(m));
-      waypointMeshes1.clear();
-      waypointMeshes2.forEach(m => scene.remove(m));
-      waypointMeshes2.clear();
-      axisObjects.forEach(obj => scene.remove(obj));
-      axisObjects = [];
-      trail1Geo?.dispose(); trail2Geo?.dispose();
-      mesh1 = null; trail1Line = null; trail1Geo = null;
-      mesh2 = null; trail2Line = null; trail2Geo = null;
-      windArrow = null; windBase = null;
-      sceneRef = null;
-    },
-  };
-}
+const sceneHandler = composeScene(() => [
+  baseScene({
+    bg: 0x0a0a14,
+    camera: { pos: [0, 18, 30], lookAt: [0, 5, 5] },
+    grid: { color1: 0x222244, color2: 0x111133 },
+    ambient: 0.4,
+    directional: 0.8,
+  }),
+  // PD vehicle (blue)
+  floaterMesh(s => ({ pos: view(s).vehicles.v1.pos }), { color: 0x4488ff, emissive: 0x001133 }),
+  trail(s => view(s).vehicles.v1.pos, { color: 0x4488ff, length: 400, opacity: 0.6 }),
+  waypointTracker(
+    s => ({ waypointIdx: view(s).vehicles.v1.mission.targetIdx, target: view(s).vehicles.v1.mission.target }),
+    { pendingColor: 0x4488ff },
+  ),
+  // PID vehicle (orange)
+  floaterMesh(s => ({ pos: view(s).vehicles.v2.pos }), { color: 0xff8800, emissive: 0x1a0500 }),
+  trail(s => view(s).vehicles.v2.pos, { color: 0xff8800, length: 400, opacity: 0.6 }),
+  waypointTracker(
+    s => ({ waypointIdx: view(s).vehicles.v2.mission.targetIdx, target: view(s).vehicles.v2.mission.target }),
+    { pendingColor: 0xff8800 },
+  ),
+  windArrow(s => view(s).wind),
+]);
 
 export default function FloaterPidVis() {
-  return <ThreeCanvas sceneHandler={createSceneHandler} />;
+  return <ThreeCanvas sceneHandler={sceneHandler} />;
 }
