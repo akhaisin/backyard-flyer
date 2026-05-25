@@ -4,6 +4,7 @@ import { MeflyNavReceiver } from './MeflyNavReceiver';
 import CollapsibleSidePanel from './CollapsibleSidePanel';
 import TableOfContents from './TableOfContents';
 import SourceTab from './SourceTab';
+import BlocksTab from './BlocksTab';
 import VisualisationTab from './VisualisationTab';
 import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
@@ -29,7 +30,7 @@ export interface PageShellProps {
   pageTocNames: Record<string, string>;
 }
 
-type View = 'chapter' | 'src' | 'vis';
+type View = 'chapter' | 'src' | 'blocks' | 'vis';
 
 function parseHash(hash: string): { pageId: string; view: View } {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -37,7 +38,7 @@ function parseHash(hash: string): { pageId: string; view: View } {
   const pageId = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
   const qs = qIdx >= 0 ? raw.slice(qIdx + 1) : '';
   const viewParam = new URLSearchParams(qs).get('view');
-  const view: View = viewParam === 'src' || viewParam === 'vis' ? viewParam : 'chapter';
+  const view: View = viewParam === 'src' || viewParam === 'vis' || viewParam === 'blocks' ? viewParam : 'chapter';
   return { pageId, view };
 }
 
@@ -84,6 +85,7 @@ function ChartsPanel({ simId, modelId }: { simId?: string; modelId?: string }) {
 const TABS: { id: View; label: string }[] = [
   { id: 'chapter', label: 'Chapter' },
   { id: 'src', label: 'Source' },
+  { id: 'blocks', label: 'Blocks' },
   { id: 'vis', label: 'Visualisation' },
 ];
 
@@ -189,6 +191,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
               <div id="tour-content" style={{ display: 'contents' }}>
                 {view === 'chapter' && <ChapterContent pageId={pageId} />}
                 {view === 'src' && <SourceTab pageName={pageId} simId={simId} modelId={modelId} />}
+                {view === 'blocks' && <BlocksTab pageName={pageId} simId={simId} modelId={modelId} />}
                 {view === 'vis' && <VisualisationTab pageName={pageId} simId={simId} modelId={modelId} />}
               </div>
             </Panel>
