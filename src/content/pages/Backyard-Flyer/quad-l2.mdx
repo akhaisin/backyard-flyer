@@ -1,0 +1,171 @@
+---
+order: 11
+simId: Backyard-Flyer/quad-l2
+modelId: quad/quad-l2
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad L2 — cascaded controllers: navigator + stabilizer
+
+**Quad L2** flies the same rectangular mission as Quad L1, but the single `fc` block is split into two independent controllers that run one after the other every tick:
+
+```
+mission → fc_navigator → fc_stabilizer → hw → world
+```
+
+| Block | Responsibility |
+|-------|---------------|
+| `mission` | Seven-phase state machine — same as L1 |
+| `fc_navigator` | Where am I? Where do I want to go? → desired attitude + thrust |
+| `fc_stabilizer` | Am I at the desired attitude? → motor commands |
+| `hw` | Motor spool-up inertia — same as L1 |
+| `world` | 6 DOF rigid-body physics — same as L1 |
+
+The split is the point: the navigator knows nothing about motors; the stabilizer knows nothing about waypoints. The only thing they share is a four-number interface.
+
+---
+
+## Why two controllers?
+
+A quadrotor has two fundamentally different time scales.
+
+**Slow: position dynamics.** The drone drifts from its current position toward a target. Errors develop over seconds. The navigator runs a PD law on position and velocity and converts the desired acceleration into attitude commands.
+
+**Fast: attitude dynamics.** The drone spins in response to differential motor thrust. A tilt disturbance propagates through roll/pitch/yaw in tens of milliseconds. The stabilizer runs a second PD law on attitude and angular velocity and drives the motors to cancel any deviation from the commanded angles.
+
+Cascading the loops — a slow outer loop feeding a fast inner loop — is the standard architecture for any vehicle with attitude-dependent thrust. Splitting them into separate, editable blocks makes that structure visible and independently tunable.
+
+---
+
+## The interface between the two controllers
+
+The navigator's output is the stabilizer's input:
+
+```
+{ roll_des, pitch_des, yaw_des, thrust }
+```
+
+| Signal | What it means |
+|--------|--------------|
+| `roll_des` | Desired roll angle (rad). Positive → left side up → resultant thrust points right (+Z). |
+| `pitch_des` | Desired pitch angle (rad). Positive → nose up → resultant thrust points backward (−X). |
+| `yaw_des` | Desired heading (rad). Always 0 in this model — the quad doesn't rotate while navigating. |
+| `thrust` | Total thrust (N) that all four motors should produce together. |
+
+The stabilizer does not know the drone's position or the waypoint target. The navigator does not know individual motor forces. That boundary keeps each controller's logic simple and its gains independently meaningful.
+
+---
+
+## Navigator — position loop
+
+The navigator takes position, velocity, and the current target:
+
+```
+position error → desired acceleration → desired roll, pitch → + total thrust
+```
+
+**Step 1 — PID acceleration.** A PID controller on position error produces a desired acceleration vector `(ax, ay, az)`. `KI_POS = 0` in this model — see below.
+
+**Step 2 — Total thrust.** The desired vertical acceleration plus gravity gives the thrust needed to hold altitude. When the quad is tilted, only the vertical component of thrust counters gravity, so the raw thrust is divided by `cos(roll) · cos(pitch)` to compensate. This means altitude is maintained automatically through turns. Gravity is handled as explicit feedforward here — not accumulated by the I term.
+
+**Step 3 — Tilt angles.** Using small-angle approximation (`sin θ ≈ θ`), the desired horizontal accelerations map directly to tilt angles. Forward acceleration requires nose-down pitch; rightward acceleration requires left-up roll. Both are clamped at ±17° to prevent the motor mixer from saturating.
+
+```
+pitch_des = −ax / g_eff     (nose down gives +X force)
+roll_des  = +az / g_eff     (left up   gives +Z force)
+```
+
+> **Why `KI_POS = 0`.** This model has no persistent horizontal disturbances — no wind, no drag. PD alone converges position to zero error in a disturbance-free environment. Adding I without a disturbance to reject only introduces windup risk with no benefit. The integral accumulator is wired through the simulation state regardless, so when wind or drag is added to `world.ts`, only the `KI_POS` value needs to change.
+
+---
+
+## Stabilizer — attitude loop
+
+The stabilizer takes the four navigator outputs and the quad's current attitude and angular velocity:
+
+```
+attitude error → desired torques → motor mixing → M0, M1, M2, M3 (0–1)
+```
+
+**Step 1 — PID torques.** A PID controller on attitude error produces desired roll, pitch, and yaw torques. The derivative term damps oscillation by penalising angular velocity. `KI_ATT = 0` in this model — see below.
+
+**Step 2 — Motor mixing.** The torque equations are inverted to find the individual motor force that produces those torques while also delivering the total thrust commanded by the navigator:
+
+```
+τ_roll  = ARM · (F0 − F1 − F2 + F3)
+τ_pitch = ARM · (F0 + F1 − F2 − F3)
+τ_yaw   = K_DRAG · (−F0 + F1 − F2 + F3)
+```
+
+Solving these four equations for `F0…F3` gives the motor force allocation. Each result is divided by the per-motor maximum and clamped to `[0, 1]`.
+
+> **Why `KI_ATT = 0`.** The motors are perfectly symmetric and balanced — no persistent torque bias exists for the I term to cancel. PD drives attitude error to zero without integral action. The integral accumulator is wired through the simulation state so that when motor imbalance or aerodynamic asymmetry is added, only the `KI_ATT` value needs to change.
+
+---
+
+## Gain tuning note
+
+The attitude inner loop (stabilizer) runs at 20 Hz with moment of inertia `I = 0.01 kg·m²`. The discrete stability limit for the derivative gain is:
+
+```
+KD < 2·I / DT  =  2 × 0.01 / 0.05  =  0.4
+```
+
+Gains above that value flip the sign of angular velocity every tick and cause instant divergence. The current setting `KD = 0.2` sits comfortably below the limit. The position outer loop is slower and more forgiving.
+
+---
+
+## Watch it fly
+
+<SimVis client:only="react" />
+
+---
+
+## Position and attitude
+
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+
+---
+
+## Navigator output — the interface between controllers
+
+These signals are produced by `fc_navigator` and consumed by `fc_stabilizer`. Watching them while the simulation runs shows exactly what the navigator is asking of the stabilizer at every moment.
+
+<SimCharts varIds={[['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des']]} client:only="react" />
+
+<SimCharts varIds={[['fc.nav.thrust']]} client:only="react" />
+
+---
+
+## Motor power and mission
+
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+
+---
+
+## Edit the navigator
+
+The navigator owns the position-to-attitude conversion. Try increasing `KP_POS` to make the quad chase waypoints more aggressively — you will see larger transients in the navigator output chart above. Reduce `MAX_TILT` to slow down horizontal moves.
+
+<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+
+---
+
+## Edit the stabilizer
+
+The stabilizer owns attitude tracking and motor mixing. Try increasing `KP_ATT` for faster attitude response — but keep `KD_ATT` below `0.4` or the angular velocity will diverge. The stabilizer's gains are independent of anything in the navigator; you can retune one without touching the other.
+
+<SimSource sourceIds={['fc_stabilizer']} autoHeight client:only="react" />
+
+---
+
+## Edit the mission, hardware, and physics
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['world']} autoHeight client:only="react" />

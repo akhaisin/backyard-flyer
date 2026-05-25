@@ -52,13 +52,17 @@ The quad uses an **X configuration** with four fixed-direction motors, all point
 
 The FC runs two loops in series every tick.
 
-**Outer loop — position → attitude setpoint**
+**Outer loop — position PID → attitude setpoint**
 
-Position error and velocity feed a PD law that produces a desired acceleration. That acceleration is converted into a desired roll and pitch angle (small-angle approximation), clamped to ±17° to keep the motors out of saturation. Total thrust is scaled up to compensate for the reduced vertical component when the drone is tilted.
+Position error and velocity feed a PID law that produces a desired acceleration. `KI_POS = 0` because this model has no persistent horizontal disturbances — gravity is handled as explicit feedforward, and `world.ts` models no wind or drag. PD alone converges to zero position error in a disturbance-free environment. The integral state is tracked in the simulation state anyway, so adding wind or drag later requires only a `KI_POS` value change.
 
-**Inner loop — attitude → torques → motor mix**
+The desired acceleration is converted into desired roll and pitch angles (small-angle approximation), clamped to ±17° to keep the motors out of saturation. Total thrust is scaled up to compensate for the reduced vertical component when the drone is tilted.
 
-Attitude error and angular velocity feed a second PD law that produces desired roll, pitch, and yaw torques. The motor mixer then inverts the torque equations to compute the individual motor force required from each of the four motors, converts to 0–1 power fraction, and clamps.
+**Inner loop — attitude PID → torques → motor mix**
+
+Attitude error and angular velocity feed a second PID law that produces desired roll, pitch, and yaw torques. `KI_ATT = 0` because the motors are perfectly symmetric with no persistent torque bias. PD drives attitude error to zero without integral action. The integral state is wired through for the same reason as above — tune `KI_ATT` when motor imbalance or aerodynamic asymmetry is modelled.
+
+The motor mixer then inverts the torque equations to compute the individual motor force required from each of the four motors, converts to 0–1 power fraction, and clamps.
 
 ```
 position error → desired tilt angles (clamped ±17°)

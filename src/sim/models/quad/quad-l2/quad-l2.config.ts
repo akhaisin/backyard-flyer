@@ -1,7 +1,9 @@
 import missionCode from './blocks/mission.ts?raw';
 import { mission } from './blocks/mission';
-import fcCode from './blocks/fc.ts?raw';
-import { fc } from './blocks/fc';
+import fcNavigatorCode from './blocks/fc_navigator.ts?raw';
+import { fc_navigator } from './blocks/fc_navigator';
+import fcStabilizerCode from './blocks/fc_stabilizer.ts?raw';
+import { fc_stabilizer } from './blocks/fc_stabilizer';
 import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
@@ -11,8 +13,8 @@ import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 
-export const quadL1Config: ModelConfig = {
-  modelId: 'quad/quad-l1',
+export const quadL2Config: ModelConfig = {
+  modelId: 'quad/quad-l2',
   tickIntervalMs: 50,
   initialState: {
     pos:        { x: 0, y: 0, z: 0 },
@@ -21,14 +23,15 @@ export const quadL1Config: ModelConfig = {
     attitude:   { x: 0, y: 0, z: 0 },   // roll(x), yaw(y), pitch(z) in radians
     angularVel: { x: 0, y: 0, z: 0 },   // rad/s, body frame
     fc: {
+      nav: { roll_des: 0, pitch_des: 0, yaw_des: 0, thrust: 0 },
       integral: {
-        pos: { x: 0, y: 0, z: 0 },  // position error accumulator (m·s)
-        att: { x: 0, y: 0, z: 0 },  // attitude error accumulator (rad·s)
+        pos: { x: 0, y: 0, z: 0 },  // navigator position error accumulator (m·s)
+        att: { x: 0, y: 0, z: 0 },  // stabilizer attitude error accumulator (rad·s)
       },
     },
     motors: {
-      desired: { ...motors0 },   // FC output  (0–1 per motor)
-      thrust:  { ...motors0 },   // HW output  (N per motor)
+      desired: { ...motors0 },   // stabilizer output (0–1 per motor)
+      thrust:  { ...motors0 },   // HW output (N per motor)
     },
     mission: {
       phase: 0,
@@ -67,25 +70,54 @@ export const quadL1Config: ModelConfig = {
       tickFrequency: 1,
     },
     {
-      sourceId: 'fc',
-      exportName: 'fc',
-      defaultFn: (s) => fc(s as Parameters<typeof fc>[0]),
-      defaultCode: fcCode,
+      sourceId: 'fc_navigator',
+      exportName: 'fc_navigator',
+      defaultFn: (s) => fc_navigator(s as Parameters<typeof fc_navigator>[0]),
+      defaultCode: fcNavigatorCode,
       mapStateIn: (s) => ({
         pos:         s.pos,
         vel:         s.vel,
         attitude:    s.attitude,
-        angularVel:  s.angularVel,
         target:      (s.mission as ModelState).target,
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
+      }),
+      mapStateOut: (out, s) => ({
+        ...s,
+        fc: {
+          ...(s.fc as ModelState),
+          nav: { roll_des: out.roll_des, pitch_des: out.pitch_des, yaw_des: out.yaw_des, thrust: out.thrust },
+          integral: {
+            ...(((s.fc as ModelState).integral) as ModelState),
+            pos: out.integralPos,
+          },
+        },
+      }),
+      tickFrequency: 1,
+    },
+    {
+      sourceId: 'fc_stabilizer',
+      exportName: 'fc_stabilizer',
+      defaultFn: (s) => fc_stabilizer(s as Parameters<typeof fc_stabilizer>[0]),
+      defaultCode: fcStabilizerCode,
+      mapStateIn: (s) => ({
+        attitude:    s.attitude,
+        angularVel:  s.angularVel,
+        roll_des:    ((s.fc as ModelState).nav as ModelState).roll_des,
+        pitch_des:   ((s.fc as ModelState).nav as ModelState).pitch_des,
+        yaw_des:     ((s.fc as ModelState).nav as ModelState).yaw_des,
+        thrust:      ((s.fc as ModelState).nav as ModelState).thrust,
+        armed:       (s.mission as ModelState).armed,
         integralAtt: ((s.fc as ModelState).integral as ModelState).att,
       }),
       mapStateOut: (out, s) => ({
         ...s,
         fc: {
           ...(s.fc as ModelState),
-          integral: { pos: out.integralPos, att: out.integralAtt },
+          integral: {
+            ...(((s.fc as ModelState).integral) as ModelState),
+            att: out.integralAtt,
+          },
         },
         motors: {
           ...(s.motors as ModelState),
@@ -151,6 +183,20 @@ export const quadL1Config: ModelConfig = {
         { var: 'attitude.x', label: 'roll',  color: '#ff8844' },
         { var: 'attitude.z', label: 'pitch', color: '#44ffaa' },
         { var: 'attitude.y', label: 'yaw',   color: '#cc88ff' },
+      ],
+    },
+    {
+      label: 'Navigator output (orientation)',
+      series: [
+        { var: 'fc.nav.roll_des',  label: 'roll_des',  color: '#ff8844' },
+        { var: 'fc.nav.pitch_des', label: 'pitch_des', color: '#44ffaa' },
+        { var: 'fc.nav.yaw_des',   label: 'yaw_des',   color: '#cc88ff' },
+      ],
+    },
+    {
+      label: 'Navigator output (thrust)',
+      series: [
+        { var: 'fc.nav.thrust', label: 'thrust', color: '#ffdd44' },
       ],
     },
     {
