@@ -7,7 +7,7 @@ import { plant } from './blocks/plant';
 import tunerCode from './blocks/tuner.ts?raw';
 import { tuner } from './blocks/tuner';
 import PidTuneStrVis from './pid-tune-str.vis';
-import type { ModelConfig, ModelState } from '../../engine/types';
+import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const obj = (v: ModelState[string] | undefined): ModelState =>
   (typeof v === 'object' && v !== null) ? v : {};

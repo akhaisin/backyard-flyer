@@ -1,5 +1,5 @@
 ---
-order: 2
+order: 1
 toc-name: Backyard Flyer
 ---
 
@@ -8,3 +8,47 @@ toc-name: Backyard Flyer
 Welcome to Backyard Flyer — an educational app for learning quadcopter control fundamentals.
 
 Use the table of contents on the left to navigate between pages.
+
+# Course structure
+
+Each model in this section adds one layer of realism over the previous one. Read them in order to follow the progression from a simple 3D point-mass to a split cascaded flight controller.
+
+---
+
+## [Floater](#Backyard-Flyer/floater)
+
+The first 3D model. A sphere chases waypoints through space using four blocks — `mission → fc → hw → world` — that will recur in every model that follows.
+
+The flight controller is a single PID on position. There is no attitude, no rotation, no motors — just a point-mass accelerated by a force vector. Hardware is a single thruster with spool-up inertia. Physics is a simple Euler integrator.
+
+**What it introduces:** the four-block pipeline, structured state trees, and the idea that the hardware model sits between the controller and the physics.
+
+---
+
+## [Floater PID — PD vs PID side by side](#Backyard-Flyer/floater-pid)
+
+The same architecture as Floater, but two instances run in parallel on mirrored waypoint paths. One uses a PD controller, the other a full PID. Wind is added as a constant force disturbance.
+
+PD reaches a steady-state error it cannot cancel. PID eliminates it — the integral accumulates until it exactly opposes the wind. The side-by-side layout makes the difference impossible to miss.
+
+**What it introduces:** disturbances, the integral term, and why I is necessary when a persistent force must be rejected.
+
+---
+
+## [Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)
+
+The first real quadrotor. Four motors, full 6DOF rigid-body physics, proper attitude dynamics. The flight controller is a cascaded PID: an outer position loop commands desired roll and pitch angles; an inner attitude loop drives the motors to reach them.
+
+Both loops live in a single `fc` block. The motor mixer inverts the torque equations to allocate thrust across all four motors. A seven-phase `mission` state machine sequences arm → takeoff → navigate → RTH → land → disarm.
+
+**What it introduces:** quadrotor dynamics, cascaded loops, motor mixing, and a complete autonomous mission sequence.
+
+---
+
+## [Quad L2 — navigator + stabilizer](#Backyard-Flyer/quad-l2)
+
+The same mission as L1, but the single `fc` block is split into two: `fc_navigator` (position → desired attitude + thrust) and `fc_stabilizer` (attitude → motor commands). The four signals they exchange — `roll_des`, `pitch_des`, `yaw_des`, `thrust` — are tracked in a dedicated chart.
+
+The two controllers now have separate source editors and independent gain sets. Changing the navigator's position gains does not touch the stabilizer, and vice versa.
+
+**What it introduces:** separation of concerns in a cascaded controller, explicit block interfaces, and independent tunability of the two loops.

@@ -1,9 +1,9 @@
 import { incConfig } from './models/demo/inc/inc.config';
 import { floaterConfig } from './models/quad/floater/floater.config';
 import { floaterPidConfig } from './models/quad/floater-pid/floater-pid.config';
-import { pidTutorialConfig } from './models/pid-tutorial/pid-tutorial.config';
-import { pidTuneStrConfig } from './models/pid-tune-str/pid-tune-str.config';
-import { pidTuneRelayConfig } from './models/pid-tune-relay/pid-tune-relay.config';
+import { pidTutorialConfig } from './models/control/pid-tutorial/pid-tutorial.config';
+import { pidTuneStrConfig } from './models/control/pid-tune-str/pid-tune-str.config';
+import { pidTuneRelayConfig } from './models/control/pid-tune-relay/pid-tune-relay.config';
 import { quadL1Config } from './models/quad/quad-l1/quad-l1.config';
 import { quadL2Config } from './models/quad/quad-l2/quad-l2.config';
 import type { ModelConfig } from './engine/types';

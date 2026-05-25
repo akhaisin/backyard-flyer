@@ -1,5 +1,5 @@
 ---
-order: 1
+order: 0
 ---
 
 # Overview
@@ -9,3 +9,23 @@ Backyard Flyer is an interactive learning environment for quadcopter control fun
 The course walks through increasingly realistic simulations, starting from a single incrementing counter and working up to a quad copter with attitude control. Each simulation runs live in the browser: you can read the source, edit any block of the flight controller or physics model, stage your changes, and restart to see the effect immediately.
 
 Use the table of contents on the left to navigate. Simulation pages have three tabs — **Chapter** for the explanation, **Source** to edit the model blocks, and **Visualisation** for the 3D scene, live charts, and playback scrubber.
+
+---
+
+## All simulations
+
+- **[Inc — minimal simulation](#sim-demo/inc)** — one block, one number, one tick per second. The smallest possible model. Useful for verifying the editor + run loop before tackling anything physical.
+
+- **[PID tutorial — control fundamentals](#control/pid-tutorial)** — a single 1D plant driven by a PID controller. Live sliders for target, gains (Kp, Ki, Kd), and plant parameters (mass, damping) let you build intuition for what each term does — start with pure P, add D to damp oscillation, add I to kill steady-state error.
+
+- **[Floater — multi-block model with simulated hardware](#Backyard-Flyer/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
+
+- **[PD vs PID — two controllers, side by side](#Backyard-Flyer/floater-pid)** ⭐ *Recommended* — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
+
+- **[Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)** ⭐ *Recommended* — a quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm. The `mission` block is a seven-phase state machine; `world` includes a simple ground-contact model (per-tick horizontal friction on landing).
+
+- **[Quad L2 — cascaded controllers: navigator + stabilizer](#Backyard-Flyer/quad-l2)** — the same mission, but the flight controller is split into two independent blocks: `fc_navigator` converts position error into desired attitude and total thrust; `fc_stabilizer` tracks that attitude and drives the motors. The interface between them — `{ roll_des, pitch_des, yaw_des, thrust }` — is live in a dedicated chart.
+
+- **[PID auto-tuning — STR](#control/pid-tune-str)** ⚠️ *Work in progress.* Self-Tuning Regulator: identify the plant online with RLS, then derive PID gains via pole placement. Demonstrates the *idea* of model-based auto-tuning; the implementation can still drift or get stuck under aggressive setpoint changes.
+
+- **[PID auto-tuning — Relay-feedback](#control/pid-tune-relay)** — Åström–Hägglund's relay method. Press *Tune Now* and the system temporarily replaces the PID with a bang-bang relay; the resulting limit cycle gives `Ku` and `Tu`, and Ziegler-Nichols yields the gains. This is the algorithm behind the "auto-tune" button on most industrial PID controllers.

@@ -1,0 +1,44 @@
+---
+order: 2
+toc-name: Control blocks
+---
+
+# Control blocks
+
+Standalone simulations focused on PID control fundamentals: what each term does, how to tune a controller from first principles, and two automatic tuning algorithms.
+
+---
+
+## [PID tutorial — control fundamentals](#control/pid-tutorial)
+
+A single 1D plant — a mass on a damped surface — driven by a PID controller. Live sliders let you set the target position and adjust every parameter in real time: proportional gain Kp, integral gain Ki, derivative gain Kd, and the plant's own mass and damping.
+
+Work through the terms in order. Start with P alone: the plant moves toward the target but overshoots and oscillates, or stops short with a steady-state error depending on the damping. Add D to introduce braking force proportional to velocity — oscillation drops and the response tightens. Add I to eliminate the residual offset that P alone cannot cancel.
+
+**What it introduces:** the three PID terms in isolation, the trade-off between speed and stability, and why each term is needed.
+
+---
+
+## [PID auto-tuning — STR](#control/pid-tune-str)
+
+⚠️ *Work in progress.*
+
+A Self-Tuning Regulator that identifies the plant model online using Recursive Least Squares, then derives PID gains automatically via pole placement. No manual tuning required — the controller adapts as it runs.
+
+The RLS estimator fits a second-order plant model to the observed input/output data. Once the estimate has converged, pole placement maps the desired closed-loop poles to a set of PID gains. The simulation shows the identified model parameters alongside the control response so you can watch the estimator converge in real time.
+
+The implementation can drift or get stuck under aggressive setpoint changes. Toggle AUTO/MANUAL to recover, or restart.
+
+**What it introduces:** online system identification, recursive estimation, and model-based gain derivation.
+
+---
+
+## [PID auto-tuning — Relay-feedback](#control/pid-tune-relay)
+
+Åström and Hägglund's relay-feedback method — the algorithm behind the "auto-tune" button on most industrial PID controllers.
+
+Press *Tune Now*. The controller is temporarily replaced by a bang-bang relay that switches the output between fixed high and low values. The plant responds with a self-sustaining limit cycle. The relay records the oscillation period `Tu` and uses the relay amplitude and the observed output amplitude to compute the ultimate gain `Ku`. Ziegler–Nichols rules then yield Kp, Ki, Kd directly.
+
+The whole procedure takes a few oscillation cycles and requires no plant model knowledge in advance — only that the plant will oscillate when driven by a relay.
+
+**What it introduces:** limit-cycle identification, the Ziegler–Nichols method, and the practical approach used in real industrial auto-tuners.

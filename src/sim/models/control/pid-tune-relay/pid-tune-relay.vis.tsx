@@ -1,47 +1,50 @@
-import { useEffect, useState } from 'react';
-import { useSimVis } from '../../components/SimVis';
+import { useEffect, useRef, useState } from 'react';
+import { useSimVis } from '../../../components/SimVis';
 import {
   subscribe, subscribeInputs,
   getLiveInputs, getState, getHistory,
   setInput,
-} from '../../engine/engine';
-import type { ModelState } from '../../engine/types';
-import './pid-tune-str.css';
+} from '../../../engine/engine';
+import type { ModelState } from '../../../engine/types';
+import './pid-tune-relay.css';
 
 // ── Diagram geometry ────────────────────────────────────────────────────────
-// Same top portion as pid-tutorial. ViewBox is taller (H=380) to make room
-// for the Tuner box below the main signal flow.
+// The Tuner sits BELOW the PID block. Its inputs are taps off the error wire
+// (between Σ and PID) and the feedback wire (plant.out). Its output rejoins
+// the PID→Plant wire at a SWITCH symbol — when tuning is active, the relay
+// path is highlighted and the PID path dims; when idle, the PID path is the
+// active one. The tuner block + switch + connecting wire visually belong to
+// one logical unit ("the tuner module"); the plant always reads control from
+// state.tuner.control_out, so the switching happens inside the tuner block.
 
 const W = 1000;
-const H = 380;
+const H = 320;
 
 const SETPOINT = { x: 40,  y: 70,  w: 112, h: 60  };
 const SETPOINT_HEADER_H = 30;
 const SUM      = { cx: 210, cy: 100, r: 22 };
-const PID      = { x: 340, y: 40,  w: 168, h: 120 };
+const PID      = { x: 320, y: 40,  w: 168, h: 120 };
 const PID_HEADER_H = 30;
 const PID_BAND_H = (PID.h - PID_HEADER_H) / 3;
 const P_BAND   = { x: PID.x, y: PID.y + PID_HEADER_H,                  w: PID.w, h: PID_BAND_H };
 const I_BAND   = { x: PID.x, y: PID.y + PID_HEADER_H +     PID_BAND_H, w: PID.w, h: PID_BAND_H };
 const D_BAND   = { x: PID.x, y: PID.y + PID_HEADER_H + 2 * PID_BAND_H, w: PID.w, h: PID_BAND_H };
-const PLANT    = { x: 680, y: 55,  w: 154, h: 90  };
+const TUNER    = { x: PID.x, y: 180, w: PID.w, h: 80  };
+const TUNER_HEADER_H = 24;
+const PLANT    = { x: 700, y: 55,  w: 154, h: 90  };
 const PLANT_HEADER_H = 30;
 const PLANT_BAND_H = (PLANT.h - PLANT_HEADER_H) / 2;
 const MASS_BAND = { x: PLANT.x, y: PLANT.y + PLANT_HEADER_H,                  w: PLANT.w, h: PLANT_BAND_H };
 const DAMP_BAND = { x: PLANT.x, y: PLANT.y + PLANT_HEADER_H + PLANT_BAND_H,   w: PLANT.w, h: PLANT_BAND_H };
+const SWITCH   = { cx: 594, cy: 100, r: 6 };   // midpoint of PID→Plant wire
 const OUT_END  = { x: 970, y: 100 };
 const FB_X     = 940;
-const FB_Y     = 330;
+const FB_Y     = 290;
 
-// Tuner box — sits below the Plant block (horizontally centered under it).
-// Narrow (just enough for kp / ki / kd readouts) so the diagram stays tidy.
-const TUNER     = { x: 647, y: 200, w: 220, h: 80 };
-const TUNER_HEADER_H = 30;
-// Tap points: drop straight down from the main wires into the Tuner top.
-// Both x's are chosen so the tap is on the correct main-wire segment AND
-// inside the Tuner's horizontal span.
-const U_TAP_X   = 663;       // on PID→Plant wire (508..680), inside Tuner
-const Y_TAP_X   = 850;       // on Plant→OUT_END wire (834..970), inside Tuner
+// Tap positions on signal wires (where the tuner observes them)
+const ERR_TAP_X = 276;  // on Σ→PID wire (between Σ right edge and PID left edge)
+const FB_TAP_X  = 400;  // on horizontal feedback segment (inside Tuner x range)
+const TUNER_OUT_Y = TUNER.y + 24;  // y at which tuner output wire travels right
 
 const pct = (n: number, total: number) => `${(n / total) * 100}%`;
 
@@ -54,7 +57,7 @@ const KD_SLIDER:       SliderSpec = { field: 'kd',     label: 'D:',     min: 0, 
 const MASS_SLIDER:     SliderSpec = { field: 'mass',   label: 'M:',     min: 0.1, max: 5, step: 0.1 };
 const DAMP_SLIDER:     SliderSpec = { field: 'damping',label: 'D:',     min: 0,  max: 2,  step: 0.05 };
 
-export default function PidTuneStrVis() {
+export default function PidTuneRelayVis() {
   const { simId, rewindTick } = useSimVis();
   const isRewinding = rewindTick !== null;
 
@@ -97,44 +100,39 @@ export default function PidTuneStrVis() {
   };
 
   const errorVal   = readNum(['setpoint', 'signal_error']);
-  const controlVal = readNum(['controller', 'control']);
+  const controlVal = readNum(['tuner', 'control_out']);
   const outputVal  = readNum(['plant', 'out']);
 
-  // Tuner state + mode
-  const tunerEnabledRaw = readBlock('tuner').enabled;
-  const tunerEnabled = typeof tunerEnabledRaw === 'number' ? tunerEnabledRaw > 0.5 : true;
-  // STR-derived candidate gains (always computed by the tuner, regardless of
-  // mode). These are what AUTO mode would apply.
-  const kpStr = readNum(['tuner', 'kp_str']);
-  const kiStr = readNum(['tuner', 'ki_str']);
-  const kdStr = readNum(['tuner', 'kd_str']);
-  // Currently applied gains (what the controller actually uses).
-  const kpApplied = readNum(['tuner', 'kp']);
-  const kiApplied = readNum(['tuner', 'ki']);
-  const kdApplied = readNum(['tuner', 'kd']);
+  const tuning = readNum(['tuner', 'tuning']);
+  const cycleCount = readNum(['tuner', 'cycle_count']);
+  const ku = readNum(['tuner', 'ku']);
+  const tu = readNum(['tuner', 'tu']);
+  const isTuning = tuning > 0.5;
 
-  const toggleAuto = () => {
+  // When tuning transitions 1 → 0 (just finished), copy the identified
+  // gains into the controller's slider inputs. PID then resumes naturally
+  // with the new gains and the user sees them in the sliders.
+  const prevTuningRef = useRef(0);
+  useEffect(() => {
     if (isRewinding) return;
-    if (tunerEnabled) {
-      // Leaving AUTO: seed the manual slider values with the gains the tuner
-      // is currently applying, so the controller doesn't snap back to defaults.
-      setInput(simId, 'controller.kp', kpApplied);
-      setInput(simId, 'controller.ki', kiApplied);
-      setInput(simId, 'controller.kd', kdApplied);
+    const prev = prevTuningRef.current;
+    if (prev > 0.5 && tuning < 0.5) {
+      const kp = readNum(['tuner', 'kp_new']);
+      const ki = readNum(['tuner', 'ki_new']);
+      const kd = readNum(['tuner', 'kd_new']);
+      setInput(simId, 'controller.kp', kp);
+      setInput(simId, 'controller.ki', ki);
+      setInput(simId, 'controller.kd', kd);
     }
-    setInput(simId, 'tuner.enabled', tunerEnabled ? 0 : 1);
-  };
+    prevTuningRef.current = tuning;
+    // readNum captures stateView at this render — eslint-disable for the dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tuning, isRewinding, simId]);
 
-  const handleRetune = () => {
+  const handleTune = () => {
     if (isRewinding) return;
-    // Write a fresh value to `tuner.retune_signal`. The tuner block detects
-    // the change vs. its stored `last_retune_signal` and resets the
-    // covariance matrix, forcing RLS to re-identify from current data.
-    setInput(simId, 'tuner.retune_signal', Date.now());
+    setInput(simId, 'tuner.tune_signal', Date.now());
   };
-
-  // PID sliders editable only when tuner is OFF (manual mode).
-  const pidSlidersDisabled = isRewinding || tunerEnabled;
 
   return (
     <div className="pid-diagram" style={{ aspectRatio: `${W} / ${H}` }}>
@@ -148,10 +146,6 @@ export default function PidTuneStrVis() {
                   markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#aaa" />
           </marker>
-          <marker id="arrowhead-tune" viewBox="0 0 10 10" refX="9" refY="5"
-                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffaa44" />
-          </marker>
         </defs>
 
         {/* Main blocks */}
@@ -159,23 +153,21 @@ export default function PidTuneStrVis() {
               className="pid-block__box" rx="6" />
         <rect x={PID.x}      y={PID.y}      width={PID.w}      height={PID.h}
               className="pid-block__box" rx="6" />
+        <rect x={TUNER.x}    y={TUNER.y}    width={TUNER.w}    height={TUNER.h}
+              className={`pid-block__box${isTuning ? ' pid-tuner-box--active' : ''}`} rx="6" />
         <rect x={PLANT.x}    y={PLANT.y}    width={PLANT.w}    height={PLANT.h}
               className="pid-block__box" rx="6" />
-
-        {/* Tuner block */}
-        <rect x={TUNER.x} y={TUNER.y} width={TUNER.w} height={TUNER.h}
-              className="pid-block__box" rx="6" />
-        <line x1={TUNER.x} y1={TUNER.y + TUNER_HEADER_H}
-              x2={TUNER.x + TUNER.w} y2={TUNER.y + TUNER_HEADER_H}
-              className="pid-block__divider" />
 
         {/* Header dividers */}
         <line x1={SETPOINT.x} y1={SETPOINT.y + SETPOINT_HEADER_H}
               x2={SETPOINT.x + SETPOINT.w} y2={SETPOINT.y + SETPOINT_HEADER_H}
               className="pid-block__divider" />
-        <line x1={PID.x} y1={P_BAND.y} x2={PID.x + PID.w} y2={P_BAND.y}
+        <line x1={PID.x}    y1={P_BAND.y} x2={PID.x + PID.w}    y2={P_BAND.y}
               className="pid-block__divider" />
-        <line x1={PLANT.x} y1={PLANT.y + PLANT_HEADER_H}
+        <line x1={TUNER.x}  y1={TUNER.y + TUNER_HEADER_H}
+              x2={TUNER.x + TUNER.w} y2={TUNER.y + TUNER_HEADER_H}
+              className="pid-block__divider" />
+        <line x1={PLANT.x}  y1={PLANT.y + PLANT_HEADER_H}
               x2={PLANT.x + PLANT.w} y2={PLANT.y + PLANT_HEADER_H}
               className="pid-block__divider" />
 
@@ -191,16 +183,23 @@ export default function PidTuneStrVis() {
         <text x={SUM.cx - SUM.r - 8} y={SUM.cy - 10}         className="pid-sign pid-sign--plus"  textAnchor="end">+</text>
         <text x={SUM.cx + 10}        y={SUM.cy + SUM.r + 14} className="pid-sign pid-sign--minus" textAnchor="start">−</text>
 
-        {/* Main signal wires */}
+        {/* Main signal wires — PID→Plant is split by the SWITCH symbol */}
         <line x1={SETPOINT.x + SETPOINT.w} y1={SUM.cy}
               x2={SUM.cx - SUM.r}          y2={SUM.cy}
               className="pid-wire" markerEnd="url(#arrowhead)" />
         <line x1={SUM.cx + SUM.r} y1={SUM.cy}
               x2={PID.x}          y2={SUM.cy}
               className="pid-wire" markerEnd="url(#arrowhead)" />
+        {/* PID → Switch (dims when relay is taking over the loop) */}
         <line x1={PID.x + PID.w} y1={SUM.cy}
-              x2={PLANT.x}       y2={SUM.cy}
-              className="pid-wire" markerEnd="url(#arrowhead)" />
+              x2={SWITCH.cx - SWITCH.r} y2={SUM.cy}
+              className={`pid-wire${isTuning ? ' pid-wire--dim' : ''}`}
+              markerEnd="url(#arrowhead)" />
+        {/* Switch → Plant (always carrying whichever signal was selected) */}
+        <line x1={SWITCH.cx + SWITCH.r} y1={SUM.cy}
+              x2={PLANT.x}              y2={SUM.cy}
+              className={`pid-wire${isTuning ? ' pid-wire--relay' : ''}`}
+              markerEnd={isTuning ? 'url(#arrowhead-tune)' : 'url(#arrowhead)'} />
         <line x1={PLANT.x + PLANT.w} y1={SUM.cy}
               x2={OUT_END.x}         y2={OUT_END.y}
               className="pid-wire" markerEnd="url(#arrowhead)" />
@@ -211,36 +210,59 @@ export default function PidTuneStrVis() {
           className="pid-wire pid-wire--feedback" markerEnd="url(#arrowhead)" />
         <circle cx={FB_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
 
-        {/* Tuner taps: u and y tapped off the main wires, route down to Tuner */}
-        <line x1={U_TAP_X} y1={SUM.cy} x2={U_TAP_X} y2={TUNER.y}
-              className="pid-wire pid-wire--tap" markerEnd="url(#arrowhead)" />
-        <circle cx={U_TAP_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
-        <line x1={Y_TAP_X} y1={SUM.cy} x2={Y_TAP_X} y2={TUNER.y}
-              className="pid-wire pid-wire--tap" markerEnd="url(#arrowhead)" />
-        <circle cx={Y_TAP_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
-
-        {/* Gain-adjustment arrow: from Tuner left side, leftward under PID
-            middle, then up into PID's bottom-middle. L-shaped, dashed, in the
-            tuner-accent color to mark it as "modifies parameters, not signal". */}
+        {/* ── Tuner I/O — taps on the error wire and the feedback line, plus
+            an output wire that joins the PID→Plant wire at the SWITCH. */}
+        {/* Error tap: from Σ→PID wire, route down-and-right into Tuner left side */}
         <polyline
-          points={`${TUNER.x},${TUNER.y + TUNER.h / 2} ${PID.x + PID.w / 2},${TUNER.y + TUNER.h / 2} ${PID.x + PID.w / 2},${PID.y + PID.h}`}
-          className={`pid-wire pid-wire--adjust${tunerEnabled ? '' : ' pid-wire--adjust-off'}`}
-          markerEnd="url(#arrowhead-tune)" />
-        <text x={(TUNER.x + PID.x + PID.w / 2) / 2}
-              y={TUNER.y + TUNER.h / 2 - 6}
-              className="pid-signal pid-signal--adjust" textAnchor="middle">
-          adjust gains
-        </text>
+          points={`${ERR_TAP_X},${SUM.cy} ${ERR_TAP_X},${TUNER.y + TUNER.h / 2} ${TUNER.x},${TUNER.y + TUNER.h / 2}`}
+          className="pid-wire pid-wire--tap"
+          markerEnd="url(#arrowhead)" />
+        <circle cx={ERR_TAP_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
 
-        {/* Signal value labels along main wires */}
+        {/* Plant.out tap: from feedback line, route up into Tuner bottom */}
+        <line x1={FB_TAP_X} y1={FB_Y}
+              x2={FB_TAP_X} y2={TUNER.y + TUNER.h}
+              className="pid-wire pid-wire--tap"
+              markerEnd="url(#arrowhead)" />
+        <circle cx={FB_TAP_X} cy={FB_Y} r="3.5" className="pid-junction-dot" />
+
+        {/* Tuner output → Switch: from tuner right edge, hook up to switch.
+            Bright orange when tuning (relay is feeding the plant); dimmed
+            when idle (the path is conceptually there, just not active). */}
+        <polyline
+          points={`${TUNER.x + TUNER.w},${TUNER_OUT_Y} ${SWITCH.cx},${TUNER_OUT_Y} ${SWITCH.cx},${SWITCH.cy + SWITCH.r}`}
+          className={`pid-wire${isTuning ? ' pid-wire--relay' : ' pid-wire--dim'}`}
+          markerEnd={isTuning ? 'url(#arrowhead-tune)' : 'url(#arrowhead)'} />
+
+        {/* Switch symbol at the junction — colour follows the active path */}
+        <circle cx={SWITCH.cx} cy={SWITCH.cy} r={SWITCH.r}
+                className={`pid-switch-symbol${isTuning ? ' pid-switch-symbol--tuning' : ''}`} />
+
+        {/* Signal labels (with live values) */}
         <text x={(SUM.cx + SUM.r + PID.x) / 2} y={SUM.cy - 10}
               className="pid-signal" textAnchor="middle">
           error: {errorVal.toFixed(3)}
         </text>
-        <text x={(PID.x + PID.w + PLANT.x) / 2} y={SUM.cy - 10}
-              className="pid-signal" textAnchor="middle">
-          control: {controlVal.toFixed(3)}
+        {/* pid out — between PID and the SWITCH */}
+        <text x={(PID.x + PID.w + SWITCH.cx - SWITCH.r) / 2} y={SUM.cy - 10}
+              className={`pid-signal${isTuning ? ' pid-signal--muted' : ''}`} textAnchor="middle">
+          pid out
         </text>
+        {/* control — between SWITCH and Plant, with the live value */}
+        <text x={(SWITCH.cx + SWITCH.r + PLANT.x) / 2} y={SUM.cy - 10}
+              className="pid-signal" textAnchor="middle">
+          control: {controlVal.toFixed(2)}
+        </text>
+        {/* relay — on the vertical tuner→switch wire */}
+        <text x={SWITCH.cx + 8} y={(TUNER_OUT_Y + SWITCH.cy) / 2}
+              className={`pid-signal${isTuning ? '' : ' pid-signal--muted'}`} textAnchor="start">
+          relay
+        </text>
+        {/* Tap labels — small "error" / "y" near the tap points */}
+        <text x={ERR_TAP_X + 6} y={TUNER.y - 6}
+              className="pid-signal pid-signal--muted" textAnchor="start">error</text>
+        <text x={FB_TAP_X + 6} y={TUNER.y + TUNER.h + 14}
+              className="pid-signal pid-signal--muted" textAnchor="start">y (plant.out)</text>
         <text x={(PLANT.x + PLANT.w + OUT_END.x) / 2} y={SUM.cy - 10}
               className="pid-signal" textAnchor="middle">
           output: {outputVal.toFixed(3)}
@@ -255,14 +277,15 @@ export default function PidTuneStrVis() {
               className="pid-title" textAnchor="middle">Setpoint</text>
         <text x={PID.x + PID.w / 2} y={PID.y + 22}
               className="pid-title" textAnchor="middle">PID</text>
+        <text x={TUNER.x + 30} y={TUNER.y + 17}
+              className="pid-title" textAnchor="start">Tuner</text>
         <text x={PLANT.x + PLANT.w / 2} y={PLANT.y + 22}
               className="pid-title" textAnchor="middle">Plant</text>
-        <text x={TUNER.x + 12} y={TUNER.y + 21}
-              className="pid-title" textAnchor="start">Tuner</text>
       </svg>
 
       {/* ── HTML overlays ───────────────────────────────────────────────── */}
 
+      {/* Setpoint slider */}
       <Overlay x={50} y={100} w={92} h={30}>
         <Slider spec={SETPOINT_SLIDER}
                 value={readBlock('setpoint')[SETPOINT_SLIDER.field]}
@@ -271,77 +294,69 @@ export default function PidTuneStrVis() {
                 onChange={v => handleChange('setpoint', SETPOINT_SLIDER.field, v)} />
       </Overlay>
 
-      {/* PID sliders — editable only in MANUAL mode */}
-      <Overlay x={350} y={70} w={148} h={30}>
+      {/* PID sliders — always editable (no AUTO/MANUAL split in this model).
+          They show whatever the user / Tune Now has set them to. */}
+      <Overlay x={PID.x + 10} y={P_BAND.y} w={PID.w - 20} h={30}>
         <Slider spec={KP_SLIDER}
-                value={tunerEnabled ? kpApplied : readBlock('controller')[KP_SLIDER.field]}
-                disabled={pidSlidersDisabled}
+                value={readBlock('controller')[KP_SLIDER.field]}
+                disabled={isRewinding || isTuning}
                 onChange={v => handleChange('controller', KP_SLIDER.field, v)} />
       </Overlay>
-      <Overlay x={350} y={100} w={148} h={30}>
+      <Overlay x={PID.x + 10} y={I_BAND.y} w={PID.w - 20} h={30}>
         <Slider spec={KI_SLIDER}
-                value={tunerEnabled ? kiApplied : readBlock('controller')[KI_SLIDER.field]}
-                disabled={pidSlidersDisabled}
+                value={readBlock('controller')[KI_SLIDER.field]}
+                disabled={isRewinding || isTuning}
                 onChange={v => handleChange('controller', KI_SLIDER.field, v)} />
       </Overlay>
-      <Overlay x={350} y={130} w={148} h={30}>
+      <Overlay x={PID.x + 10} y={D_BAND.y} w={PID.w - 20} h={30}>
         <Slider spec={KD_SLIDER}
-                value={tunerEnabled ? kdApplied : readBlock('controller')[KD_SLIDER.field]}
-                disabled={pidSlidersDisabled}
+                value={readBlock('controller')[KD_SLIDER.field]}
+                disabled={isRewinding || isTuning}
                 onChange={v => handleChange('controller', KD_SLIDER.field, v)} />
       </Overlay>
 
-      <Overlay x={686} y={MASS_BAND.y} w={142} h={30}>
+      {/* Plant sliders */}
+      <Overlay x={PLANT.x + 8} y={MASS_BAND.y} w={PLANT.w - 16} h={30}>
         <Slider spec={MASS_SLIDER}
                 value={readBlock('plant')[MASS_SLIDER.field]}
                 disabled={isRewinding}
                 onChange={v => handleChange('plant', MASS_SLIDER.field, v)} />
       </Overlay>
-      <Overlay x={686} y={DAMP_BAND.y} w={142} h={30}>
+      <Overlay x={PLANT.x + 8} y={DAMP_BAND.y} w={PLANT.w - 16} h={30}>
         <Slider spec={DAMP_SLIDER}
                 value={readBlock('plant')[DAMP_SLIDER.field]}
                 disabled={isRewinding}
                 onChange={v => handleChange('plant', DAMP_SLIDER.field, v)} />
       </Overlay>
 
-      {/* RE-TUNE button — resets RLS covariance so identification adapts fast */}
-      <Overlay x={TUNER.x + 75} y={TUNER.y + 4} w={60} h={22}>
+      {/* Tune Now button — right side of Tuner header */}
+      <Overlay x={TUNER.x + TUNER.w - 76} y={TUNER.y + 2} w={68} h={20}>
         <button
-          className="pid-switch pid-switch--retune"
-          onClick={handleRetune}
+          className={`pid-switch${isTuning ? ' pid-switch--on' : ' pid-switch--retune'}`}
+          onClick={handleTune}
           disabled={isRewinding}
         >
-          RE-TUNE
+          {isTuning ? 'TUNING' : 'TUNE NOW'}
         </button>
       </Overlay>
 
-      {/* AUTO/MANUAL switch — top-right of Tuner header */}
-      <Overlay x={TUNER.x + 140} y={TUNER.y + 4} w={70} h={22}>
-        <button
-          className={`pid-switch${tunerEnabled ? ' pid-switch--on' : ' pid-switch--off'}`}
-          onClick={toggleAuto}
-          disabled={isRewinding}
-        >
-          {tunerEnabled ? 'AUTO' : 'MANUAL'}
-        </button>
-      </Overlay>
-
-      {/* Tuner readouts — always show STR-derived gains (the values AUTO
-          mode would apply). In MANUAL mode this lets the user see what the
-          tuner would do if re-enabled. */}
-      <Overlay x={TUNER.x + 12} y={TUNER.y + TUNER_HEADER_H + 8} w={TUNER.w - 24} h={TUNER.h - TUNER_HEADER_H - 16}>
-        <div className="pid-tuner-readouts">
+      {/* Tuner body — status + identified Ku, Tu, laid out horizontally */}
+      <Overlay x={TUNER.x + 8} y={TUNER.y + TUNER_HEADER_H + 2}
+               w={TUNER.w - 16} h={TUNER.h - TUNER_HEADER_H - 4}>
+        <div className="pid-tuner-relay-body">
           <div className="pid-tuner-readout">
-            <span className="pid-tuner-readout__label">Kp:</span>
-            <span className="pid-tuner-readout__value">{kpStr.toFixed(2)}</span>
+            <span className="pid-tuner-readout__label">status</span>
+            <span className="pid-tuner-readout__value">
+              {isTuning ? `cycle ${Math.max(0, Math.round(cycleCount) - 1)}/4` : 'idle'}
+            </span>
           </div>
           <div className="pid-tuner-readout">
-            <span className="pid-tuner-readout__label">Ki:</span>
-            <span className="pid-tuner-readout__value">{kiStr.toFixed(2)}</span>
+            <span className="pid-tuner-readout__label">Ku</span>
+            <span className="pid-tuner-readout__value">{ku.toFixed(2)}</span>
           </div>
           <div className="pid-tuner-readout">
-            <span className="pid-tuner-readout__label">Kd:</span>
-            <span className="pid-tuner-readout__value">{kdStr.toFixed(2)}</span>
+            <span className="pid-tuner-readout__label">Tu</span>
+            <span className="pid-tuner-readout__value">{tu.toFixed(2)}s</span>
           </div>
         </div>
       </Overlay>

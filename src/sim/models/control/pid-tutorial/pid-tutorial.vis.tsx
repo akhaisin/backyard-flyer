@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useSimVis } from '../../components/SimVis';
+import { useSimVis } from '../../../components/SimVis';
 import {
   subscribe, subscribeInputs,
   getLiveInputs, getState, getHistory,
   setInput,
-} from '../../engine/engine';
-import type { ModelState } from '../../engine/types';
+} from '../../../engine/engine';
+import type { ModelState } from '../../../engine/types';
 import './pid-tutorial.css';
 
 // ── Diagram geometry — single source of truth ────────────────────────────────

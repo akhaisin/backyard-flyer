@@ -5,7 +5,7 @@ import { controller } from './blocks/controller';
 import plantCode from './blocks/plant.ts?raw';
 import { plant } from './blocks/plant';
 import PidTutorialVis from './pid-tutorial.vis';
-import type { ModelConfig, ModelState } from '../../engine/types';
+import type { ModelConfig, ModelState } from '../../../engine/types';
 
 // Helpers for nested state access. ModelState leaves are number | null | ModelState,
 // so narrowing assertions live in one place rather than scattered through mapStateIn.
