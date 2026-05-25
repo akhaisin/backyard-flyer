@@ -5,14 +5,6 @@ import type { SceneHandler, ModelState } from '../../engine/types';
 
 const TRAIL_LENGTH = 600;
 const ARM_LEN = 0.65;
-const CRUISE_ALT = 5;
-
-const WP_POSITIONS = [
-  { x: 8, y: CRUISE_ALT, z: 0 },
-  { x: 8, y: CRUISE_ALT, z: 8 },
-  { x: 0, y: CRUISE_ALT, z: 8 },
-  { x: 0, y: CRUISE_ALT, z: 0 },
-];
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
 
@@ -26,17 +18,36 @@ interface QuadState {
 }
 const view = (s: ModelState): QuadState => s as unknown as QuadState;
 
-function buildQuadMesh(): { group: THREE.Group; rotors: THREE.Mesh[] } {
+const ROTOR_VERT = `
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+`;
+// Arc gauge: clockwise from 12 o'clock, length proportional to thrust uniform (0–1).
+// r > 1.0 || r < 0.55 discards outside the ring band.
+// norm maps angle → [0,1] starting at top going clockwise.
+const ROTOR_FRAG = `
+  uniform float thrust;
+  varying vec2 vUv;
+  void main() {
+    vec2 c = vUv - 0.5;
+    float r = length(c) * 2.0;
+    if (r > 1.0 || r < 0.55) discard;
+    float norm = mod(atan(c.x, c.y), 6.28318530) / 6.28318530;
+    bool on = norm < thrust;
+    gl_FragColor = vec4(on ? vec3(0.13,0.40,0.95) : vec3(0.04,0.08,0.20), on ? 1.0 : 0.4);
+  }
+`;
+
+function buildQuadMesh(): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial[] } {
   const group = new THREE.Group();
-  const rotors: THREE.Mesh[] = [];
+  const rotorMaterials: THREE.ShaderMaterial[] = [];
 
   const bodyGeo = new THREE.BoxGeometry(0.35, 0.1, 0.35);
   const bodyMat = new THREE.MeshPhongMaterial({ color: 0x223366, emissive: 0x001122 });
   group.add(new THREE.Mesh(bodyGeo, bodyMat));
 
   const armMat = new THREE.MeshPhongMaterial({ color: 0x334455 });
-  const rotorMat = new THREE.MeshPhongMaterial({ color: 0x2255cc, transparent: true, opacity: 0.75 });
-  const rotorGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.025, 16);
+  const rotorGeo = new THREE.PlaneGeometry(0.44, 0.44);
 
   const armAngles = [Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4, -Math.PI / 4];
   for (const angle of armAngles) {
@@ -48,16 +59,23 @@ function buildQuadMesh(): { group: THREE.Group; rotors: THREE.Mesh[] } {
     arm.position.x = ARM_LEN / 2;
     armGroup.add(arm);
 
-    const rotor = new THREE.Mesh(rotorGeo, rotorMat.clone());
-    rotor.position.x = ARM_LEN;
-    rotor.position.y = 0.05;
-    armGroup.add(rotor);
-    rotors.push(rotor);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { thrust: { value: 0 } },
+      vertexShader: ROTOR_VERT,
+      fragmentShader: ROTOR_FRAG,
+      transparent: true,
+      depthWrite: false,
+    });
+    const rotorMesh = new THREE.Mesh(rotorGeo, mat);
+    rotorMesh.rotation.x = -Math.PI / 2;
+    rotorMesh.position.set(ARM_LEN, 0.06, 0);
+    armGroup.add(rotorMesh);
+    rotorMaterials.push(mat);
 
     group.add(armGroup);
   }
 
-  return { group, rotors };
+  return { group, rotorMaterials };
 }
 
 function makePhaseLabelSprite(): THREE.Sprite {
@@ -89,14 +107,14 @@ function updatePhaseLabelSprite(sprite: THREE.Sprite, label: string): void {
 function createSceneHandler(): SceneHandler {
   let sceneRef: THREE.Scene | null = null;
   let quadGroup: THREE.Group | null = null;
-  let rotorMeshes: THREE.Mesh[] = [];
+  let rotorMaterials: THREE.ShaderMaterial[] = [];
   let phaseSprite: THREE.Sprite | null = null;
   let trailLine: THREE.Line | null = null;
   let trailGeo: THREE.BufferGeometry | null = null;
-  let wpMeshes: THREE.Mesh[] = [];
+  let seenWaypoints: Array<{ key: string; mesh: THREE.Mesh }> = [];
+  const wpGeo = new THREE.SphereGeometry(0.3, 10, 10);
   let homePad: THREE.Mesh | null = null;
   let axisObjects: THREE.Object3D[] = [];
-  let rotorAngle = 0;
 
   return {
     init(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
@@ -119,20 +137,10 @@ function createSceneHandler(): SceneHandler {
       homePad.position.set(0, 0.02, 0);
       scene.add(homePad);
 
-      // Waypoint markers
-      const wpGeo = new THREE.SphereGeometry(0.3, 10, 10);
-      for (const [i, wp] of WP_POSITIONS.entries()) {
-        const mat = new THREE.MeshPhongMaterial({ color: 0xff6622, emissive: 0x110800 });
-        const mesh = new THREE.Mesh(wpGeo, mat);
-        mesh.position.set(wp.x, wp.y, wp.z);
-        scene.add(mesh);
-        wpMeshes[i] = mesh;
-      }
-
       // Quad
       const built = buildQuadMesh();
       quadGroup = built.group;
-      rotorMeshes = built.rotors;
+      rotorMaterials = built.rotorMaterials;
       scene.add(quadGroup);
 
       // Phase label floating above quad
@@ -155,7 +163,7 @@ function createSceneHandler(): SceneHandler {
     update(state: ModelState, _tick: number, history: ModelState[]): void {
       if (!quadGroup || !trailGeo || !sceneRef) return;
       const s = view(state);
-      const { pos, attitude, motors, mission: { phase, waypointIdx, armed } } = s;
+      const { pos, attitude, motors, mission: { phase, waypointIdx } } = s;
 
       // Position
       quadGroup.position.set(pos.x, pos.y, pos.z);
@@ -166,22 +174,26 @@ function createSceneHandler(): SceneHandler {
       quadGroup.rotation.y = attitude.y;  // yaw
       quadGroup.rotation.z = attitude.z;  // pitch
 
-      // Rotor spin — speed proportional to each motor's thrust
-      if (armed) {
-        const thrusts = [motors.thrust.m0, motors.thrust.m1, motors.thrust.m2, motors.thrust.m3];
-        thrusts.forEach((t, i) => {
-          const spinRate = 0.03 + t * 0.05;
-          rotorAngle += spinRate;
-          rotorMeshes[i].rotation.y = rotorAngle * (i % 2 === 0 ? 1 : -1);
-          (rotorMeshes[i].material as THREE.MeshPhongMaterial).color.setHex(0x2255cc);
-        });
-      }
+      // Rotor gauge — arc length proportional to each motor's thrust
+      const thrusts = [motors.thrust.m0, motors.thrust.m1, motors.thrust.m2, motors.thrust.m3];
+      thrusts.forEach((t, i) => { rotorMaterials[i].uniforms.thrust.value = t / 10; });
 
-      // Waypoint colors
+      // Waypoint discovery and coloring
       const phaseInt = Math.round(phase);
       const wpInt = Math.round(waypointIdx);
-      wpMeshes.forEach((m, i) => {
-        const mat = m.material as THREE.MeshPhongMaterial;
+      if (phaseInt === 2) {
+        const t = s.mission.target;
+        const key = `${t.x},${t.y},${t.z}`;
+        if (!seenWaypoints.some(w => w.key === key)) {
+          const mat = new THREE.MeshPhongMaterial({ color: 0xff6622, emissive: 0x110800 });
+          const mesh = new THREE.Mesh(wpGeo, mat);
+          mesh.position.set(t.x, t.y, t.z);
+          sceneRef!.add(mesh);
+          seenWaypoints.push({ key, mesh });
+        }
+      }
+      seenWaypoints.forEach(({ mesh }, i) => {
+        const mat = mesh.material as THREE.MeshPhongMaterial;
         const isActive = phaseInt === 2 && i === wpInt;
         const isDone = phaseInt > 2 || (phaseInt === 2 && i < wpInt);
         mat.color.setHex(isActive ? 0x00ff88 : isDone ? 0x446644 : 0xff6622);
@@ -205,16 +217,17 @@ function createSceneHandler(): SceneHandler {
 
     dispose(scene: THREE.Scene): void {
       [quadGroup, trailLine, homePad].forEach(obj => { if (obj) scene.remove(obj); });
-      wpMeshes.forEach(m => scene.remove(m));
+      seenWaypoints.forEach(({ mesh }) => scene.remove(mesh));
       axisObjects.forEach(obj => scene.remove(obj));
       trailGeo?.dispose();
       quadGroup = null;
       trailLine = null;
       trailGeo = null;
       homePad = null;
-      wpMeshes = [];
+      seenWaypoints = [];
       axisObjects = [];
-      rotorMeshes = [];
+      rotorMaterials.forEach(m => m.dispose());
+      rotorMaterials = [];
       phaseSprite = null;
       sceneRef = null;
     },
