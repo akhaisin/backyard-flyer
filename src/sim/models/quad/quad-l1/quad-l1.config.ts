@@ -136,6 +136,13 @@ export const quadL1Config: ModelConfig = {
     },
   ],
   vis: QuadVis,
+  blocksDiagram: [
+    { from: 'mission', to: 'fc',      label: 'target'  },
+    { from: 'fc',      to: 'hw',      label: 'motors'  },
+    { from: 'hw',      to: 'world',   label: 'thrust'  },
+    { from: 'world',   to: 'mission', label: 'pos'     },
+    { from: 'world',   to: 'fc',      label: 'state'   },
+  ],
   charts: [
     {
       label: 'Speed (m/s)',

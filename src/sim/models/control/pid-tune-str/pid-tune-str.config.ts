@@ -194,6 +194,14 @@ export const pidTuneStrConfig: ModelConfig = {
     },
   ],
   vis: PidTuneStrVis,
+  blocksDiagram: [
+    { from: 'setpoint',   to: 'controller', label: 'error'   },
+    { from: 'tuner',      to: 'controller', label: 'gains'   },
+    { from: 'controller', to: 'plant',      label: 'control' },
+    { from: 'plant',      to: 'setpoint',   label: 'output'  },
+    { from: 'plant',      to: 'tuner',      label: 'y'       },
+    { from: 'controller', to: 'tuner',      label: 'u'       },
+  ],
   charts: [
     {
       label: 'Target vs. output',

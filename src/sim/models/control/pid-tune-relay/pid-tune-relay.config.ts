@@ -181,6 +181,13 @@ export const pidTuneRelayConfig: ModelConfig = {
     },
   ],
   vis: PidTuneRelayVis,
+  blocksDiagram: [
+    { from: 'setpoint',   to: 'controller', label: 'error'       },
+    { from: 'controller', to: 'tuner',      label: 'control'     },
+    { from: 'tuner',      to: 'plant',      label: 'control out' },
+    { from: 'plant',      to: 'setpoint',   label: 'output'      },
+    { from: 'plant',      to: 'tuner',      label: 'output'      },
+  ],
   charts: [
     {
       label: 'Target vs. output',

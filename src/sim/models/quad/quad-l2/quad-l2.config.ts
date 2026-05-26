@@ -168,6 +168,15 @@ export const quadL2Config: ModelConfig = {
     },
   ],
   vis: QuadVis,
+  blocksDiagram: [
+    { from: 'mission',       to: 'fc_navigator',  label: 'target'      },
+    { from: 'fc_navigator',  to: 'fc_stabilizer', label: 'att cmd'     },
+    { from: 'fc_stabilizer', to: 'hw',            label: 'motors'      },
+    { from: 'hw',            to: 'world',         label: 'thrust'      },
+    { from: 'world',         to: 'mission',       label: 'pos'         },
+    { from: 'world',         to: 'fc_navigator',  label: 'state'       },
+    { from: 'world',         to: 'fc_stabilizer', label: 'attitude'    },
+  ],
   charts: [
     {
       label: 'Speed (m/s)',

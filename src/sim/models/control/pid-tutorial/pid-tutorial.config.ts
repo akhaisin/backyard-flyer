@@ -92,6 +92,11 @@ export const pidTutorialConfig: ModelConfig = {
     },
   ],
   vis: PidTutorialVis,
+  blocksDiagram: [
+    { from: 'setpoint',   to: 'controller', label: 'error'   },
+    { from: 'controller', to: 'plant',      label: 'control' },
+    { from: 'plant',      to: 'setpoint',   label: 'output'  },
+  ],
   charts: [
     {
       label: 'Target vs. output',
