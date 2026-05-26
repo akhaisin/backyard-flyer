@@ -1,4 +1,4 @@
-// Physics: receives thrust force (Newtons, world frame) from HW.
+// Physics: receives thrust forces (Newtons, world frame) for all vehicles.
 // Adds gravity and the current wind gust, integrates F=ma into velocity
 // and position. Bounces off the ground.
 //
@@ -6,24 +6,26 @@
 // fx/fz into this block's mapStateIn.
 
 type Vec3 = { x: number; y: number; z: number };
-type WorldIn = { pos: Vec3; vel: Vec3; actual: Vec3; windFx: number; windFz: number };
-type WorldOut = { pos: Vec3; vel: Vec3; acc: Vec3 };
+type VehicleIn = { pos: Vec3; vel: Vec3; actual: Vec3 };
+type VehicleOut = { pos: Vec3; vel: Vec3; acc: Vec3 };
+type WorldIn = { vehicles: Record<string, VehicleIn>; windFx: number; windFz: number };
+type WorldOut = { vehicles: Record<string, VehicleOut> };
 
 const DT = 0.05;
 const MASS = 1.0;
 const GRAVITY = 9.81;
 
-export function world(state: WorldIn): WorldOut {
-  const ax = (state.actual.x + state.windFx) / MASS;
-  const ay = (state.actual.y - MASS * GRAVITY) / MASS;
-  const az = (state.actual.z + state.windFz) / MASS;
+function simulateVehicle(v: VehicleIn, windFx: number, windFz: number): VehicleOut {
+  const ax = (v.actual.x + windFx) / MASS;
+  const ay = (v.actual.y - MASS * GRAVITY) / MASS;
+  const az = (v.actual.z + windFz) / MASS;
 
-  let vx = state.vel.x + ax * DT;
-  let vy = state.vel.y + ay * DT;
-  let vz = state.vel.z + az * DT;
-  let x = state.pos.x + vx * DT;
-  let y = state.pos.y + vy * DT;
-  let z = state.pos.z + vz * DT;
+  let vx = v.vel.x + ax * DT;
+  let vy = v.vel.y + ay * DT;
+  let vz = v.vel.z + az * DT;
+  let x = v.pos.x + vx * DT;
+  let y = v.pos.y + vy * DT;
+  let z = v.pos.z + vz * DT;
 
   if (y < 0) {
     y = 0;
@@ -31,4 +33,12 @@ export function world(state: WorldIn): WorldOut {
   }
 
   return { pos: { x, y, z }, vel: { x: vx, y: vy, z: vz }, acc: { x: ax, y: ay, z: az } };
+}
+
+export function world(state: WorldIn): WorldOut {
+  const vehicles: Record<string, VehicleOut> = {};
+  for (const [key, vehicle] of Object.entries(state.vehicles)) {
+    vehicles[key] = simulateVehicle(vehicle, state.windFx, state.windFz);
+  }
+  return { vehicles };
 }

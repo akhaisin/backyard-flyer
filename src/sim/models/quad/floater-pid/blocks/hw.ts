@@ -3,15 +3,17 @@
 // Same implementation as floater/blocks/hw.ts — kept local for independence.
 
 type Vec3 = { x: number; y: number; z: number };
-type HwIn = { desired: Vec3; actual: Vec3 };
-type HwOut = { actual: Vec3 };
+type VehicleIn = { desired: Vec3; actual: Vec3 };
+type VehicleOut = { actual: Vec3 };
+type HwIn = { vehicles: Record<string, VehicleIn> };
+type HwOut = { vehicles: Record<string, VehicleOut> };
 
 const MAX_THRUST_N = 30;
 const THRUST_RATE_N_PER_S = 60;
 const DIR_RATE_RAD_PER_S = 5.0;
 const DT = 0.05;
 
-export function hw(state: HwIn): HwOut {
+function actuate(state: VehicleIn): VehicleOut {
   const dx = (state.desired.x / 100) * MAX_THRUST_N;
   const dy = (state.desired.y / 100) * MAX_THRUST_N;
   const dz = (state.desired.z / 100) * MAX_THRUST_N;
@@ -50,4 +52,12 @@ export function hw(state: HwIn): HwOut {
 
   if (!newDir) return { actual: { x: 0, y: 0, z: 0 } };
   return { actual: { x: newDir[0] * newMag, y: newDir[1] * newMag, z: newDir[2] * newMag } };
+}
+
+export function hw(state: HwIn): HwOut {
+  const vehicles: Record<string, VehicleOut> = {};
+  for (const [key, vehicle] of Object.entries(state.vehicles)) {
+    vehicles[key] = actuate(vehicle);
+  }
+  return { vehicles };
 }

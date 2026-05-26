@@ -70,7 +70,10 @@ function getReadPaths(block: BlockConfig, state: ModelState): string[] {
   try {
     const acc = new Set<string>();
     block.mapStateIn(makeProxy(state, '', acc));
-    return [...acc];
+    // Drop intermediate traversal paths — keep only the deepest-accessed path
+    // at each branch (i.e. discard any path that is a strict prefix of another).
+    const all = [...acc];
+    return all.filter(p => !all.some(other => other !== p && other.startsWith(p + '.')));
   } catch { return []; }
 }
 

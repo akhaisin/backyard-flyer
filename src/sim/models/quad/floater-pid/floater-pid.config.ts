@@ -109,38 +109,6 @@ export const floaterPidConfig: ModelConfig = {
       mapStateOut: (out, s) => writeThrust(s, 'v1', { desired: out.desired }),
       tickFrequency: 1,
     },
-    {
-      sourceId: 'hw_pd',
-      exportName: 'hw',
-      defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
-      defaultCode: hwCode,
-      mapStateIn: (s) => {
-        const t = (vehicle(s, 'v1').thrust as ModelState);
-        return { desired: t.desired, actual: t.actual };
-      },
-      mapStateOut: (out, s) => writeThrust(s, 'v1', { actual: out.actual }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'world_pd',
-      exportName: 'world',
-      defaultFn: (s) => world(s as Parameters<typeof world>[0]),
-      defaultCode: worldCode,
-      mapStateIn: (s) => {
-        const v = vehicle(s, 'v1');
-        const w = s.wind as ModelState;
-        return {
-          pos: v.pos, vel: v.vel,
-          actual: (v.thrust as ModelState).actual,
-          windFx: w.fx, windFz: w.fz,
-        };
-      },
-      mapStateOut: (out, s) => writeVehicle(s, 'v1', {
-        pos: out.pos, vel: out.vel, acc: out.acc,
-      }),
-      tickFrequency: 1,
-    },
-
     // --- Vehicle 2 (PID) ---
     {
       sourceId: 'mission_pid',
@@ -176,48 +144,70 @@ export const floaterPidConfig: ModelConfig = {
       },
       tickFrequency: 1,
     },
+    // --- Shared hardware actuation ---
     {
-      sourceId: 'hw_pid',
+      sourceId: 'hw',
       exportName: 'hw',
       defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
       defaultCode: hwCode,
       mapStateIn: (s) => {
-        const t = (vehicle(s, 'v2').thrust as ModelState);
-        return { desired: t.desired, actual: t.actual };
+        const vs = s.vehicles as ModelState;
+        const v1 = vs.v1 as ModelState;
+        const v2 = vs.v2 as ModelState;
+        return {
+          vehicles: {
+            v1: { desired: (v1.thrust as ModelState).desired, actual: (v1.thrust as ModelState).actual },
+            v2: { desired: (v2.thrust as ModelState).desired, actual: (v2.thrust as ModelState).actual },
+          },
+        };
       },
-      mapStateOut: (out, s) => writeThrust(s, 'v2', { actual: out.actual }),
+      mapStateOut: (out, s) => {
+        const updated = out.vehicles as Record<string, ModelState>;
+        return Object.entries(updated).reduce(
+          (acc, [key, v]) => writeThrust(acc, key as 'v1' | 'v2', { actual: v.actual }),
+          s,
+        );
+      },
       tickFrequency: 1,
     },
+    // --- Shared world physics ---
     {
-      sourceId: 'world_pid',
+      sourceId: 'world',
       exportName: 'world',
       defaultFn: (s) => world(s as Parameters<typeof world>[0]),
       defaultCode: worldCode,
       mapStateIn: (s) => {
-        const v = vehicle(s, 'v2');
         const w = s.wind as ModelState;
+        const vs = s.vehicles as ModelState;
+        const v1 = vs.v1 as ModelState;
+        const v2 = vs.v2 as ModelState;
         return {
-          pos: v.pos, vel: v.vel,
-          actual: (v.thrust as ModelState).actual,
-          windFx: w.fx, windFz: w.fz,
+          vehicles: {
+            v1: { pos: v1.pos, vel: v1.vel, actual: (v1.thrust as ModelState).actual },
+            v2: { pos: v2.pos, vel: v2.vel, actual: (v2.thrust as ModelState).actual },
+          },
+          windFx: w.fx,
+          windFz: w.fz,
         };
       },
-      mapStateOut: (out, s) => writeVehicle(s, 'v2', {
-        pos: out.pos, vel: out.vel, acc: out.acc,
-      }),
+      mapStateOut: (out, s) => {
+        const updated = out.vehicles as Record<string, ModelState>;
+        return Object.entries(updated).reduce(
+          (acc, [key, v]) => writeVehicle(acc, key as 'v1' | 'v2', { pos: v.pos, vel: v.vel, acc: v.acc }),
+          s,
+        );
+      },
       tickFrequency: 1,
     },
   ],
   vis: FloaterPidVis,
   blocksDiagram: [
-    { from: 'mission_pd',  to: 'fc_pd',     label: 'target'  },
-    { from: 'fc_pd',       to: 'hw_pd',     label: 'desired' },
-    { from: 'hw_pd',       to: 'world_pd',  label: 'actual'  },
-    { from: 'mission_pid', to: 'fc_pid',    label: 'target'  },
-    { from: 'fc_pid',      to: 'hw_pid',    label: 'desired' },
-    { from: 'hw_pid',      to: 'world_pid', label: 'actual'  },
-    { from: 'wind',        to: 'world_pd',  label: 'force'   },
-    { from: 'wind',        to: 'world_pid', label: 'force'   },
+    { from: 'mission_pd',  to: 'fc_pd',  label: 'target'  },
+    { from: 'fc_pd',       to: 'hw',     label: 'desired' },
+    { from: 'mission_pid', to: 'fc_pid', label: 'target'  },
+    { from: 'fc_pid',      to: 'hw',     label: 'desired' },
+    { from: 'hw',          to: 'world',  label: 'actual'  },
+    { from: 'wind',        to: 'world',  label: 'force'   },
   ],
   charts: [
     {
