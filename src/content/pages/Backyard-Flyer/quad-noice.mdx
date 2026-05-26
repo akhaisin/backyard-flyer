@@ -1,0 +1,159 @@
+---
+order: 12
+simId: Backyard-Flyer/quad-noice
+modelId: quad/quad-noice
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad Noice — wind disturbance and sensor noise
+
+**Quad Noice** extends [Quad L2](/Backyard-Flyer/quad-l2) with two new environment blocks that were absent in all previous models: random wind gusts and realistic sensor noise. The flight stack — navigator, stabilizer, hardware, mission — is unchanged structurally. What changes is what the controllers see and what they fly through.
+
+```
+wind ──────────────────────────────────────► world
+noise → mission → fc_navigator → fc_stabilizer → hw → world
+  ▲                                                       │
+  └───────────────────────────────────────────────────────┘
+```
+
+| Block | What it adds |
+|-------|-------------|
+| `wind` | Random horizontal gusts applied as external forces in `world` |
+| `noise` | Gaussian noise on every sensor channel; FC reads `state.sensors`, not raw state |
+| `mission` | Same seven-phase sequence as L2, but restarts automatically after landing |
+
+The quad must complete the same rectangular mission as L2. A well-tuned controller should converge despite never having access to the true state. Because the mission loops, the simulation runs indefinitely — each lap is a fresh trial against a different random wind.
+
+---
+
+## Wind
+
+The `wind` block follows the exact same pattern as in the [floater-pid](/Backyard-Flyer/floater-pid) model. It lives at the top level of state as `state.wind` and runs once per tick before everything else:
+
+```
+wind { fx, fz, ticksLeft }
+ └─ if ticksLeft > 0: hold current gust
+ └─ if ticksLeft = 0: sample new random gust
+```
+
+Each new gust draws a uniformly random direction in the horizontal plane and a random magnitude up to `FORCE_MAX_PCT` of peak thrust, held for a random duration between `DURATION_MIN_TICKS` and `DURATION_MAX_TICKS`. The `world` block receives `windFx` and `windFz` and adds them to the aerodynamic force before integrating velocity.
+
+Wind acts on the true physics but not on the sensor readings — the controllers don't know a gust just hit. They have to infer it from position drift and push back through feedback.
+
+> **Knobs in `wind.ts`:** `FORCE_MAX_PCT` (default 15%) scales the maximum gust strength. `DURATION_MIN_TICKS` / `DURATION_MAX_TICKS` control how long each gust persists. Set `FORCE_MAX_PCT = 0` to fly in calm air and observe the noise effects alone.
+
+---
+
+## Sensor noise
+
+The `noise` block runs immediately after `wind`, before any FC logic:
+
+```
+true state (pos, vel, attitude, angularVel)
+    ↓  Box-Muller Gaussian
+state.sensors (pos, vel, attitude, angularVel)
+```
+
+Every component of every sensor channel gets an independent zero-mean Gaussian sample added to it each tick. The standard deviations model plausible hardware:
+
+| Channel | Std dev | Analogue |
+|---------|---------|---------|
+| `pos` | 0.01 m | GPS position fix |
+| `vel` | 0.01 m/s | Velocity estimate (GPS doppler / INS) |
+| `attitude` | 0.0001 rad (~0.006°) | IMU attitude |
+| `angularVel` | 0.005 rad/s | Gyroscope |
+
+All three FC blocks — `mission`, `fc_navigator`, `fc_stabilizer` — read exclusively from `state.sensors`. The true `pos`, `vel`, `attitude`, and `angularVel` fields are only consumed by `world`. The controller never has access to ground truth.
+
+> **Knobs in `noise.ts`:** Increase `POS_STD` to simulate a degraded GPS fix (try 0.5 m). Increase `ANG_VEL_STD` to simulate a noisy gyro — the inner attitude loop is the most sensitive to this because the derivative term amplifies high-frequency jitter.
+
+---
+
+## Why KI_POS is no longer zero
+
+In Quad L2, `KI_POS = 0` was correct because there were no persistent disturbances: no wind, no drag. PD was sufficient.
+
+Here, a sustained wind gust applies a constant horizontal force. PD has no memory — it will push back against the offset, but a constant gust biases the position error in one direction and PD settles at a nonzero steady-state error (the gust force exactly cancels the proportional pull at some offset distance). The integral term accumulates that offset error over time and pre-loads a counter-force, driving steady-state error to zero.
+
+`KI_POS = 0.3` is conservative: strong enough to reject typical gusts within a few seconds, small enough not to cause windup during fast manoeuvres. When the wind changes direction suddenly, the accumulated integral briefly points the wrong way — you can see this as a momentary overshoot in the position chart.
+
+---
+
+## Watch it fly
+
+<SimVis client:only="react" />
+
+---
+
+## True vs noisy position
+
+The **Position (true vs noisy)** chart overlays the true position (solid) against what the FC actually reads (faded). At default noise levels the gap is small — barely visible except on zoomed axes. Increasing `POS_STD` to 0.5 m makes the controller visibly react to phantom position errors.
+
+<SimCharts varIds={[['pos.x','sensors.pos.x','pos.y','sensors.pos.y','pos.z','sensors.pos.z']]} client:only="react" />
+
+---
+
+## Attitude and navigator output
+
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des'],['fc.nav.thrust']]} client:only="react" />
+
+---
+
+## Motor power and mission
+
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+
+---
+
+## Wind force
+
+<SimCharts varIds={[['wind.fx','wind.fz']]} client:only="react" />
+
+---
+
+## Edit the environment
+
+Adjust gust strength and noise levels here. Try setting `FORCE_MAX_PCT = 50` and `POS_STD = 0.2` to see how the navigator struggles to reject both a strong wind and a noisy GPS simultaneously.
+
+<SimSource sourceIds={['wind']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['noise']} autoHeight client:only="react" />
+
+---
+
+## Edit the navigator
+
+The navigator is where wind rejection lives. Tune `KI_POS` — set it back to 0 and watch the quad drift downwind during a sustained gust.
+
+<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+
+---
+
+## Mission restart
+
+The mission no longer stops at `DONE`. After landing and disarming, the sequencer waits 20 ticks (1 second) and then resets to `ARMING`, starting the whole sequence again:
+
+```
+ARMING → TAKEOFF → NAVIGATE → RTH → LAND → DISARMING → DONE ──(20 ticks)──► ARMING …
+```
+
+The 20-tick pause gives the physics a moment to settle at the pad before motors spin up again. The wind block keeps running through the restart, so consecutive laps may face entirely different gusts — a natural stress test for how quickly `KI_POS` adapts after each re-arm.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## Edit the stabilizer, hardware, and physics
+
+Unlike Quad L2 where `KI_ATT = 0`, the stabilizer here runs with `KI_ATT = 1`. With sensor noise on angular velocity, even a balanced quad accumulates small asymmetric attitude errors over time — the integral term cancels that slow drift so the quad doesn't gradually yaw or roll away from level.
+
+The navigator uses `MAX_TILT = 0.6 rad (~34°)` instead of the 0.3 rad (~17°) in L2, allowing more aggressive horizontal acceleration between waypoints.
+
+<SimSource sourceIds={['fc_stabilizer']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['world']} autoHeight client:only="react" />

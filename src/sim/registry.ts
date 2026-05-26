@@ -6,6 +6,7 @@ import { pidTuneStrConfig } from './models/control/pid-tune-str/pid-tune-str.con
 import { pidTuneRelayConfig } from './models/control/pid-tune-relay/pid-tune-relay.config';
 import { quadL1Config } from './models/quad/quad-l1/quad-l1.config';
 import { quadL2Config } from './models/quad/quad-l2/quad-l2.config';
+import { quadNoiceConfig } from './models/quad/quad-noice/quad-noice.config';
 import type { ModelConfig } from './engine/types';
 
 export const modelRegistry: Record<string, ModelConfig> = {
@@ -17,4 +18,5 @@ export const modelRegistry: Record<string, ModelConfig> = {
   'pid-tune-relay': pidTuneRelayConfig,
   'quad/quad-l1': quadL1Config,
   'quad/quad-l2': quadL2Config,
+  'quad/quad-noice': quadNoiceConfig,
 };

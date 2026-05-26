@@ -52,3 +52,13 @@ The same mission as L1, but the single `fc` block is split into two: `fc_navigat
 The two controllers now have separate source editors and independent gain sets. Changing the navigator's position gains does not touch the stabilizer, and vice versa.
 
 **What it introduces:** separation of concerns in a cascaded controller, explicit block interfaces, and independent tunability of the two loops.
+
+---
+
+## [Quad Noice — wind and sensor noise](#Backyard-Flyer/quad-noice)
+
+The same two-controller architecture as L2, but the environment now fights back. A `wind` block injects random horizontal gusts into the physics. A `noise` block corrupts every sensor channel with Gaussian measurement errors before the flight stack runs — the controllers never see the true state.
+
+`KI_POS` is nonzero here for the first time: without integral action, a sustained gust produces a steady-state position offset that PD alone cannot cancel. The mission loops indefinitely so the quad flies consecutive laps through changing wind conditions.
+
+**What it introduces:** external disturbances, sensor noise, and why integral action is necessary when persistent forces must be rejected.

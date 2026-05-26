@@ -8,17 +8,31 @@ const ROTOR_VERT = `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
 `;
-// Arc gauge clockwise from 12 o'clock; arc length proportional to thrust uniform (0–1).
+// Two opposite pie halves, each filled clockwise proportional to thrust (0–1).
+// Solid border ring at outer edge. Inner radius reduced 30% vs. prior version.
 const ROTOR_FRAG = `
   uniform float thrust;
   varying vec2 vUv;
   void main() {
     vec2 c = vUv - 0.5;
     float r = length(c) * 2.0;
-    if (r > 1.0 || r < 0.55) discard;
+    if (r > 1.0) discard;
+    // Solid outer border
+    if (r > 0.88) {
+      gl_FragColor = vec4(0.20, 0.60, 1.00, 0.9);
+      return;
+    }
+    if (r < 0.315) discard;
+    // Two halves split at E-W axis; angle clockwise from 12 o'clock [0, 1)
     float norm = mod(atan(c.x, c.y), 6.28318530) / 6.28318530;
-    bool on = norm < thrust;
-    gl_FragColor = vec4(on ? vec3(0.13,0.40,0.95) : vec3(0.04,0.08,0.20), on ? 1.0 : 0.4);
+    float segPos = mod(norm, 0.5) / 0.5;
+    float gap = 0.025;
+    if (segPos < gap || segPos > 1.0 - gap) discard;
+    float fillPos = (segPos - gap) / (1.0 - 2.0 * gap);
+    bool lit = fillPos < thrust;
+    gl_FragColor = lit
+      ? vec4(0.20, 0.60, 1.00, 1.0)
+      : vec4(0.04, 0.08, 0.20, 0.5);
   }
 `;
 
