@@ -228,56 +228,91 @@
 /* ── SimBlocks ─────────────────────────────────────────────── */
 .sim-blocks {
   position: relative;
-  padding: 80px 32px 80px;
+  flex: 1;
+  min-height: 320px;
   font-family: var(--font-mono);
-  min-height: 200px;
 }
 
-.sim-blocks__svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.sim-blocks__conn-hit {
-  pointer-events: stroke;
-  cursor: default;
-}
-
-.sim-blocks__row {
-  display: flex;
-  gap: 32px;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  z-index: 1;
-}
-
-.sim-blocks__block {
+/* Custom node */
+.sim-blocks__node {
   border: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
   border-radius: 6px;
   padding: 10px 20px;
-  min-width: 80px;
   text-align: center;
-  flex-shrink: 0;
+  cursor: default;
+  min-width: 80px;
 }
 
-.sim-blocks__block-name {
+.sim-blocks__node-name {
   font-size: 13px;
+  font-family: var(--font-mono);
   color: var(--color-text);
   font-weight: 500;
 }
 
-.sim-blocks__block-freq {
+.sim-blocks__node-freq {
   font-size: 10px;
+  font-family: var(--font-mono);
   color: var(--color-text-muted);
   margin-top: 2px;
 }
 
+/* Tone down React Flow's default handle dots */
+.react-flow__handle {
+  background: var(--color-border) !important;
+  border: none !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+
+/* Selected node highlight — driven by React Flow's .selected class on the wrapper */
+.react-flow__node.selected .sim-blocks__node {
+  border-color: #4488ff;
+  box-shadow: 0 0 0 2px rgba(68, 136, 255, 0.2);
+}
+
+/* Remove React Flow's default focus outline on node containers */
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none;
+}
+
+/* Draggable edge midpoint handle */
+.sim-blocks__edge-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a4055;
+  border: 1.5px solid #3a6080;
+  cursor: grab;
+  pointer-events: all;
+}
+
+.sim-blocks__edge-handle:hover {
+  background: #4488ff;
+  border-color: #4488ff;
+  box-shadow: 0 0 0 3px rgba(68, 136, 255, 0.25);
+}
+
+.sim-blocks__edge-handle:active {
+  cursor: grabbing;
+}
+
+.sim-blocks__edge-label {
+  position: absolute;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Tooltip */
 .sim-blocks__tooltip {
   position: fixed;
   background: var(--color-bg-elevated);

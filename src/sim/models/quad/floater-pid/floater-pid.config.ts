@@ -209,6 +209,16 @@ export const floaterPidConfig: ModelConfig = {
     },
   ],
   vis: FloaterPidVis,
+  blocksDiagram: [
+    { from: 'mission_pd',  to: 'fc_pd',     label: 'target'  },
+    { from: 'fc_pd',       to: 'hw_pd',     label: 'desired' },
+    { from: 'hw_pd',       to: 'world_pd',  label: 'actual'  },
+    { from: 'mission_pid', to: 'fc_pid',    label: 'target'  },
+    { from: 'fc_pid',      to: 'hw_pid',    label: 'desired' },
+    { from: 'hw_pid',      to: 'world_pid', label: 'actual'  },
+    { from: 'wind',        to: 'world_pd',  label: 'force'   },
+    { from: 'wind',        to: 'world_pid', label: 'force'   },
+  ],
   charts: [
     {
       label: 'Speed (m/s)',

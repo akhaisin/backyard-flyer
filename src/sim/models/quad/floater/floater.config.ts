@@ -104,6 +104,13 @@ export const floaterConfig: ModelConfig = {
     },
   ],
   vis: FloaterVis,
+  blocksDiagram: [
+    { from: 'mission', to: 'fc',      label: 'target'  },
+    { from: 'fc',      to: 'hw',      label: 'desired throttle' },
+    { from: 'hw',      to: 'world',   label: 'actual throttle'  },
+    { from: 'world',   to: 'mission', label: 'pos'     },
+    { from: 'world',   to: 'fc',      label: 'pos, vel'},
+  ],
   charts: [
     {
       label: 'Speed (m/s)',

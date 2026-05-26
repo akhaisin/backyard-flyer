@@ -68,6 +68,12 @@ export interface ChartConfig {
   series: ChartSeries[];
 }
 
+export interface DiagramEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
 export interface ModelConfig {
   modelId: string;
   tickIntervalMs: number;
@@ -80,4 +86,7 @@ export interface ModelConfig {
   // lives at <modelId>.vis.tsx alongside the config.
   vis: ComponentType;
   charts: ChartConfig[];
+  // Each entry is an always-visible edge in the blocks diagram.
+  // Absent → fallback to sequential block pairs that share variables.
+  blocksDiagram?: DiagramEdge[];
 }
