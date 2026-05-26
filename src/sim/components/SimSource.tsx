@@ -169,7 +169,7 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
           <span className="sim-source__error">{activeBlock.error}</span>
         )}
         {!activeBlock?.error && hasPending && !running && (
-          <span className="sim-source__hint">Changes staged — press Start in the Visualisation tab to apply</span>
+          <span className="sim-source__hint">Changes staged — press Start in the Visualization tab to apply</span>
         )}
         {!activeBlock?.error && hasPending && running && (
           <span className="sim-source__hint">Stop the simulation to apply staged changes</span>

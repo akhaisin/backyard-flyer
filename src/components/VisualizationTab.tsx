@@ -6,7 +6,7 @@ interface Props {
   modelId?: string;
 }
 
-export default function VisualisationTab({ simId, modelId }: Props) {
+export default function VisualizationTab({ simId, modelId }: Props) {
   if (!simId) return <div className="panel-placeholder">No simulation for this page.</div>;
   return <SimVis simId={simId} modelId={modelId} />;
 }

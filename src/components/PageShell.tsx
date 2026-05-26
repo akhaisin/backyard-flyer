@@ -5,7 +5,7 @@ import CollapsibleSidePanel from './CollapsibleSidePanel';
 import TableOfContents from './TableOfContents';
 import SourceTab from './SourceTab';
 import BlocksTab from './BlocksTab';
-import VisualisationTab from './VisualisationTab';
+import VisualizationTab from './VisualizationTab';
 import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
@@ -86,7 +86,7 @@ const TABS: { id: View; label: string }[] = [
   { id: 'chapter', label: 'Chapter' },
   { id: 'src', label: 'Source' },
   { id: 'blocks', label: 'Blocks' },
-  { id: 'vis', label: 'Visualisation' },
+  { id: 'vis', label: 'Visualization' },
 ];
 
 const HELP_SEEN_KEY = 'backyard-flyer.v1.helpSeen';
@@ -192,7 +192,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
                 {view === 'chapter' && <ChapterContent pageId={pageId} />}
                 {view === 'src' && <SourceTab pageName={pageId} simId={simId} modelId={modelId} />}
                 {view === 'blocks' && <BlocksTab pageName={pageId} simId={simId} modelId={modelId} />}
-                {view === 'vis' && <VisualisationTab pageName={pageId} simId={simId} modelId={modelId} />}
+                {view === 'vis' && <VisualizationTab pageName={pageId} simId={simId} modelId={modelId} />}
               </div>
             </Panel>
 

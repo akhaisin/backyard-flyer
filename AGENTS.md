@@ -54,7 +54,7 @@ src/
     CollapsibleSidePanel.module.css
     TableOfContents.tsx             # left panel — tree built from pageIds prop
     SourceTab.tsx                   # Source tab — renders SimSource if page has a sim
-    VisualisationTab.tsx            # Vis tab — renders SimVis if page has a sim
+    VisualizationTab.tsx            # Vis tab — renders SimVis if page has a sim
     styles.css                      # app shell styles (tab bar, TOC, layout)
 
   sim/
@@ -99,7 +99,7 @@ All routing is hash-based, handled client-side by `PageShell.tsx`.
 | `/pages/#Overview` | `Overview.mdx` | Chapter |
 | `/pages/#sim-demo/floater` | `sim-demo/floater.mdx` | Chapter |
 | `/pages/#sim-demo/floater?view=src` | same | Source |
-| `/pages/#sim-demo/floater?view=vis` | same | Visualisation |
+| `/pages/#sim-demo/floater?view=vis` | same | Visualization |
 
 `PageShell` parses `window.location.hash` on load and every `hashchange`. Format: `#<page-id>[?view=src|vis]`.
 
@@ -107,7 +107,7 @@ All routing is hash-based, handled client-side by `PageShell.tsx`.
 
 ```
 ┌─────────────┬────────────────────────────────────┬───────────────┐
-│ Left        │ [Chapter] [Source] [Visualisation] │ Right         │
+│ Left        │ [Chapter] [Source] [Visualization] │ Right         │
 │ (TOC)       ├────────────────────────────────────┤ (State)       │
 │             │                                    │               │
 │  collapsed  │   Tab content                      │  collapsed    │
@@ -338,7 +338,7 @@ React components use these in `useEffect` to drive live updates.
 - [ ] 1. Hash-based routing — `parseHash`, `hashchange` listener, `navigate`/`switchView` callbacks, `pageId`/`view` state
 - [ ] 2. Host communication (iframe sync) — receiving `NAVIGATE_TO_HASH` and posting `HASH_CHANGED` back to the parent window
 - [ ] 3. DOM-based page content swapping — `ChapterContent` reads pre-rendered MDX from `#page-store` and moves DOM nodes in/out
-- [ ] 4. Tab bar rendering — the `Chapter / Source / Visualisation` switcher UI
+- [ ] 4. Tab bar rendering — the `Chapter / Source / Visualization` switcher UI
 - [ ] 5. Panel layout — the resizable 3-column + bottom-charts split using `react-resizable-panels`
 - [ ] 6. Sim context resolution — deriving `simId`/`modelId` from the current page and passing them down to tabs and side panels
 - [ ] 7. Overlay widgets — `MeflyNavReceiver` (dots menu), GitHub repo link button, help/tour button with `helpSeen` persistence
