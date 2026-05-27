@@ -1,0 +1,184 @@
+---
+order: 13
+simId: Backyard-Flyer/quad-w1
+modelId: quad/quad-w1
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad W1 — window gates and carrot-and-stick navigation
+
+**Quad W1** replaces point waypoints with rectangular window gates. Instead of flying to a coordinate and stopping, the drone must physically pass *through* each gate to advance the mission. The flight stack gains two new concepts: a plane-crossing detector in `mission`, and a dedicated `fc_path_planner` block that sits between the mission and the position PID.
+
+```
+mission ──► fc_path_planner ──► fc_navigator ──► fc_stabilizer ──► hw ──► world
+   ▲                                                                         │
+   └─────────────────────────────────── noise ◄─────────────────────────────┘
+```
+
+| Block | What changed |
+|-------|-------------|
+| `mission` | Four rectangular gates replace point waypoints; crossing detected by plane sign change |
+| `fc_path_planner` | **New.** Carrot-and-stick: generates a moving sub-target ahead of the drone on the path to the gate |
+| `fc_navigator` | Now tracks the planner's *carrot*, not the raw gate center |
+| `fc_stabilizer` | Unchanged from Quad Noice |
+| `hw`, `world`, `wind`, `noise` | Unchanged |
+
+---
+
+## Window gates
+
+A gate is a rectangular plane in 3D space:
+
+```typescript
+type WindowDef = {
+  center: Vec3;    // center of the rectangle
+  normal: Vec3;    // unit vector — the direction of intended travel through the gate
+  width:  number;
+  height: number;
+};
+```
+
+The four gates form a 20 × 20 m rectangle at cruise altitude, and the drone must fly *through* each frame rather than hover near a coordinate:
+
+| Gate | Center | Normal (travel direction) |
+|------|--------|--------------------------|
+| 0 | (10, 5, −10) | +X |
+| 1 | (10, 5, +10) | +Z |
+| 2 | (−10, 5, +10) | −X |
+| 3 | (−10, 5, −10) | −Z |
+
+---
+
+## Crossing detection
+
+For each gate the mission computes a signed distance from the drone to the gate plane:
+
+```
+sideScore = (pos − center) · normal
+```
+
+`sideScore < 0` means the drone is on the approach side; `sideScore > 0` means it has exited. The crossing logic is directional: only an **approach → exit** transition (−1 → +1) is tested. A retreating drone backing through a gate is ignored.
+
+Given a directional plane crossing, two outcomes are possible:
+
+| Condition | Outcome |
+|-----------|---------|
+| Plane crossed **and** lateral offset < half gate dimension | Gate advanced — `windowIdx++` |
+| Plane crossed **and** lateral offset ≥ half gate dimension | **MISSED** — recovery sequence |
+
+The mission block stores `windowSide` in state (−1, 0, or +1). The sentinel value `0` marks the first tick after a new gate becomes active, preventing a false detection when `windowSide` is reset on gate entry.
+
+---
+
+## Miss recovery
+
+If the drone crosses the gate plane outside the frame, it enters the `MISSED` phase. The recovery target is the center of the **previously crossed gate** — or `HOME` if no gate has been crossed yet. Once the drone reaches that point, the mission resets to `NAVIGATE` for the same gate with a fresh `windowSide`, so the drone approaches again from the correct side.
+
+```
+NAVIGATE → [misses gate] → MISSED → [fly to prev gate center] → NAVIGATE (retry same gate)
+```
+
+This mirrors how a racing pilot flies: go back to the last checkpoint and retry the gate cleanly.
+
+The phase sequence with recovery:
+
+```
+ARMING → TAKEOFF → NAVIGATE ──[crossed]──► NAVIGATE (next gate) → … → RTH → LAND → DISARMING → DONE
+                       │
+                    [missed]
+                       ▼
+                    MISSED ──[reached recovery point]──► NAVIGATE (retry)
+```
+
+---
+
+## Carrot-and-stick path planner
+
+Flying directly at a gate center produces a sharp deceleration as the drone approaches — the position error collapses and the PID unloads just before the crossing, so the drone may not actually make it through.
+
+The `fc_path_planner` block solves this with a *carrot*: a virtual sub-target placed a fixed `LOOKAHEAD` distance ahead of the drone along the straight-line path to the gate:
+
+```
+    drone ──────────────────────────── gate center
+              ↑
+           carrot (LOOKAHEAD m ahead on the path)
+```
+
+When the drone is farther than `LOOKAHEAD` from the gate, the carrot leads it forward at full speed. When the drone closes to within `LOOKAHEAD`, the carrot collapses to the gate center — the drone drives straight through without slowing at an intermediate point.
+
+This produces a smooth, continuous velocity profile through the gate rather than a stop-and-go sequence of discrete waypoints.
+
+> **Knob in `fc_path_planner.ts`:** `LOOKAHEAD = 4.0 m`. Increase it for faster, more committed approaches; decrease it if the drone overshoots and misses the gate.
+
+---
+
+## Watch it fly
+
+The 3D view renders each gate as a wireframe rectangle. The active gate is green; upcoming gates are orange; crossed gates fade to dark green. The yellow carrot sphere moves ahead of the drone during navigation and disappears when the drone is not in the NAVIGATE phase.
+
+<SimVis client:only="react" />
+
+---
+
+## Carrot vs gate center
+
+The **Carrot vs window center** chart shows the gap between where the planner sends the drone (carrot) and where the gate actually is. During approach the carrot leads by up to `LOOKAHEAD` metres; as the drone enters the gate the two values converge.
+
+<SimCharts varIds={[['planner.carrot.x','mission.windowCenter.x','planner.carrot.z','mission.windowCenter.z']]} client:only="react" />
+
+---
+
+## Position and speed
+
+<SimCharts varIds={[['pos.x','sensors.pos.x','pos.y','sensors.pos.y','pos.z','sensors.pos.z']]} client:only="react" />
+
+---
+
+## Mission state
+
+`windowIdx` increments each time a gate is crossed cleanly. `dist` is the 3D distance to the current target — the next gate center during NAVIGATE, the recovery point during MISSED. A spike in `phase` to 7 (MISSED) followed by a return to 2 (NAVIGATE) indicates the drone missed a gate and recovered.
+
+<SimCharts varIds={[['mission.phase','mission.windowIdx','mission.dist','mission.armed']]} client:only="react" />
+
+---
+
+## Edit the mission
+
+The gate positions, sizes, and travel normals live here. Try widening the gates (`width: 5`) or tightening the crossing threshold to require a more precise pass.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## Edit the path planner
+
+Tune the carrot lookahead distance or experiment with a different placement strategy — for example, putting the carrot slightly past the gate center so the drone fully exits before the mission advances.
+
+<SimSource sourceIds={['fc_path_planner']} autoHeight client:only="react" />
+
+---
+
+## Edit the navigator
+
+The navigator is identical to Quad Noice. Because it now tracks a moving carrot instead of a static target, the integral term (`KI_POS`) plays a smaller role — the carrot continuously nudges the drone forward, so steady-state error rarely accumulates. Try reducing `KI_POS` to 0 and observe the difference.
+
+<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+
+---
+
+## Attitude and thrust
+
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['fc.nav.thrust']]} client:only="react" />
+
+---
+
+## Edit the environment
+
+Wind and noise are inherited unchanged from Quad Noice. A strong crosswind makes it harder for the drone to line up with a narrow gate — increase `FORCE_MAX_PCT` to stress-test the gate crossing.
+
+<SimSource sourceIds={['wind']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['noise']} autoHeight client:only="react" />

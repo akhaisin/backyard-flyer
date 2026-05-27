@@ -62,3 +62,13 @@ The same two-controller architecture as L2, but the environment now fights back.
 `KI_POS` is nonzero here for the first time: without integral action, a sustained gust produces a steady-state position offset that PD alone cannot cancel. The mission loops indefinitely so the quad flies consecutive laps through changing wind conditions.
 
 **What it introduces:** external disturbances, sensor noise, and why integral action is necessary when persistent forces must be rejected.
+
+---
+
+## [Quad W1 — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1)
+
+Point waypoints are replaced with rectangular window gates. The drone must physically fly *through* each 3 × 3 m frame to advance the mission — hovering nearby is not enough. A new `fc_path_planner` block sits between the mission and the position PID and implements a carrot-and-stick: a virtual sub-target placed `LOOKAHEAD` metres ahead of the drone on the path to the gate, keeping the drone at full speed through the crossing instead of decelerating to a stop.
+
+Crossing detection is directional (approach → exit only) and checks whether the drone passed through the frame or missed it. A missed gate triggers a recovery phase: the drone returns to the center of the previously crossed gate and retries, mirroring how a racing pilot restarts from the last checkpoint.
+
+**What it introduces:** plane-based crossing detection, MISSED recovery state, carrot-and-stick path planning, and the architectural split between mission planning and low-level navigation.

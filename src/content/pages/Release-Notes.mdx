@@ -1,0 +1,30 @@
+---
+order: 100
+---
+
+# Release Notes
+
+---
+
+## Known Limitations
+
+### Block source editing
+
+Block sources can be edited live in the browser and hot-reloaded without a page refresh. The following restrictions apply:
+
+- **No new imports.** Each block file is executed as an isolated module. You can add helpers and constants inside the file, but you cannot `import` additional libraries or other project files — the module resolver is not available at runtime.
+- **Function signature is fixed.** The config's `mapStateIn` and `mapStateOut` functions are compiled at startup. Adding, removing, or renaming fields on the block's input or output type has no effect until those mappings are also updated in the model config (which requires a page reload and a code change to the `.config.ts` file).
+- **No persistent module-level state across hot-reloads.** Variables declared outside the exported function (e.g. accumulator counters, cached values) are re-initialised every time the source is staged. If the block depends on state that must survive a reload, it should be threaded through the simulation state tree, not kept in module scope.
+- **Type errors are not caught at edit time.** The in-browser editor has syntax highlighting but no TypeScript type-checking. Type errors that would be caught by the compiler are only surfaced if the staged code throws at runtime during a simulation tick.
+
+---
+
+### Block diagram
+
+The block diagram (the **Blocks** tab) is generated from the static `blocksDiagram` array declared in the model's `.config.ts` file. It reflects the *intended* signal graph specified by the model author, not the *actual* data flow through the current source code.
+
+Consequences:
+
+- Editing a block's source does not update the diagram — the arrows always show the connections declared in the config, regardless of what the live code actually reads or writes.
+- Because the function signature is fixed by `mapStateIn` / `mapStateOut` (see above), a block cannot read from or write to a state field that isn't already wired up in the config. The diagram and the actual data flow are therefore always in sync for the *available* signals — but neither can be extended through source editing alone.
+- The diagram cannot be used to audit what a live-edited block is actually computing, only what signals it is permitted to receive and emit.
