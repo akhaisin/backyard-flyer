@@ -119,9 +119,13 @@
   flex: 1;
   min-height: 400px;
 }
+.sim-vis:fullscreen {
+  background: #0a0a14;
+}
 
 .sim-vis__canvas {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: #0a0a14;
 }
@@ -150,11 +154,17 @@
 
 .sim-vis__controls {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
   padding: 6px 10px;
   background: var(--color-bg-elevated);
   border-top: 1px solid var(--color-border-soft);
   flex-shrink: 0;
+}
+
+.sim-vis__controls-left {
+  display: flex;
+  gap: 8px;
 }
 
 .sim-vis__btn {
@@ -171,6 +181,7 @@
 .sim-vis__btn--reset { background: transparent; color: var(--color-text-muted); }
 .sim-vis__btn--pending { background: #1a3a0a; border-color: #3a6a1a; color: #aaffaa; }
 .sim-vis__btn--small { font-size: 11px; padding: 2px 8px; }
+.sim-vis__btn--icon { padding: 4px 8px; font-size: 15px; line-height: 1; }
 
 .sim-vis__error {
   padding: 6px 10px;

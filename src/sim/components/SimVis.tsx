@@ -67,7 +67,10 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
   const [historyLen, setHistoryLen] = useState(0);
   const [rewindTick, setRewindTick] = useState<number | null>(null);
   const [resetCount, setResetCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const rewindTickRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const savedHeightRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubState = subscribe(simId, (_state, tick) => setHistoryLen(tick));
@@ -75,6 +78,22 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
     const unsubError = subscribeError(simId, setError);
     return () => { unsubState(); unsubRunning(); unsubError(); };
   }, [simId]);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      const isNowFullscreen = document.fullscreenElement === containerRef.current;
+      setIsFullscreen(isNowFullscreen);
+      if (!isNowFullscreen && containerRef.current && savedHeightRef.current > 0) {
+        // Pin the saved height so the flex layout can constrain .sim-vis__canvas,
+        // which triggers the ResizeObserver in ThreeCanvas to correct the canvas size.
+        const el = containerRef.current;
+        el.style.height = `${savedHeightRef.current}px`;
+        requestAnimationFrame(() => { requestAnimationFrame(() => { el.style.height = ''; }); });
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   const scrubTo = useCallback((tick: number) => {
     const history = getHistory(simId);
@@ -102,6 +121,15 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
     setResetCount(c => c + 1);
   }, [simId, exitRewind]);
 
+  const handleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      savedHeightRef.current = containerRef.current?.offsetHeight ?? 0;
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
   const pending = hasPendingChanges(simId);
   const isRewinding = rewindTick !== null;
 
@@ -114,7 +142,7 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
 
   return (
     <SimVisContext.Provider value={contextValue}>
-      <div className="sim-vis">
+      <div className="sim-vis" ref={containerRef}>
         <VisComponent />
 
         {historyLen > 0 && (
@@ -130,9 +158,11 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
         <PlaybackControls
           running={running}
           pending={pending}
+          isFullscreen={isFullscreen}
           onStart={handleStart}
           onStop={handleStop}
           onReset={handleReset}
+          onFullscreen={handleFullscreen}
         />
 
         {error && <SimErrorBar error={error} />}
@@ -168,27 +198,38 @@ function RewindControl({ historyLen, rewindTick, isRewinding, onScrub, onExit }:
   );
 }
 
-function PlaybackControls({ running, pending, onStart, onStop, onReset }: {
+function PlaybackControls({ running, pending, isFullscreen, onStart, onStop, onReset, onFullscreen }: {
   running: boolean;
   pending: boolean;
+  isFullscreen: boolean;
   onStart: () => void;
   onStop: () => void;
   onReset: () => void;
+  onFullscreen: () => void;
 }) {
   return (
     <div className="sim-vis__controls">
-      {!running && (
-        <button
-          className={`sim-vis__btn${pending ? ' sim-vis__btn--pending' : ''}`}
-          onClick={onStart}
-        >
-          {pending ? 'Apply & Start' : 'Start'}
-        </button>
-      )}
-      {running && (
-        <button className="sim-vis__btn sim-vis__btn--stop" onClick={onStop}>Stop</button>
-      )}
-      <button className="sim-vis__btn sim-vis__btn--reset" onClick={onReset}>Reset</button>
+      <div className="sim-vis__controls-left">
+        {!running && (
+          <button
+            className={`sim-vis__btn${pending ? ' sim-vis__btn--pending' : ''}`}
+            onClick={onStart}
+          >
+            {pending ? 'Apply & Start' : 'Start'}
+          </button>
+        )}
+        {running && (
+          <button className="sim-vis__btn sim-vis__btn--stop" onClick={onStop}>Stop</button>
+        )}
+        <button className="sim-vis__btn sim-vis__btn--reset" onClick={onReset}>Reset</button>
+      </div>
+      <button
+        className="sim-vis__btn sim-vis__btn--icon"
+        onClick={onFullscreen}
+        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+      >
+        {isFullscreen ? '⮌' : '⛶'}
+      </button>
     </div>
   );
 }
