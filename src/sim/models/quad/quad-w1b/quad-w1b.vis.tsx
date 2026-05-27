@@ -39,7 +39,7 @@ const sceneHandler = composeScene(() => [
     }),
     WINDOWS,
   ),
-  windSock(s => view(s).wind),
+  windSock(s => view(s).wind, { maxForceN: 1.5 }),
 ]);
 
 export default function QuadW1bVis() {

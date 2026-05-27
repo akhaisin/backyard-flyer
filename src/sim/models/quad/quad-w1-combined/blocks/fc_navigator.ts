@@ -13,9 +13,9 @@ type FcNavOut = {
   integralPos: Vec3;
 };
 
-const KP_POS = 2.0;
+const KP_POS = 3.0;
 const KI_POS = 0.3;
-const KD_POS = 1.5;
+const KD_POS = 2.5;
 
 const MASS    = 1.0;
 const GRAVITY = 9.81;

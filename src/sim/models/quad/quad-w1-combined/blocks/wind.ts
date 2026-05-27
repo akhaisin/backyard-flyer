@@ -5,10 +5,10 @@
 type WindIn = { fx: number; fz: number; ticksLeft: number };
 type WindOut = { fx: number; fz: number; ticksLeft: number };
 
-const FORCE_MAX_PCT = 15;         // % of peak — increase to make wind stronger
-const WIND_MAX_N = 10;            // scale matches 4×MAX_THRUST_N at 100 %
-const DURATION_MIN_TICKS = 200;   // 5 s at 20 Hz
-const DURATION_MAX_TICKS = 800;   // 20 s at 20 Hz
+const FORCE_MAX_PCT = 30;         // % of peak — increase to make wind stronger
+const WIND_MAX_N = 20;            // scale matches 4×MAX_THRUST_N at 100 %
+const DURATION_MIN_TICKS = 100;   // 5 s at 20 Hz
+const DURATION_MAX_TICKS = 300;   // 20 s at 20 Hz
 
 export function wind(state: WindIn): WindOut {
   if (state.ticksLeft > 0) {

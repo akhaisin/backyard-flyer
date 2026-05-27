@@ -12,10 +12,10 @@ type NoiseOut = {
   pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3;
 };
 
-const POS_STD     = 0.01;   // m   — GPS horizontal / vertical noise
-const VEL_STD     = 0.01;   // m/s — velocity estimate noise
-const ATT_STD     = 0.0001;  // rad — IMU attitude noise (~0.3°)
-const ANG_VEL_STD = 0.005;   // rad/s — gyro noise
+const POS_STD     = 0.02;   // m   — GPS horizontal / vertical noise
+const VEL_STD     = 0.02;   // m/s — velocity estimate noise
+const ATT_STD     = 0.0002;  // rad — IMU attitude noise (~0.3°)
+const ANG_VEL_STD = 0.002;   // rad/s — gyro noise
 
 // Box-Muller Gaussian sample (zero mean, unit variance).
 function randn(): number {

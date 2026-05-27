@@ -11,6 +11,7 @@ export type WindowDef = {
   normal: Vec3;   // unit vector — direction of travel through the gate
   width: number;
   height: number;
+  label?: string;
 };
 
 type MissionIn = {
@@ -42,16 +43,17 @@ const DISARMING = 5;
 const DONE      = 6;
 const MISSED    = 7;
 
-const CRUISE_ALT = 5;
+const CRUISE_ALT  = 5;
+const WINDOW_SIZE = 5;
 const HOME: Vec3     = { x: 0, y: CRUISE_ALT, z: 0 };
 const LAND_PAD: Vec3 = { x: 0, y: 0, z: 0 };
 
 // 4 gates forming a rectangle. Normal points in the direction of intended travel through each gate.
 export const WINDOWS: WindowDef[] = [
-  { center: { x: 10, y: CRUISE_ALT, z: -10 }, normal: { x: 1, y: 0, z: 0 }, width: 5, height: 5 },
-  { center: { x: 10, y: CRUISE_ALT, z: 10 }, normal: { x: 0, y: 0, z: 1 }, width: 5, height: 5 },
-  { center: { x: -10, y: CRUISE_ALT, z: 10 }, normal: { x: -1, y: 0, z: 0 }, width: 5, height: 5 },
-  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x: 0, y: 0, z: -1 }, width: 5, height: 5 },
+  { center: { x: 10, y: CRUISE_ALT, z: -10 }, normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W1' },
+  { center: { x: 10, y: CRUISE_ALT, z: 10 }, normal: { x: 0, y: 0, z: 1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W2' },
+  { center: { x: -10, y: CRUISE_ALT, z: 10 }, normal: { x: -1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W3' },
+  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x: 0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W4' },
 ];
 
 const ARMING_TICKS  = 20;

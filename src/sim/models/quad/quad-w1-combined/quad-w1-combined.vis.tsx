@@ -69,7 +69,7 @@ const sceneHandler = composeScene(() => [
   ),
 
   // Windsock in the open +x/+z quadrant, immediately visible from default camera
-  windSock(s => view(s).wind, { position: [5, 0, 5] }),
+  windSock(s => view(s).wind, { position: [5, 0, 5], maxForceN: 5 }),
 ]);
 
 export default function QuadW1CombinedVis() {

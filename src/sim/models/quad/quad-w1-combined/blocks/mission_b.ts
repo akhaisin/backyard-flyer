@@ -9,6 +9,7 @@ export type WindowDef = {
   normal: Vec3;
   width: number;
   height: number;
+  label?: string;
 };
 
 type MissionIn = {
@@ -42,7 +43,8 @@ const DISARMING = 5;
 const DONE      = 6;
 const MISSED    = 7;
 
-const CRUISE_ALT = 5;
+const CRUISE_ALT  = 5;
+const WINDOW_SIZE = 4;
 // Track B centred at (15, 5, -15) — the +x/-z quadrant, diagonal from track A.
 const X_OFF =  15;
 const Z_OFF = -15;
@@ -51,10 +53,10 @@ const HOME: Vec3     = { x: X_OFF, y: CRUISE_ALT, z: Z_OFF };
 const LAND_PAD: Vec3 = { x: X_OFF, y: 0,          z: Z_OFF };
 
 export const WINDOWS_B: WindowDef[] = [
-  { center: { x: 10 + X_OFF, y: CRUISE_ALT, z: -10 + Z_OFF }, normal: { x: 1, y: 0, z: 0 },  width: 5, height: 5 },
-  { center: { x: 10 + X_OFF, y: CRUISE_ALT, z:  10 + Z_OFF }, normal: { x: 0, y: 0, z: 1 },  width: 5, height: 5 },
-  { center: { x:-10 + X_OFF, y: CRUISE_ALT, z:  10 + Z_OFF }, normal: { x:-1, y: 0, z: 0 },  width: 5, height: 5 },
-  { center: { x:-10 + X_OFF, y: CRUISE_ALT, z: -10 + Z_OFF }, normal: { x: 0, y: 0, z:-1 },  width: 5, height: 5 },
+  { center: { x: 8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x: 1, y: 0, z: 0 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'B1' },
+  { center: { x: 8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x: 0, y: 0, z: 1 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'B2' },
+  { center: { x:-8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x:-1, y: 0, z: 0 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'B3' },
+  { center: { x:-8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x: 0, y: 0, z:-1 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'B4' },
 ];
 
 const ARMING_TICKS  = 20;
