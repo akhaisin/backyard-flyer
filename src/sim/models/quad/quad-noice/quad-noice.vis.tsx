@@ -5,7 +5,7 @@ import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
-import { windArrow } from '../../../vis/plugins/windArrow';
+import { windSock } from '../../../vis/plugins/windSock';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -33,7 +33,7 @@ const sceneHandler = composeScene(() => [
     s => ({ waypointIdx: view(s).mission.waypointIdx, target: view(s).mission.target, phase: view(s).mission.phase }),
     { addWhen: s => Math.round(view(s).mission.phase) === 2, doneColor: 0x446644 },
   ),
-  windArrow(s => view(s).wind),
+  windSock(s => view(s).wind),
 ]);
 
 export default function QuadNoiceVis() {

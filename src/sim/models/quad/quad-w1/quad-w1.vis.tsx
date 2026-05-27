@@ -5,7 +5,7 @@ import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
-import { windArrow } from '../../../vis/plugins/windArrow';
+import { windSock } from '../../../vis/plugins/windSock';
 import { WINDOWS } from './blocks/mission';
 import type { ModelState } from '../../../engine/types';
 
@@ -39,7 +39,7 @@ const sceneHandler = composeScene(() => [
     }),
     WINDOWS,
   ),
-  windArrow(s => view(s).wind),
+  windSock(s => view(s).wind),
 ]);
 
 export default function QuadW1Vis() {
