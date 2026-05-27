@@ -10,6 +10,7 @@ import { quadNoiceConfig } from './models/quad/quad-noice/quad-noice.config';
 import { quadW1aConfig } from './models/quad/quad-w1a/quad-w1a.config';
 import { quadW1bConfig } from './models/quad/quad-w1b/quad-w1b.config';
 import { quadW1CombinedConfig } from './models/quad/quad-w1-combined/quad-w1-combined.config';
+import { quadLadderConfig } from './models/quad/quad-ladder/quad-ladder.config';
 import type { ModelConfig } from './engine/types';
 
 export const modelRegistry: Record<string, ModelConfig> = {
@@ -25,4 +26,5 @@ export const modelRegistry: Record<string, ModelConfig> = {
   'quad/quad-w1a':   quadW1aConfig,
   'quad/quad-w1b':        quadW1bConfig,
   'quad/quad-w1-combined': quadW1CombinedConfig,
+  'quad/quad-ladder':      quadLadderConfig,
 };

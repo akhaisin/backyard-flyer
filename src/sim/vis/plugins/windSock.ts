@@ -28,20 +28,20 @@ const SEG_LEN       = SOCK_LENGTH / STRIPES;   // 0.5 m per stripe
 const UPPER_LENGTH  = UPPER_STRIPES * SEG_LEN;  // 1.0 m from mount to bend
 const STRIPE_COLORS = [0xff5500, 0xffffff] as const;
 
-// Force (N) at which the sock reaches full extension (horizontal).
-// Matches wind block defaults: WIND_MAX_N(10) × FORCE_MAX_PCT(15 %) = 1.5 N.
-const MAX_FORCE_N = 1.5;
 // Lower segment droops BEND_RATIO times more than the upper segment; capped at π/2.
 const BEND_RATIO  = 2.5;
+// Minimum extension fraction (0 = hanging, 1 = horizontal).
+// At zero wind the sock shows this much extension rather than hanging straight down.
+const MIN_DISPLAY = 0.25;
 
 // Module-level constant to avoid per-tick allocation in setFromUnitVectors.
 const NEG_Y = new THREE.Vector3(0, -1, 0);
 
 export function windSock(
   getWind: (state: ModelState) => VisWind,
-  opts: { position?: [number, number, number] } = {},
+  opts: { position?: [number, number, number]; maxForceN?: number } = {},
 ): ScenePlugin {
-  const { position = [-3, 0, -3] } = opts;
+  const { position = [-3, 0, -3], maxForceN = 1.5 } = opts;
 
   let mountX = 0, mountY = 0, mountZ = 0;
   let pole: THREE.Mesh | null = null;
@@ -116,22 +116,15 @@ export function windSock(
       const { fx, fz } = getWind(state);
       const mag = Math.sqrt(fx * fx + fz * fz);
 
-      if (mag < 0.001) {
-        upperPivot.quaternion.identity();
-        lowerPivot.position.set(mountX, mountY - UPPER_LENGTH, mountZ);
-        lowerPivot.quaternion.identity();
-        return;
-      }
-
-      const t = Math.min(mag / MAX_FORCE_N, 1.0);
+      const t = Math.max(MIN_DISPLAY, Math.min(mag / maxForceN, 1.0));
 
       // drop: angle below horizontal (π/2 = hanging at no wind, 0 = horizontal at max wind).
       const drop      = (1 - t) * (Math.PI / 2);
       const lowerDrop = Math.min(BEND_RATIO * drop, Math.PI / 2);
 
-      // Horizontal wind direction (unit vector in XZ plane).
-      const nx = fx / mag;
-      const nz = fz / mag;
+      // Horizontal wind direction; default to +X when calm.
+      const nx = mag > 0.001 ? fx / mag : 1.0;
+      const nz = mag > 0.001 ? fz / mag : 0.0;
 
       // Upper segment direction: from mount toward bend point.
       const upperDir = new THREE.Vector3(nx * Math.cos(drop), -Math.sin(drop), nz * Math.cos(drop));

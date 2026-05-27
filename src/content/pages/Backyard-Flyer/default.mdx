@@ -88,3 +88,13 @@ The same window-gate mission as W1a, but with an improved path planner. At obliq
 Both approaches fly simultaneously in one simulation. W1a (blue) and W1b (orange) navigate identical window-gate circuits on parallel tracks separated by 25 m in Z. A shared wind block affects both equally, so any difference in gate miss rate is attributable to the planner alone.
 
 **What it introduces:** side-by-side comparison of path planning strategies, loops counter for lap-rate benchmarking.
+
+---
+
+## [Quad Ladder — yaw-aware navigation through a vertical gate stack](#Backyard-Flyer/quad-ladder)
+
+A three-gate vertical ladder — a standard FPV racing element. The drone starts at the origin, arcs around the left side of the structure to the back, then crosses all three gates from the back entrance (going −X) while alternating left/right arcs between gates and climbing 3 m per gate.
+
+Two new ideas: the mission interleaves positional waypoints (advance on distance) with window gates (advance on crossing), encoding the full arc-cross-arc pattern in a single step list; and the navigator decomposes roll/pitch commands in the drone's actual body frame, correctly handling any yaw angle rather than assuming the drone always faces +X.
+
+**What it introduces:** mixed waypoint/gate step sequences, yaw-aware roll/pitch frame decomposition, explicit yaw setpoints with rate limiting.

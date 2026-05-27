@@ -76,6 +76,7 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
   const rewindTickRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const savedHeightRef = useRef<number>(0);
+  const runningRef = useRef(running);
 
   useEffect(() => {
     const unsubState = subscribe(simId, (_state, tick) => setHistoryLen(tick));
@@ -118,6 +119,21 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
   }, [simId, exitRewind]);
 
   const handleStop = useCallback(() => { stopSim(simId); }, [simId]);
+
+  // Keep ref in sync so the keydown handler never captures a stale `running`.
+  useEffect(() => { runningRef.current = running; }, [running]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      e.preventDefault();
+      if (runningRef.current) handleStop(); else handleStart();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [handleStart, handleStop]);
 
   const handleReset = useCallback(() => {
     exitRewind();
@@ -219,12 +235,13 @@ function PlaybackControls({ running, pending, isFullscreen, onStart, onStop, onR
           <button
             className={`sim-vis__btn${pending ? ' sim-vis__btn--pending' : ''}`}
             onClick={onStart}
+            title={pending ? 'Apply changes and start (Space)' : 'Start simulation (Space)'}
           >
             {pending ? 'Apply & Start' : 'Start'}
           </button>
         )}
         {running && (
-          <button className="sim-vis__btn sim-vis__btn--stop" onClick={onStop}>Stop</button>
+          <button className="sim-vis__btn sim-vis__btn--stop" onClick={onStop} title="Stop simulation (Space)">Stop</button>
         )}
         <button className="sim-vis__btn sim-vis__btn--reset" onClick={onReset}>Reset</button>
       </div>
