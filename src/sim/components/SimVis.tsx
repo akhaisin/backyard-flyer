@@ -36,6 +36,11 @@ interface Props {
   modelId?: string;
 }
 
+// TODO: refactor outer shell to useResolvedSimContext (src/sim/useResolvedSimContext.ts).
+// Difference: SimVis stores { simId, modelId } not SimContext, and defers resolveSimContext
+// to render time (so it picks up registry changes without re-running the effect). The hook
+// could accept an optional transform, or a second variant useResolvedSimIds could store just
+// the ids and leave resolveSimContext to the caller.
 type Resolved = { simId: string; modelId?: string };
 
 export default function SimVis({ simId: simIdProp, modelId: modelIdProp }: Props) {

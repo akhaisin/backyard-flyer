@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getBlockCode, stageBlock, revertBlock,
   hasPendingChanges, subscribeRunning, isRunning,
 } from '../engine/engine';
-import { resolveSimContext } from '../useSim';
 import type { SimContext } from '../useSim';
+import { useResolvedSimContext } from '../useResolvedSimContext';
 import OverflowTabs from './OverflowTabs';
 import './sim.css';
 
@@ -17,20 +17,7 @@ interface Props {
 }
 
 export default function SimSource({ ctx, simId: simIdProp, modelId: modelIdProp, sourceIds, autoHeight }: Props) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [resolved, setResolved] = useState<SimContext | null>(ctx ?? null);
-
-  useLayoutEffect(() => {
-    if (ctx) { setResolved(ctx); return; }
-    const ancestor = sentinelRef.current?.closest('[data-sim-id]');
-    const domSimId = ancestor?.getAttribute('data-sim-id') ?? undefined;
-    const domModelId = ancestor?.getAttribute('data-model-id') ?? undefined;
-    const effectiveSimId = simIdProp ?? domSimId;
-    if (effectiveSimId) {
-      const r = resolveSimContext(effectiveSimId, modelIdProp ?? domModelId);
-      if (r) setResolved(r);
-    }
-  }, [ctx, simIdProp, modelIdProp]);
+  const { resolved, sentinelRef } = useResolvedSimContext(ctx, simIdProp, modelIdProp);
 
   if (!resolved) return <div ref={sentinelRef} />;
   return <SimSourceInner ctx={resolved} sourceIds={sourceIds} autoHeight={autoHeight} />;

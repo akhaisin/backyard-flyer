@@ -1,6 +1,6 @@
 import {
-  useState, useLayoutEffect, useMemo, useCallback,
-  useRef, createContext, useContext,
+  useState, useMemo, useCallback,
+  createContext, useContext,
 } from 'react';
 import {
   ReactFlow, Background, BackgroundVariant,
@@ -9,8 +9,8 @@ import {
   type Node, type Edge, type EdgeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { resolveSimContext } from '../useSim';
 import type { SimContext } from '../useSim';
+import { useResolvedSimContext } from '../useResolvedSimContext';
 import {
   analyzeConnections, buildLayout, buildEdges, nodeCenter, borderPoint,
   type Waypoint, type EdgeData, type SetWaypoint,
@@ -115,20 +115,7 @@ const edgeTypes = { floating: FloatingEdge };
 // ── Outer: context resolution ─────────────────────────────────────────────────
 
 export default function SimBlocks({ ctx, simId: simIdProp, modelId: modelIdProp }: Props) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [resolved, setResolved] = useState<SimContext | null>(ctx ?? null);
-
-  useLayoutEffect(() => {
-    if (ctx) { setResolved(ctx); return; }
-    const ancestor   = sentinelRef.current?.closest('[data-sim-id]');
-    const domSimId   = ancestor?.getAttribute('data-sim-id')   ?? undefined;
-    const domModelId = ancestor?.getAttribute('data-model-id') ?? undefined;
-    const sid        = simIdProp ?? domSimId;
-    if (sid) {
-      const r = resolveSimContext(sid, modelIdProp ?? domModelId);
-      if (r) setResolved(r);
-    }
-  }, [ctx, simIdProp, modelIdProp]);
+  const { resolved, sentinelRef } = useResolvedSimContext(ctx, simIdProp, modelIdProp);
 
   if (!resolved) return <div ref={sentinelRef} />;
   return <SimBlocksInner key={resolved.config.modelId} ctx={resolved} />;
