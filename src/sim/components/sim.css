@@ -18,29 +18,6 @@
   field-sizing: content;
 }
 
-.sim-source__block-tabs {
-  display: flex;
-  gap: 2px;
-  padding: 4px 8px 0;
-  background: var(--color-bg-elevated);
-  border-bottom: 1px solid var(--color-border-soft);
-}
-
-.sim-source__block-tab {
-  padding: 4px 12px;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  cursor: pointer;
-  color: var(--color-text-muted);
-  background: transparent;
-}
-
-.sim-source__block-tab:hover { color: var(--color-text); }
-.sim-source__block-tab--active { background: var(--color-bg); border-color: var(--color-border-soft); color: var(--color-text); }
-.sim-source__block-tab--staged::after { content: ' •'; color: #f0a000; }
 
 .sim-source__toolbar {
   display: flex;

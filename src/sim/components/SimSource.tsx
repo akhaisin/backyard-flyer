@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import {
   getBlockCode, stageBlock, revertBlock,
   hasPendingChanges, subscribeRunning, isRunning,
 } from '../engine/engine';
 import { resolveSimContext } from '../useSim';
 import type { SimContext } from '../useSim';
+import OverflowTabs from './OverflowTabs';
 import './sim.css';
 
 interface Props {
@@ -49,9 +50,10 @@ interface BlockEditorState {
 
 function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
   const { simId, config } = ctx;
-  const visibleBlocks = sourceIds
-    ? config.blocks.filter(b => sourceIds.includes(b.sourceId))
-    : config.blocks;
+  const visibleBlocks = useMemo(() =>
+    sourceIds ? config.blocks.filter(b => sourceIds.includes(b.sourceId)) : config.blocks,
+    [config.blocks, sourceIds],
+  );
 
   const [activeSourceId, setActiveSourceId] = useState(visibleBlocks[0]?.sourceId ?? '');
   const [blockStates, setBlockStates] = useState<Record<string, BlockEditorState>>(() => {
@@ -120,22 +122,18 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [stage, activeSourceId]);
 
+  const tabs = visibleBlocks.map(b => ({
+    id: b.sourceId,
+    label: `${b.sourceId}.ts`,
+    marked: blockStates[b.sourceId]?.staged ?? false,
+  }));
+
   const activeBlock = blockStates[activeSourceId];
 
   return (
     <div className={`sim-source${autoHeight ? ' sim-source--auto-height' : ''}`}>
       {visibleBlocks.length > 1 && (
-        <div className="sim-source__block-tabs">
-          {visibleBlocks.map(b => (
-            <button
-              key={b.sourceId}
-              className={`sim-source__block-tab${activeSourceId === b.sourceId ? ' sim-source__block-tab--active' : ''}${blockStates[b.sourceId]?.staged ? ' sim-source__block-tab--staged' : ''}`}
-              onClick={() => setActiveSourceId(b.sourceId)}
-            >
-              {b.sourceId}.ts
-            </button>
-          ))}
-        </div>
+        <OverflowTabs tabs={tabs} activeId={activeSourceId} onSelect={setActiveSourceId} />
       )}
 
       <div className="sim-source__toolbar">
