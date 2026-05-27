@@ -12,20 +12,42 @@ Use the table of contents on the left to navigate. Simulation pages have three t
 
 ---
 
-## All simulations
+## [Backyard Flyer](#Backyard-Flyer)
 
-- **[Inc — minimal simulation](#sim-demo/inc)** — one block, one number, one tick per second. The smallest possible model. Useful for verifying the editor + run loop before tackling anything physical.
-
-- **[PID tutorial — control fundamentals](#control/pid-tutorial)** — a single 1D plant driven by a PID controller. Live sliders for target, gains (Kp, Ki, Kd), and plant parameters (mass, damping) let you build intuition for what each term does — start with pure P, add D to damp oscillation, add I to kill steady-state error.
+Quadcopter simulations in order of increasing realism — from a point-mass sphere to a full cascaded flight controller flying through window gates.
 
 - **[Floater — multi-block model with simulated hardware](#Backyard-Flyer/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
 
-- **[PD vs PID — two controllers, side by side](#Backyard-Flyer/floater-pid)** ⭐ *Recommended* — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
+- **[Floater PID vs PD — two controllers, side by side](#Backyard-Flyer/floater-pid)** — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
 
-- **[Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)** ⭐ *Recommended* — a quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm. The `mission` block is a seven-phase state machine; `world` includes a simple ground-contact model (per-tick horizontal friction on landing).
+- **[Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)** — a quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm. The `mission` block is a seven-phase state machine; `world` includes a simple ground-contact model (per-tick horizontal friction on landing).
 
 - **[Quad L2 — cascaded controllers: navigator + stabilizer](#Backyard-Flyer/quad-l2)** — the same mission, but the flight controller is split into two independent blocks: `fc_navigator` converts position error into desired attitude and total thrust; `fc_stabilizer` tracks that attitude and drives the motors. The interface between them — `{ roll_des, pitch_des, yaw_des, thrust }` — is live in a dedicated chart.
+
+- **[Quad Noice — wind disturbance and sensor noise](#Backyard-Flyer/quad-noice)** — Quad L2 extended with random wind gusts and realistic Gaussian sensor noise on every channel. The flight controller never reads the true state; it must reject sustained gusts through a position integral term (`KI_POS`) and tolerate gyro/GPS jitter. Because the mission loops indefinitely, each lap is a fresh trial against a different random wind.
+
+- **[Quad W1a — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1a)** — point waypoints replaced by rectangular window gates the drone must physically pass *through*. A new `fc_path_planner` block generates a moving carrot sub-target ahead of the drone so it maintains speed through the gate instead of decelerating to a stop. Missed gates trigger a recovery sequence: fly back to the last checkpoint and retry the approach.
+
+- **[Quad W1b — pre-gate staging approach](#Backyard-Flyer/quad-w1b)** — improves on W1a by adding a pre-gate staging point placed along each gate's approach axis. The drone aligns with the window normal before entering, eliminating the lateral overshoot that occurs when approaching at an oblique angle.
+
+- **[Quad W1 Combined — W1a vs W1b side-by-side](#Backyard-Flyer/quad-w1-combined)** — two quads fly identical window-gate circuits on parallel tracks under shared wind. Blue (A) uses W1a's direct approach; Orange (B) uses W1b's staged approach. The *Loops completed* chart accumulates over time, making the difference in gate miss rate visible across many laps.
+
+---
+
+## [Control blocks](#control)
+
+Standalone simulations focused on PID fundamentals: what each term does, how to tune a controller by hand, and two automatic tuning algorithms.
+
+- **[PID tutorial — control fundamentals](#control/pid-tutorial)** — a single 1D plant driven by a PID controller. Live sliders for target, gains (Kp, Ki, Kd), and plant parameters (mass, damping) let you build intuition for what each term does — start with pure P, add D to damp oscillation, add I to kill steady-state error.
 
 - **[PID auto-tuning — STR](#control/pid-tune-str)** ⚠️ *Work in progress.* Self-Tuning Regulator: identify the plant online with RLS, then derive PID gains via pole placement. Demonstrates the *idea* of model-based auto-tuning; the implementation can still drift or get stuck under aggressive setpoint changes.
 
 - **[PID auto-tuning — Relay-feedback](#control/pid-tune-relay)** — Åström–Hägglund's relay method. Press *Tune Now* and the system temporarily replaces the PID with a bang-bang relay; the resulting limit cycle gives `Ku` and `Tu`, and Ziegler-Nichols yields the gains. This is the algorithm behind the "auto-tune" button on most industrial PID controllers.
+
+---
+
+## [Demos](#sim-demo)
+
+Minimal simulations for verifying the editor and run loop.
+
+- **[Inc — minimal simulation](#sim-demo/inc)** — one block, one number, one tick per second. The smallest possible model. Useful for verifying the editor + run loop before tackling anything physical.
