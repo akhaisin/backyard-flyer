@@ -1,16 +1,8 @@
-import { useEffect, useState } from 'react';
 import { useSimVis } from '../../../components/SimVis';
-import {
-  subscribe, subscribeInputs,
-  getLiveInputs, getState, getHistory,
-  setInput,
-} from '../../../engine/engine';
-import type { ModelState } from '../../../engine/types';
+import { setInput } from '../../../engine/engine';
+import { usePidSimState } from '../usePidSimState';
+import { PidDiagram, Overlay, Slider, type SliderSpec } from '../PidPrimitives';
 import './pid-tune-str.css';
-
-// ── Diagram geometry ────────────────────────────────────────────────────────
-// Same top portion as pid-tutorial. ViewBox is taller (H=380) to make room
-// for the Tuner box below the main signal flow.
 
 const W = 1000;
 const H = 380;
@@ -33,19 +25,10 @@ const OUT_END  = { x: 970, y: 100 };
 const FB_X     = 940;
 const FB_Y     = 330;
 
-// Tuner box — sits below the Plant block (horizontally centered under it).
-// Narrow (just enough for kp / ki / kd readouts) so the diagram stays tidy.
 const TUNER     = { x: 647, y: 200, w: 220, h: 80 };
 const TUNER_HEADER_H = 30;
-// Tap points: drop straight down from the main wires into the Tuner top.
-// Both x's are chosen so the tap is on the correct main-wire segment AND
-// inside the Tuner's horizontal span.
-const U_TAP_X   = 663;       // on PID→Plant wire (508..680), inside Tuner
-const Y_TAP_X   = 850;       // on Plant→OUT_END wire (834..970), inside Tuner
-
-const pct = (n: number, total: number) => `${(n / total) * 100}%`;
-
-type SliderSpec = { field: string; label: string; min: number; max: number; step: number };
+const U_TAP_X   = 663;
+const Y_TAP_X   = 850;
 
 const SETPOINT_SLIDER: SliderSpec = { field: 'target', label: 'Target', min: -5, max: 5, step: 0.05 };
 const KP_SLIDER:       SliderSpec = { field: 'kp',     label: 'P:',     min: 0,  max: 10, step: 0.1 };
@@ -56,59 +39,17 @@ const DAMP_SLIDER:     SliderSpec = { field: 'damping',label: 'D:',     min: 0, 
 
 export default function PidTuneStrVis() {
   const { simId, rewindTick } = useSimVis();
-  const isRewinding = rewindTick !== null;
-
-  const [inputs, setInputsView] = useState<ModelState>(() => getLiveInputs(simId));
-  const [stateView, setStateView] = useState<ModelState>(() => getState(simId));
-
-  useEffect(() => {
-    if (isRewinding) {
-      const snap = getHistory(simId)[rewindTick];
-      if (snap) {
-        const snapInputs = snap.inputs;
-        setInputsView(typeof snapInputs === 'object' && snapInputs !== null ? snapInputs : {});
-        setStateView(snap);
-      }
-      return;
-    }
-    setInputsView(structuredClone(getLiveInputs(simId)));
-    setStateView(getState(simId));
-    const unsubInputs = subscribeInputs(simId, (live) => setInputsView(structuredClone(live)));
-    const unsubState = subscribe(simId, (state) => setStateView(state));
-    return () => { unsubInputs(); unsubState(); };
-  }, [simId, isRewinding, rewindTick]);
-
-  const readBlock = (blockId: string): ModelState => {
-    const v = inputs[blockId];
-    return typeof v === 'object' && v !== null ? v : {};
-  };
-  const readNum = (path: string[]): number => {
-    let cur: ModelState[string] | undefined = stateView;
-    for (const p of path) {
-      if (typeof cur !== 'object' || cur === null) return 0;
-      cur = (cur as ModelState)[p];
-    }
-    return typeof cur === 'number' ? cur : 0;
-  };
-
-  const handleChange = (blockId: string, field: string, value: number) => {
-    if (isRewinding) return;
-    setInput(simId, `${blockId}.${field}`, value);
-  };
+  const { isRewinding, readBlock, readNum, handleChange } = usePidSimState(simId, rewindTick);
 
   const errorVal   = readNum(['setpoint', 'signal_error']);
   const controlVal = readNum(['controller', 'control']);
   const outputVal  = readNum(['plant', 'out']);
 
-  // Tuner state + mode
   const tunerEnabledRaw = readBlock('tuner').enabled;
   const tunerEnabled = typeof tunerEnabledRaw === 'number' ? tunerEnabledRaw > 0.5 : true;
-  // STR-derived candidate gains (always computed by the tuner, regardless of
-  // mode). These are what AUTO mode would apply.
   const kpStr = readNum(['tuner', 'kp_str']);
   const kiStr = readNum(['tuner', 'ki_str']);
   const kdStr = readNum(['tuner', 'kd_str']);
-  // Currently applied gains (what the controller actually uses).
   const kpApplied = readNum(['tuner', 'kp']);
   const kiApplied = readNum(['tuner', 'ki']);
   const kdApplied = readNum(['tuner', 'kd']);
@@ -116,8 +57,6 @@ export default function PidTuneStrVis() {
   const toggleAuto = () => {
     if (isRewinding) return;
     if (tunerEnabled) {
-      // Leaving AUTO: seed the manual slider values with the gains the tuner
-      // is currently applying, so the controller doesn't snap back to defaults.
       setInput(simId, 'controller.kp', kpApplied);
       setInput(simId, 'controller.ki', kiApplied);
       setInput(simId, 'controller.kd', kdApplied);
@@ -127,17 +66,13 @@ export default function PidTuneStrVis() {
 
   const handleRetune = () => {
     if (isRewinding) return;
-    // Write a fresh value to `tuner.retune_signal`. The tuner block detects
-    // the change vs. its stored `last_retune_signal` and resets the
-    // covariance matrix, forcing RLS to re-identify from current data.
     setInput(simId, 'tuner.retune_signal', Date.now());
   };
 
-  // PID sliders editable only when tuner is OFF (manual mode).
   const pidSlidersDisabled = isRewinding || tunerEnabled;
 
   return (
-    <div className="pid-diagram" style={{ aspectRatio: `${W} / ${H}` }}>
+    <PidDiagram W={W} H={H}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="xMidYMid meet"
@@ -211,7 +146,7 @@ export default function PidTuneStrVis() {
           className="pid-wire pid-wire--feedback" markerEnd="url(#arrowhead)" />
         <circle cx={FB_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
 
-        {/* Tuner taps: u and y tapped off the main wires, route down to Tuner */}
+        {/* Tuner taps */}
         <line x1={U_TAP_X} y1={SUM.cy} x2={U_TAP_X} y2={TUNER.y}
               className="pid-wire pid-wire--tap" markerEnd="url(#arrowhead)" />
         <circle cx={U_TAP_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
@@ -219,9 +154,7 @@ export default function PidTuneStrVis() {
               className="pid-wire pid-wire--tap" markerEnd="url(#arrowhead)" />
         <circle cx={Y_TAP_X} cy={SUM.cy} r="3.5" className="pid-junction-dot" />
 
-        {/* Gain-adjustment arrow: from Tuner left side, leftward under PID
-            middle, then up into PID's bottom-middle. L-shaped, dashed, in the
-            tuner-accent color to mark it as "modifies parameters, not signal". */}
+        {/* Gain-adjustment arrow */}
         <polyline
           points={`${TUNER.x},${TUNER.y + TUNER.h / 2} ${PID.x + PID.w / 2},${TUNER.y + TUNER.h / 2} ${PID.x + PID.w / 2},${PID.y + PID.h}`}
           className={`pid-wire pid-wire--adjust${tunerEnabled ? '' : ' pid-wire--adjust-off'}`}
@@ -232,7 +165,7 @@ export default function PidTuneStrVis() {
           adjust gains
         </text>
 
-        {/* Signal value labels along main wires */}
+        {/* Signal labels */}
         <text x={(SUM.cx + SUM.r + PID.x) / 2} y={SUM.cy - 10}
               className="pid-signal" textAnchor="middle">
           error: {errorVal.toFixed(3)}
@@ -261,8 +194,6 @@ export default function PidTuneStrVis() {
               className="pid-title" textAnchor="start">Tuner</text>
       </svg>
 
-      {/* ── HTML overlays ───────────────────────────────────────────────── */}
-
       <Overlay x={50} y={100} w={92} h={30}>
         <Slider spec={SETPOINT_SLIDER}
                 value={readBlock('setpoint')[SETPOINT_SLIDER.field]}
@@ -271,7 +202,6 @@ export default function PidTuneStrVis() {
                 onChange={v => handleChange('setpoint', SETPOINT_SLIDER.field, v)} />
       </Overlay>
 
-      {/* PID sliders — editable only in MANUAL mode */}
       <Overlay x={350} y={70} w={148} h={30}>
         <Slider spec={KP_SLIDER}
                 value={tunerEnabled ? kpApplied : readBlock('controller')[KP_SLIDER.field]}
@@ -304,7 +234,6 @@ export default function PidTuneStrVis() {
                 onChange={v => handleChange('plant', DAMP_SLIDER.field, v)} />
       </Overlay>
 
-      {/* RE-TUNE button — resets RLS covariance so identification adapts fast */}
       <Overlay x={TUNER.x + 75} y={TUNER.y + 4} w={60} h={22}>
         <button
           className="pid-switch pid-switch--retune"
@@ -315,7 +244,6 @@ export default function PidTuneStrVis() {
         </button>
       </Overlay>
 
-      {/* AUTO/MANUAL switch — top-right of Tuner header */}
       <Overlay x={TUNER.x + 140} y={TUNER.y + 4} w={70} h={22}>
         <button
           className={`pid-switch${tunerEnabled ? ' pid-switch--on' : ' pid-switch--off'}`}
@@ -326,9 +254,6 @@ export default function PidTuneStrVis() {
         </button>
       </Overlay>
 
-      {/* Tuner readouts — always show STR-derived gains (the values AUTO
-          mode would apply). In MANUAL mode this lets the user see what the
-          tuner would do if re-enabled. */}
       <Overlay x={TUNER.x + 12} y={TUNER.y + TUNER_HEADER_H + 8} w={TUNER.w - 24} h={TUNER.h - TUNER_HEADER_H - 16}>
         <div className="pid-tuner-readouts">
           <div className="pid-tuner-readout">
@@ -345,47 +270,6 @@ export default function PidTuneStrVis() {
           </div>
         </div>
       </Overlay>
-    </div>
-  );
-}
-
-function Overlay({ x, y, w, h, children }: {
-  x: number; y: number; w: number; h: number; children: React.ReactNode;
-}) {
-  return (
-    <div className="pid-overlay" style={{
-      left: pct(x, W),
-      top: pct(y, H),
-      width: pct(w, W),
-      height: pct(h, H),
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function Slider({ spec, value, disabled, onChange, hideLabel }: {
-  spec: SliderSpec;
-  value: ModelState[string] | undefined | number;
-  disabled: boolean;
-  onChange: (v: number) => void;
-  hideLabel?: boolean;
-}) {
-  const num = typeof value === 'number' ? value : spec.min;
-  return (
-    <div className={`pid-slider${hideLabel ? ' pid-slider--no-label' : ''}`}>
-      {!hideLabel && <label className="pid-slider__label">{spec.label}</label>}
-      <input
-        type="range"
-        min={spec.min}
-        max={spec.max}
-        step={spec.step}
-        value={num}
-        disabled={disabled}
-        onChange={e => onChange(Number(e.target.value))}
-        className="pid-slider__input"
-      />
-      <span className="pid-slider__value">{num.toFixed(2)}</span>
-    </div>
+    </PidDiagram>
   );
 }
