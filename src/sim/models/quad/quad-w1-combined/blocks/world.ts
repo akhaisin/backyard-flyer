@@ -25,6 +25,7 @@ const K_DRAG = 0.02;
 const I_XX = 0.01;
 const I_ZZ = 0.01;
 const I_YY = 0.02;
+const GROUND_DAMP = 0.7;  // friction coefficient applied on ground contact
 
 export function world(state: WorldIn): WorldOut {
   const { m0, m1, m2, m3 } = state.thrust;
@@ -33,13 +34,13 @@ export function world(state: WorldIn): WorldOut {
   const tau_pitch = ARM    * ( m0 + m1 - m2 - m3);
   const tau_yaw   = K_DRAG * (-m0 + m1 - m2 + m3);
 
-  const wx = state.angularVel.x + (tau_roll  / I_XX) * DT;
-  const wy = state.angularVel.y + (tau_yaw   / I_YY) * DT;
-  const wz = state.angularVel.z + (tau_pitch / I_ZZ) * DT;
+  let wx = state.angularVel.x + (tau_roll  / I_XX) * DT;
+  let wy = state.angularVel.y + (tau_yaw   / I_YY) * DT;
+  let wz = state.angularVel.z + (tau_pitch / I_ZZ) * DT;
 
-  const phi   = state.attitude.x + wx * DT;
-  const psi   = state.attitude.y + wy * DT;
-  const theta = state.attitude.z + wz * DT;
+  let phi   = state.attitude.x + wx * DT;
+  let psi   = state.attitude.y + wy * DT;
+  let theta = state.attitude.z + wz * DT;
 
   const F = m0 + m1 + m2 + m3;
   const cr = Math.cos(phi),   sr = Math.sin(phi);
@@ -57,11 +58,16 @@ export function world(state: WorldIn): WorldOut {
   let y  = state.pos.y + vy * DT;
   let z  = state.pos.z + vz * DT;
 
+  // Ground constraint — damp linear velocity, angular velocity, and attitude
+  // so the drone settles flat after a few ticks regardless of armed state.
   if (y <= 0) {
     y = 0;
     if (vy < 0) vy = 0;
-    vx *= 0.7;
-    vz *= 0.7;
+    vx *= GROUND_DAMP;  vz *= GROUND_DAMP;
+    wx *= GROUND_DAMP;  wy *= GROUND_DAMP;  wz *= GROUND_DAMP;
+    phi   *= GROUND_DAMP;
+    psi   *= GROUND_DAMP;
+    theta *= GROUND_DAMP;
   }
 
   return {

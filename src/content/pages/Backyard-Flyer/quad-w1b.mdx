@@ -1,0 +1,59 @@
+---
+order: 14
+simId: Backyard-Flyer/quad-w1b
+modelId: quad/quad-w1b
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad W1b — pre-gate staging approach
+
+**Quad W1b** improves on W1a's carrot-and-stick navigation by adding a **pre-gate staging point** in front of each window. Instead of flying directly toward the gate center (which builds lateral momentum at oblique angles), the drone first aligns itself with the gate's approach axis before entering.
+
+```
+mission ──► fc_path_planner (w1b) ──► fc_navigator ──► fc_stabilizer ──► hw ──► world
+```
+
+| Block | What changed |
+|-------|-------------|
+| `fc_path_planner` | Pre-gate staging: aligns drone with window normal before entering |
+| All others | Unchanged from W1a |
+
+---
+
+## Pre-gate staging
+
+For each gate a **pre-gate point** is placed `ENTRY_DIST` metres in front of the opening along the window normal (the approach side):
+
+```
+                preGate                gate
+    drone ──────────●──────────────────[  ]──►
+                    ↑
+              ENTRY_DIST = 5 m
+```
+
+The planner targets the pre-gate until the drone is within `PREGATE_THRESHOLD` (1.5 m) of it, then switches to the gate center. The carrot lookahead is applied on the path to whichever target is active.
+
+This forces the drone to arrive at the gate from a direction parallel to the normal, eliminating the lateral overshoot that occurs when the approach angle is steep.
+
+<SimVis client:only="react" />
+
+---
+
+## Path planner
+
+<SimSource sourceIds={['fc_path_planner']} autoHeight client:only="react" />
+
+---
+
+## Carrot vs gate center
+
+<SimCharts varIds={[['planner.carrot.x','mission.windowCenter.x','planner.carrot.z','mission.windowCenter.z']]} client:only="react" />
+
+---
+
+## Mission state
+
+<SimCharts varIds={[['mission.phase','mission.windowIdx','mission.dist','mission.armed']]} client:only="react" />

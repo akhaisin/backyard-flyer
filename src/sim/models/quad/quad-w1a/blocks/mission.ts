@@ -48,10 +48,10 @@ const LAND_PAD: Vec3 = { x: 0, y: 0, z: 0 };
 
 // 4 gates forming a rectangle. Normal points in the direction of intended travel through each gate.
 export const WINDOWS: WindowDef[] = [
-  { center: { x: 10, y: CRUISE_ALT, z: -10 }, normal: { x: 1, y: 0, z: 0 }, width: 4, height: 4 },
-  { center: { x: 10, y: CRUISE_ALT, z: 10 }, normal: { x: 0, y: 0, z: 1 }, width: 4, height: 4 },
-  { center: { x: -10, y: CRUISE_ALT, z: 10 }, normal: { x: -1, y: 0, z: 0 }, width: 4, height: 4 },
-  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x: 0, y: 0, z: -1 }, width: 4, height: 4 },
+  { center: { x: 10, y: CRUISE_ALT, z: -10 }, normal: { x: 1, y: 0, z: 0 }, width: 5, height: 5 },
+  { center: { x: 10, y: CRUISE_ALT, z: 10 }, normal: { x: 0, y: 0, z: 1 }, width: 5, height: 5 },
+  { center: { x: -10, y: CRUISE_ALT, z: 10 }, normal: { x: -1, y: 0, z: 0 }, width: 5, height: 5 },
+  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x: 0, y: 0, z: -1 }, width: 5, height: 5 },
 ];
 
 const ARMING_TICKS  = 20;

@@ -65,10 +65,26 @@ The same two-controller architecture as L2, but the environment now fights back.
 
 ---
 
-## [Quad W1 — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1)
+## [Quad W1a — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1a)
 
 Point waypoints are replaced with rectangular window gates. The drone must physically fly *through* each 3 × 3 m frame to advance the mission — hovering nearby is not enough. A new `fc_path_planner` block sits between the mission and the position PID and implements a carrot-and-stick: a virtual sub-target placed `LOOKAHEAD` metres ahead of the drone on the path to the gate, keeping the drone at full speed through the crossing instead of decelerating to a stop.
 
 Crossing detection is directional (approach → exit only) and checks whether the drone passed through the frame or missed it. A missed gate triggers a recovery phase: the drone returns to the center of the previously crossed gate and retries, mirroring how a racing pilot restarts from the last checkpoint.
 
 **What it introduces:** plane-based crossing detection, MISSED recovery state, carrot-and-stick path planning, and the architectural split between mission planning and low-level navigation.
+
+---
+
+## [Quad W1b — pre-gate staging approach](#Backyard-Flyer/quad-w1b)
+
+The same window-gate mission as W1a, but with an improved path planner. At oblique approach angles the W1a carrot builds lateral momentum that can overshoot the gate opening. W1b adds a **pre-gate staging point** placed 5 m in front of each gate along the window normal — the drone aligns with the approach axis first, then flies cleanly through.
+
+**What it introduces:** angle-aware approach correction, pre-gate staging as a path planning primitive.
+
+---
+
+## [Quad W1 Combined — W1a vs W1b side-by-side](#Backyard-Flyer/quad-w1-combined)
+
+Both approaches fly simultaneously in one simulation. W1a (blue) and W1b (orange) navigate identical window-gate circuits on parallel tracks separated by 25 m in Z. A shared wind block affects both equally, so any difference in gate miss rate is attributable to the planner alone.
+
+**What it introduces:** side-by-side comparison of path planning strategies, loops counter for lap-rate benchmarking.

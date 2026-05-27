@@ -11,7 +11,7 @@ import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
-interface QuadW1State {
+interface QuadW1aState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
@@ -19,7 +19,7 @@ interface QuadW1State {
   planner: { carrot: Vec3 };
   wind: { fx: number; fz: number };
 }
-const view = (s: ModelState): QuadW1State => s as unknown as QuadW1State;
+const view = (s: ModelState): QuadW1aState => s as unknown as QuadW1aState;
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'MISSED'];
 
@@ -42,6 +42,6 @@ const sceneHandler = composeScene(() => [
   windSock(s => view(s).wind),
 ]);
 
-export default function QuadW1Vis() {
+export default function QuadW1aVis() {
   return <ThreeCanvas sceneHandler={sceneHandler} />;
 }

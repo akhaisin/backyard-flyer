@@ -7,7 +7,9 @@ import { pidTuneRelayConfig } from './models/control/pid-tune-relay/pid-tune-rel
 import { quadL1Config } from './models/quad/quad-l1/quad-l1.config';
 import { quadL2Config } from './models/quad/quad-l2/quad-l2.config';
 import { quadNoiceConfig } from './models/quad/quad-noice/quad-noice.config';
-import { quadW1Config } from './models/quad/quad-w1/quad-w1.config';
+import { quadW1aConfig } from './models/quad/quad-w1a/quad-w1a.config';
+import { quadW1bConfig } from './models/quad/quad-w1b/quad-w1b.config';
+import { quadW1CombinedConfig } from './models/quad/quad-w1-combined/quad-w1-combined.config';
 import type { ModelConfig } from './engine/types';
 
 export const modelRegistry: Record<string, ModelConfig> = {
@@ -20,5 +22,7 @@ export const modelRegistry: Record<string, ModelConfig> = {
   'quad/quad-l1': quadL1Config,
   'quad/quad-l2': quadL2Config,
   'quad/quad-noice': quadNoiceConfig,
-  'quad/quad-w1':    quadW1Config,
+  'quad/quad-w1a':   quadW1aConfig,
+  'quad/quad-w1b':        quadW1bConfig,
+  'quad/quad-w1-combined': quadW1CombinedConfig,
 };

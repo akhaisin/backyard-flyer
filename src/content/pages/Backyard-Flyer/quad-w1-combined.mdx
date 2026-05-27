@@ -1,0 +1,61 @@
+---
+order: 15
+simId: Backyard-Flyer/quad-w1-combined
+modelId: quad/quad-w1-combined
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad W1 Combined — W1a vs W1b side-by-side
+
+Two quads fly simultaneously through identical window-gate circuits on parallel tracks 25 m apart. Both experience the same shared wind.
+
+- **Blue (A)** — W1a: carrot-and-stick, direct approach to gate center
+- **Orange (B)** — W1b: pre-gate staging, aligns with window normal before entering
+
+```
+Track A (z = 0):   gates at x = ±10, z = ±10
+Track B (z = 25):  gates at x = ±10, z = 15 / 35
+```
+
+The **Loops completed** chart is the key metric: it accumulates every time a drone completes all four gates and returns home. Over many laps the difference in gate miss rate becomes visible as a gap between the two curves.
+
+<SimVis client:only="react" />
+
+---
+
+## Loops completed
+
+A lap increments when the drone completes all four gates, lands, and restarts. Under consistent wind conditions W1b should accumulate laps more reliably since it misses fewer gates.
+
+<SimCharts varIds={[['vehicles.a.mission.loops','vehicles.b.mission.loops']]} client:only="react" />
+
+---
+
+## Mission phase and distance
+
+`phase = 7` is MISSED — a spike here means the drone crossed the gate plane outside the frame and entered recovery. Count the spikes to compare miss rates.
+
+<SimCharts varIds={[['vehicles.a.mission.phase','vehicles.b.mission.phase'],['vehicles.a.mission.dist','vehicles.b.mission.dist']]} client:only="react" />
+
+---
+
+## Speed
+
+<SimCharts varIds={[['vehicles.a.mission.loops']]} client:only="react" />
+
+---
+
+## Path planners
+
+<SimSource sourceIds={['fc_path_planner_a']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['fc_path_planner_b']} autoHeight client:only="react" />
+
+---
+
+## Wind
+
+<SimSource sourceIds={['wind']} autoHeight client:only="react" />
