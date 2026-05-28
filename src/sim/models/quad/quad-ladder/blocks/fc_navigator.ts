@@ -27,6 +27,7 @@ type FcNavOut = {
 const KP_POS = 2.0;
 const KI_POS = 0.3;
 const KD_POS = 1.5;
+const MAX_INT_POS = 15.0;  // anti-windup clamp — covers ~75% of max wind force (30%×20N/kg)
 
 const MASS    = 1.0;
 const GRAVITY = 9.81;
@@ -65,9 +66,9 @@ export function fc_navigator(state: FcNavIn): FcNavOut {
     yaw_des: state.yawSetpoint,
     thrust,
     integralPos: {
-      x: state.integralPos.x + ex * DT,
-      y: state.integralPos.y + ey * DT,
-      z: state.integralPos.z + ez * DT,
+      x: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.x + ex * DT)),
+      y: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.y + ey * DT)),
+      z: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.z + ez * DT)),
     },
   };
 }

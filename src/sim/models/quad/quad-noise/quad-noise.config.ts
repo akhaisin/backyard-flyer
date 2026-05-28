@@ -28,7 +28,7 @@ export const quadNoiseConfig: ModelConfig = {
     attitude:   { ...vec0 },
     angularVel: { ...vec0 },
     // Shared environment
-    wind: { fx: 0, fz: 0, ticksLeft: 0 },
+    wind: { fx: 0, fz: 0, ticksLeft: 0, season: 0 },
     // Noisy sensor readings consumed by FC blocks
     sensors: {
       pos:        { ...vec0 },

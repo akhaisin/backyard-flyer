@@ -27,7 +27,7 @@ const sceneHandler = composeScene(() => [
   quadMesh(s => {
     const q = view(s);
     return { pos: q.pos, attitude: q.attitude, motors: q.motors.thrust, phase: q.mission.phase, phaseLabels: PHASE_LABELS };
-  }),
+  }, { frontIndicator: true }),
   trail(s => view(s).pos),
   waypointTracker(
     s => ({ waypointIdx: view(s).mission.waypointIdx, target: view(s).mission.target, phase: view(s).mission.phase }),

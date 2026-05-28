@@ -54,19 +54,21 @@ export function mission(state: MissionIn): MissionOut {
   const wpIdx = Math.round(state.waypointIdx);
   const ticks = Math.round(state.ticksInPhase);
 
+  const cruisePoint: Vec3 = { x: state.pos.x, y: CRUISE_ALT, z: state.pos.z };
+
   if (phase === ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: HOME, dist: dist3(state.pos, HOME) };
+      return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: cruisePoint, dist: dist3(state.pos, cruisePoint) };
     }
-    return { phase: ARMING, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 0, target: LAND_PAD, dist: 0 };
+    return { phase: ARMING, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 0, target: cruisePoint, dist: 0 };
   }
 
   if (phase === TAKEOFF) {
-    const d = dist3(state.pos, HOME);
+    const d = dist3(state.pos, cruisePoint);
     if (state.pos.y >= CRUISE_ALT - 0.3) {
       return { phase: NAVIGATE, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: WAYPOINTS[0], dist: dist3(state.pos, WAYPOINTS[0]) };
     }
-    return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 1, target: HOME, dist: d };
+    return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 1, target: cruisePoint, dist: d };
   }
 
   if (phase === NAVIGATE) {

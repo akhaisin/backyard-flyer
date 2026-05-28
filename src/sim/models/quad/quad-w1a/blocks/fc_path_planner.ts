@@ -6,8 +6,9 @@
 // drone is already closer than LOOKAHEAD the carrot collapses to the window center,
 // keeping the drone on track for the gate crossing without overshooting.
 //
-// This separation lets fc_navigator run a pure PID to an always-moving point, which
-// produces smoother flight than jerky target-switch-on-arrival used for static waypoints.
+// yawSetpoint is driven toward the window normal direction (rate-limited to MAX_YAW_RATE).
+// Using the window normal rather than the carrot direction avoids oscillation near the gate —
+// the carrot direction can flip 180° if the drone overshoots, but the normal is fixed.
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -17,19 +18,44 @@ type PlannerIn = {
   windowNormal: Vec3;
   armed: number;
   phase: number;
+  yawSetpoint: number;   // previous setpoint — kept when advancing toward same gate
 };
 
 type PlannerOut = {
   carrot: Vec3;
+  yawSetpoint: number;
 };
 
-const LOOKAHEAD   = 4.0;   // metres ahead on path to window
-const NAVIGATE    = 2;
+const LOOKAHEAD      = 4.0;   // metres ahead on path to window
+const NAVIGATE       = 2;
+const MAX_YAW_RATE   = Math.PI / 2;  // rad/s — 90 °/s ceiling
+const DT             = 0.05;
+const MAX_YAW_DELTA  = MAX_YAW_RATE * DT;
+
+function stepYaw(target: number, prev: number): number {
+  let diff = target - prev;
+  while (diff >  Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  return prev + Math.max(-MAX_YAW_DELTA, Math.min(MAX_YAW_DELTA, diff));
+}
 
 export function fc_path_planner(state: PlannerIn): PlannerOut {
+  // During NAVIGATE: face the gate crossing direction (window normal).
+  // All other phases (MISSED, RTH, LAND, TAKEOFF, …): face toward the current target.
+  let yawTarget: number;
+  if (Math.round(state.phase) === NAVIGATE) {
+    yawTarget = Math.atan2(-state.windowNormal.z, state.windowNormal.x);
+  } else {
+    const dx = state.windowCenter.x - state.pos.x;
+    const dz = state.windowCenter.z - state.pos.z;
+    yawTarget = Math.sqrt(dx * dx + dz * dz) > 0.5
+      ? Math.atan2(-dz, dx)
+      : state.yawSetpoint;
+  }
+  const yawSetpoint = stepYaw(yawTarget, state.yawSetpoint);
+
   if (!state.armed || Math.round(state.phase) !== NAVIGATE) {
-    // Outside navigate: carrot = window center (used as passthrough target for other phases)
-    return { carrot: state.windowCenter };
+    return { carrot: state.windowCenter, yawSetpoint };
   }
 
   const dx = state.windowCenter.x - state.pos.x;
@@ -38,11 +64,9 @@ export function fc_path_planner(state: PlannerIn): PlannerOut {
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
   if (dist <= LOOKAHEAD) {
-    // Close enough — drive straight to gate center so we actually cross it.
-    return { carrot: state.windowCenter };
+    return { carrot: state.windowCenter, yawSetpoint };
   }
 
-  // Place carrot LOOKAHEAD metres along the path.
   const t = LOOKAHEAD / dist;
   return {
     carrot: {
@@ -50,5 +74,6 @@ export function fc_path_planner(state: PlannerIn): PlannerOut {
       y: state.pos.y + dy * t,
       z: state.pos.z + dz * t,
     },
+    yawSetpoint,
   };
 }

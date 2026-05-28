@@ -1,13 +1,8 @@
-// Pre-gate staging path planner. Improvement over w1a's pure carrot-and-stick.
+// Pre-gate staging path planner (vehicle B). Identical to quad-w1b fc_path_planner.
 //
-// Problem with a pure distance check: once the drone passes the pre-gate and
-// starts moving toward the window center, distToPreGate grows back above the
-// threshold, snapping the target back to the pre-gate — causing oscillation.
-//
-// Fix: persist a `preGateDone` flag in state. It is set when the drone first
-// closes to within PREGATE_THRESHOLD of the pre-gate, and is reset only when
-// `windowIdx` changes (new gate). Until it is set, target = pre-gate.
-// After it is set, target = window center.
+// yawSetpoint is driven toward the window normal direction (rate-limited to MAX_YAW_RATE).
+// Using the window normal rather than the carrot direction avoids oscillation near the gate —
+// the carrot direction can flip 180° if the drone overshoots, but the normal is fixed.
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -20,24 +15,50 @@ type PlannerIn = {
   phase: number;
   preGateDone: number;    // 0 | 1 — persisted across ticks
   activeWindowIdx: number; // window index for which preGateDone was set
+  yawSetpoint: number;
 };
 
 type PlannerOut = {
   carrot: Vec3;
   preGateDone: number;
   activeWindowIdx: number;
+  yawSetpoint: number;
 };
 
 const LOOKAHEAD          = 4.0;   // metres ahead on path to current target
 const ENTRY_DIST         = 5.0;   // metres in front of gate along normal (staging point)
 const PREGATE_THRESHOLD  = 1.5;   // metres — triggers preGateDone when drone is this close
 const NAVIGATE           = 2;
+const MAX_YAW_RATE       = Math.PI / 2;
+const DT                 = 0.05;
+const MAX_YAW_DELTA      = MAX_YAW_RATE * DT;
+
+function stepYaw(target: number, prev: number): number {
+  let diff = target - prev;
+  while (diff >  Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  return prev + Math.max(-MAX_YAW_DELTA, Math.min(MAX_YAW_DELTA, diff));
+}
 
 export function fc_path_planner(state: PlannerIn): PlannerOut {
   const winIdx = Math.round(state.windowIdx);
 
+  // During NAVIGATE: face the gate crossing direction (window normal).
+  // All other phases (MISSED, RTH, LAND, TAKEOFF, …): face toward the current target.
+  let yawTarget: number;
+  if (Math.round(state.phase) === NAVIGATE) {
+    yawTarget = Math.atan2(-state.windowNormal.z, state.windowNormal.x);
+  } else {
+    const dx = state.windowCenter.x - state.pos.x;
+    const dz = state.windowCenter.z - state.pos.z;
+    yawTarget = Math.sqrt(dx * dx + dz * dz) > 0.5
+      ? Math.atan2(-dz, dx)
+      : state.yawSetpoint;
+  }
+  const yawSetpoint = stepYaw(yawTarget, state.yawSetpoint);
+
   if (!state.armed || Math.round(state.phase) !== NAVIGATE) {
-    return { carrot: state.windowCenter, preGateDone: 0, activeWindowIdx: winIdx };
+    return { carrot: state.windowCenter, preGateDone: 0, activeWindowIdx: winIdx, yawSetpoint };
   }
 
   // Detect window change — reset the pre-gate flag for the new gate.
@@ -67,7 +88,7 @@ export function fc_path_planner(state: PlannerIn): PlannerOut {
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
   if (dist <= LOOKAHEAD) {
-    return { carrot: target, preGateDone: done, activeWindowIdx: activeWinIdx };
+    return { carrot: target, preGateDone: done, activeWindowIdx: activeWinIdx, yawSetpoint };
   }
 
   const t = LOOKAHEAD / dist;
@@ -79,5 +100,6 @@ export function fc_path_planner(state: PlannerIn): PlannerOut {
     },
     preGateDone:     done,
     activeWindowIdx: activeWinIdx,
+    yawSetpoint,
   };
 }

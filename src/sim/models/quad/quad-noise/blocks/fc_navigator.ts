@@ -1,4 +1,4 @@
-// Navigator FC: position PID → desired attitude angles + total thrust.
+// Yaw-aware navigator: position PID → desired attitude + thrust.
 // Outer loop of the cascaded two-controller architecture.
 //
 // Reads noisy sensor values (pos, vel, attitude) produced by the noise block
@@ -6,6 +6,10 @@
 //
 // KI_POS is tuned up from quad-l2 because wind disturbances require integral
 // action to eliminate steady-state position error.
+//
+// Yaw tracks the horizontal direction to the current target (same as quad-l3).
+// World-frame acceleration demands are rotated into the body frame using the
+// current yaw before the small-angle pitch/roll mapping.
 
 type Vec3 = { x: number; y: number; z: number };
 type FcNavIn = {
@@ -20,6 +24,7 @@ type FcNavOut = {
 const KP_POS = 2.0;
 const KI_POS = 0.3;
 const KD_POS = 1.5;
+const MAX_INT_POS = 15.0;  // anti-windup clamp — covers ~75% of max wind force (30%×20N/kg)
 
 const MASS = 1.0;
 const GRAVITY = 9.81;
@@ -46,15 +51,24 @@ export function fc_navigator(state: FcNavIn): FcNavOut {
   const thrust = Math.max(0, MASS * (ay_des + GRAVITY) / tilt_cos);
 
   const g_eff = Math.max(thrust / MASS, 1.0);
-  const pitch_des = clamp(-ax_des / g_eff, MAX_TILT);
-  const roll_des  = clamp( az_des / g_eff, MAX_TILT);
+
+  // Rotate world-frame demands into body frame using current yaw.
+  const psi = state.attitude.y;
+  const cp  = Math.cos(psi);
+  const sp  = Math.sin(psi);
+  const pitch_des = clamp((-cp * ax_des + sp * az_des) / g_eff, MAX_TILT);
+  const roll_des  = clamp(( sp * ax_des + cp * az_des) / g_eff, MAX_TILT);
+
+  // Yaw setpoint: face the horizontal direction to the current target.
+  const hd2 = ex * ex + ez * ez;
+  const yaw_des = hd2 > 0.01 ? Math.atan2(-ez, ex) : state.attitude.y;
 
   return {
-    roll_des, pitch_des, yaw_des: 0, thrust,
+    roll_des, pitch_des, yaw_des, thrust,
     integralPos: {
-      x: state.integralPos.x + ex * DT,
-      y: state.integralPos.y + ey * DT,
-      z: state.integralPos.z + ez * DT,
+      x: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.x + ex * DT)),
+      y: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.y + ey * DT)),
+      z: Math.max(-MAX_INT_POS, Math.min(MAX_INT_POS, state.integralPos.z + ez * DT)),
     },
   };
 }

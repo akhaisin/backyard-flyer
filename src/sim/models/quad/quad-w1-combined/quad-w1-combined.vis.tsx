@@ -41,7 +41,7 @@ const sceneHandler = composeScene(() => [
     const v = view(s).vehicles.a;
     return { pos: v.pos, attitude: v.attitude, motors: v.motors.thrust,
              phase: v.mission.phase, phaseLabels: PHASE_LABELS };
-  }),
+  }, { frontIndicator: true }),
   trail(s => view(s).vehicles.a.pos, { color: 0x4488ff, opacity: 0.7 }),
   windowGate(
     s => ({
@@ -57,7 +57,7 @@ const sceneHandler = composeScene(() => [
     const v = view(s).vehicles.b;
     return { pos: v.pos, attitude: v.attitude, motors: v.motors.thrust,
              phase: v.mission.phase, phaseLabels: PHASE_LABELS };
-  }),
+  }, { frontIndicator: true }),
   trail(s => view(s).vehicles.b.pos, { color: 0xff8800, opacity: 0.7 }),
   windowGate(
     s => ({

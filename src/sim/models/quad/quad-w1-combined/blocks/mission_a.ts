@@ -86,7 +86,7 @@ export function mission_a(state: MissionIn): MissionOut {
   const ticks  = Math.round(state.ticksInPhase);
   const loops  = Math.round(state.loops);
 
-  const noWin: Vec3 = { ...HOME };
+  const noWin: Vec3 = { x: state.pos.x, y: CRUISE_ALT, z: state.pos.z };
 
   if (phase === ARMING) {
     if (ticks >= ARMING_TICKS) {

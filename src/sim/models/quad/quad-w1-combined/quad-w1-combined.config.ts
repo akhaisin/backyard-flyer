@@ -74,6 +74,7 @@ const vehicleInit = (startX: number, startZ: number): ModelState => ({
     carrot:          { ...vec0 },
     preGateDone:     0,
     activeWindowIdx: -1,
+    yawSetpoint:     0,
   },
 });
 
@@ -83,7 +84,7 @@ export const quadW1CombinedConfig: ModelConfig = {
   modelId: 'quad/quad-w1-combined',
   tickIntervalMs: 50,
   initialState: {
-    wind: { fx: 0, fz: 0, ticksLeft: 0 },
+    wind: { fx: 0, fz: 0, ticksLeft: 0, season: 0 },
     vehicles: {
       a: vehicleInit(-15,  15),  // track A — -x/+z quadrant
       b: vehicleInit( 15, -15),  // track B — +x/-z quadrant
@@ -146,8 +147,9 @@ export const quadW1CombinedConfig: ModelConfig = {
         windowNormal: (va(s).mission as ModelState).windowNormal,
         armed:        (va(s).mission as ModelState).armed,
         phase:        (va(s).mission as ModelState).phase,
+        yawSetpoint:  (va(s).planner as ModelState).yawSetpoint,
       }),
-      mapStateOut: (out, s) => writeVehicle(s, 'a', { planner: { carrot: out.carrot } }),
+      mapStateOut: (out, s) => writeVehicle(s, 'a', { planner: { carrot: out.carrot, yawSetpoint: out.yawSetpoint } }),
       tickFrequency: 1,
     },
     {
@@ -162,6 +164,7 @@ export const quadW1CombinedConfig: ModelConfig = {
         carrot:      (va(s).planner as ModelState).carrot,
         armed:       (va(s).mission as ModelState).armed,
         integralPos: ((va(s).fc as ModelState).integral as ModelState).pos,
+        yawSetpoint: (va(s).planner as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => writeVehicle(s, 'a', {
         fc: {
@@ -275,9 +278,10 @@ export const quadW1CombinedConfig: ModelConfig = {
         phase:           (vb(s).mission as ModelState).phase,
         preGateDone:     (vb(s).planner as ModelState).preGateDone,
         activeWindowIdx: (vb(s).planner as ModelState).activeWindowIdx,
+        yawSetpoint:     (vb(s).planner as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => writeVehicle(s, 'b', {
-        planner: { carrot: out.carrot, preGateDone: out.preGateDone, activeWindowIdx: out.activeWindowIdx },
+        planner: { carrot: out.carrot, preGateDone: out.preGateDone, activeWindowIdx: out.activeWindowIdx, yawSetpoint: out.yawSetpoint },
       }),
       tickFrequency: 1,
     },
@@ -293,6 +297,7 @@ export const quadW1CombinedConfig: ModelConfig = {
         carrot:      (vb(s).planner as ModelState).carrot,
         armed:       (vb(s).mission as ModelState).armed,
         integralPos: ((vb(s).fc as ModelState).integral as ModelState).pos,
+        yawSetpoint: (vb(s).planner as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => writeVehicle(s, 'b', {
         fc: {

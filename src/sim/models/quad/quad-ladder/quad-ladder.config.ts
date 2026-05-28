@@ -29,7 +29,7 @@ export const quadLadderConfig: ModelConfig = {
     acc:        { ...vec0 },
     attitude:   { ...vec0 },
     angularVel: { ...vec0 },
-    wind: { fx: 0, fz: 0, ticksLeft: 0 },
+    wind: { fx: 0, fz: 0, ticksLeft: 0, season: 0 },
     sensors: {
       pos:        { ...vec0 },
       vel:        { ...vec0 },

@@ -35,9 +35,17 @@ const MAX_THRUST_N = 10;
 const ARM = 0.2;
 const K_DRAG = 0.02;
 const DT = 0.05;
+const MAX_INT_ATT = 0.5;  // anti-windup clamp
 
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
+}
+
+function wrapAngle(a: number): number {
+  let r = a % (2 * Math.PI);
+  if (r >  Math.PI) r -= 2 * Math.PI;
+  if (r < -Math.PI) r += 2 * Math.PI;
+  return r;
 }
 
 export function fc_stabilizer(state: FcStabIn): FcStabOut {
@@ -46,7 +54,7 @@ export function fc_stabilizer(state: FcStabIn): FcStabOut {
 
   const err_roll  = state.roll_des  - state.attitude.x;
   const err_pitch = state.pitch_des - state.attitude.z;
-  const err_yaw   = state.yaw_des   - state.attitude.y;
+  const err_yaw   = wrapAngle(state.yaw_des - state.attitude.y);
 
   const tau_roll  = KP_ATT * err_roll  + KI_ATT * state.integralAtt.x - KD_ATT * state.angularVel.x;
   const tau_pitch = KP_ATT * err_pitch + KI_ATT * state.integralAtt.z - KD_ATT * state.angularVel.z;
@@ -66,9 +74,9 @@ export function fc_stabilizer(state: FcStabIn): FcStabOut {
       m3: clamp01((base + dr - dp + dy) * k),
     },
     integralAtt: {
-      x: state.integralAtt.x + err_roll  * DT,
-      y: state.integralAtt.y + err_yaw   * DT,
-      z: state.integralAtt.z + err_pitch * DT,
+      x: Math.max(-MAX_INT_ATT, Math.min(MAX_INT_ATT, state.integralAtt.x + err_roll  * DT)),
+      y: Math.max(-MAX_INT_ATT, Math.min(MAX_INT_ATT, state.integralAtt.y + err_yaw   * DT)),
+      z: Math.max(-MAX_INT_ATT, Math.min(MAX_INT_ATT, state.integralAtt.z + err_pitch * DT)),
     },
   };
 }

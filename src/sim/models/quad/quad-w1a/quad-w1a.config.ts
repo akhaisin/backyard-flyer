@@ -29,7 +29,7 @@ export const quadW1aConfig: ModelConfig = {
     acc:        { ...vec0 },
     attitude:   { ...vec0 },
     angularVel: { ...vec0 },
-    wind: { fx: 0, fz: 0, ticksLeft: 0 },
+    wind: { fx: 0, fz: 0, ticksLeft: 0, season: 0 },
     sensors: {
       pos:        { ...vec0 },
       vel:        { ...vec0 },
@@ -59,6 +59,7 @@ export const quadW1aConfig: ModelConfig = {
     },
     planner: {
       carrot: { ...vec0 },
+      yawSetpoint: 0,
     },
   },
   blocks: [
@@ -128,10 +129,11 @@ export const quadW1aConfig: ModelConfig = {
         windowNormal: (s.mission as ModelState).windowNormal,
         armed:        (s.mission as ModelState).armed,
         phase:        (s.mission as ModelState).phase,
+        yawSetpoint:  (s.planner as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        planner: { carrot: out.carrot },
+        planner: { carrot: out.carrot, yawSetpoint: out.yawSetpoint },
       }),
       tickFrequency: 1,
     },
@@ -147,6 +149,7 @@ export const quadW1aConfig: ModelConfig = {
         carrot:      (s.planner as ModelState).carrot,
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
+        yawSetpoint: (s.planner as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => ({
         ...s,
