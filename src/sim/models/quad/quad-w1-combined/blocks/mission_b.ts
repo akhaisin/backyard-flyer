@@ -1,6 +1,6 @@
 // Window-gate mission for vehicle B (track centred at +x/-z quadrant).
 // Same logic as mission_a.ts but positions are shifted to (X_OFF=+15, Z_OFF=-15)
-// so the two tracks sit in opposite diagonal quadrants in the combined visualisation.
+// so the two tracks sit in opposite diagonal quadrants in the combined visualization.
 
 type Vec3 = { x: number; y: number; z: number };
 

@@ -10,14 +10,14 @@ import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
-interface QuadNoiceState {
+interface QuadNoiseState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
   mission: { phase: number; waypointIdx: number; target: Vec3 };
   wind: { fx: number; fz: number };
 }
-const view = (s: ModelState): QuadNoiceState => s as unknown as QuadNoiceState;
+const view = (s: ModelState): QuadNoiseState => s as unknown as QuadNoiseState;
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
 
@@ -36,6 +36,6 @@ const sceneHandler = composeScene(() => [
   windSock(s => view(s).wind),
 ]);
 
-export default function QuadNoiceVis() {
+export default function QuadNoiseVis() {
   return <ThreeCanvas sceneHandler={sceneHandler} />;
 }

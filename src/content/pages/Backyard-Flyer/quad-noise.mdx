@@ -1,16 +1,16 @@
 ---
 order: 13
-simId: Backyard-Flyer/quad-noice
-modelId: quad/quad-noice
+simId: Backyard-Flyer/quad-noise
+modelId: quad/quad-noise
 ---
 
 import SimSource from '../../../sim/components/SimSource'
 import SimVis from '../../../sim/components/SimVis'
 import SimCharts from '../../../sim/components/SimCharts'
 
-# Quad Noice — wind disturbance and sensor noise
+# Quad noise — wind disturbance and sensor noise
 
-**Quad Noice** extends [Quad L2](/Backyard-Flyer/quad-l2) with two new environment blocks that were absent in all previous models: random wind gusts and realistic sensor noise. The flight stack — navigator, stabilizer, hardware, mission — is unchanged structurally. What changes is what the controllers see and what they fly through.
+**Quad noise** extends [Quad L2](/Backyard-Flyer/quad-l2) with two new environment blocks that were absent in all previous models: random wind gusts and realistic sensor noise. The flight stack — navigator, stabilizer, hardware, mission — is unchanged structurally. What changes is what the controllers see and what they fly through.
 
 ```
 wind ──────────────────────────────────────► world
@@ -78,7 +78,7 @@ In Quad L2, `KI_POS = 0` was correct because there were no persistent disturbanc
 
 Here, a sustained wind gust applies a constant horizontal force. PD has no memory — it will push back against the offset, but a constant gust biases the position error in one direction and PD settles at a nonzero steady-state error (the gust force exactly cancels the proportional pull at some offset distance). The integral term accumulates that offset error over time and pre-loads a counter-force, driving steady-state error to zero.
 
-`KI_POS = 0.3` is conservative: strong enough to reject typical gusts within a few seconds, small enough not to cause windup during fast manoeuvres. When the wind changes direction suddenly, the accumulated integral briefly points the wrong way — you can see this as a momentary overshoot in the position chart.
+`KI_POS = 0.3` is conservative: strong enough to reject typical gusts within a few seconds, small enough not to cause windup during fast maneuvers. When the wind changes direction suddenly, the accumulated integral briefly points the wrong way — you can see this as a momentary overshoot in the position chart.
 
 ---
 

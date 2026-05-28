@@ -12,14 +12,14 @@ import windCode from './blocks/wind.ts?raw';
 import { wind } from './blocks/wind';
 import noiseCode from './blocks/noise.ts?raw';
 import { noise } from './blocks/noise';
-import QuadNoiceVis from './quad-noice.vis';
+import QuadNoiseVis from './quad-noise.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0 = { x: 0, y: 0, z: 0 };
 
-export const quadNoiceConfig: ModelConfig = {
-  modelId: 'quad/quad-noice',
+export const quadNoiseConfig: ModelConfig = {
+  modelId: 'quad/quad-noise',
   tickIntervalMs: 50,
   initialState: {
     pos:        { ...vec0 },
@@ -209,7 +209,7 @@ export const quadNoiceConfig: ModelConfig = {
       tickFrequency: 1,
     },
   ],
-  vis: QuadNoiceVis,
+  vis: QuadNoiseVis,
   blocksDiagram: [
     { from: 'wind',          to: 'world',         label: 'force'    },
     { from: 'noise',         to: 'mission',       label: 'pos'      },

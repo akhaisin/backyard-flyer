@@ -23,7 +23,7 @@ mission ──► fc_path_planner ──► fc_navigator ──► fc_stabilizer
 | `mission` | Four rectangular gates replace point waypoints; crossing detected by plane sign change |
 | `fc_path_planner` | **New.** Carrot-and-stick: generates a moving sub-target ahead of the drone on the path to the gate |
 | `fc_navigator` | Now tracks the planner's *carrot*, not the raw gate center |
-| `fc_stabilizer` | Unchanged from Quad Noice |
+| `fc_stabilizer` | Unchanged from Quad Noise |
 | `hw`, `world`, `wind`, `noise` | Unchanged |
 
 ---
@@ -163,7 +163,7 @@ Tune the carrot lookahead distance or experiment with a different placement stra
 
 ## Edit the navigator
 
-The navigator is identical to Quad Noice. Because it now tracks a moving carrot instead of a static target, the integral term (`KI_POS`) plays a smaller role — the carrot continuously nudges the drone forward, so steady-state error rarely accumulates. Try reducing `KI_POS` to 0 and observe the difference.
+The navigator is identical to Quad Noise. Because it now tracks a moving carrot instead of a static target, the integral term (`KI_POS`) plays a smaller role — the carrot continuously nudges the drone forward, so steady-state error rarely accumulates. Try reducing `KI_POS` to 0 and observe the difference.
 
 <SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
 
@@ -177,7 +177,7 @@ The navigator is identical to Quad Noice. Because it now tracks a moving carrot 
 
 ## Edit the environment
 
-Wind and noise are inherited unchanged from Quad Noice. A strong crosswind makes it harder for the drone to line up with a narrow gate — increase `FORCE_MAX_PCT` to stress-test the gate crossing.
+Wind and noise are inherited unchanged from Quad Noise. A strong crosswind makes it harder for the drone to line up with a narrow gate — increase `FORCE_MAX_PCT` to stress-test the gate crossing.
 
 <SimSource sourceIds={['wind']} autoHeight client:only="react" />
 

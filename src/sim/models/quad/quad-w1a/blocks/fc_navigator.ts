@@ -1,5 +1,5 @@
 // Navigator FC: position PID → desired attitude angles + total thrust.
-// Identical to quad-noice fc_navigator except the target is the *carrot* produced
+// Identical to quad-noise fc_navigator except the target is the *carrot* produced
 // by fc_path_planner rather than the raw mission window center. This gives smooth
 // carrot-and-stick tracking through the gate sequence.
 
