@@ -31,7 +31,7 @@ const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING
 const sceneHandler = composeScene(() => [
   // Camera from the +x/+z corner looking diagonally across both tracks.
   // Track A is in -x/+z, track B is in +x/-z — opposite quadrants.
-  baseScene({ bg: 0x080810, camera: { pos: [20, 16, 20], lookAt: [0, 4, 0] } }),
+  baseScene({ bg: 0x080810, camera: { pos: [24, 20, 24], lookAt: [0, 4, 0] } }),
 
   // Home pads at each drone's landing position
   homePad({ position: [-15, 0,  15] }),  // track A
