@@ -1,0 +1,172 @@
+---
+order: 12
+simId: Backyard-Flyer/quad-l3
+modelId: quad/quad-l3
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad L3 — yaw-aware heading
+
+**Quad L3** flies the same rectangular mission as L2, with one addition: the drone now rotates to face the direction it is flying. The heading tracks each leg of the rectangle in turn — +X, then +Z, then −X, then −Z — and the controller corrects for that rotation when computing roll and pitch commands.
+
+The block pipeline is unchanged from L2:
+
+```
+mission → fc_navigator → fc_stabilizer → hw → world
+```
+
+Two things change inside the blocks:
+
+| Change | Block | What it does |
+|--------|-------|--------------|
+| Yaw setpoint from target direction | `fc_navigator` | Computes `yaw_des = atan2(target.z − pos.z, target.x − pos.x)` |
+| Body-frame acceleration rotation | `fc_navigator` | Rotates roll/pitch demands into the drone's actual body frame |
+| Separate lower yaw gains | `fc_stabilizer` | Prevents yaw torque from saturating roll/pitch authority |
+| Yaw error wrapping | `fc_stabilizer` | Chooses the shortest rotation path through ±π |
+
+---
+
+## Why L2 breaks when yaw ≠ 0
+
+In L2 the navigator always outputs `yaw_des = 0` and the position-to-attitude mapping assumes the drone is facing +X:
+
+```
+pitch_des = −ax_des / g_eff     (nose down gives +X force)
+roll_des  =  az_des / g_eff     (left up   gives +Z force)
+```
+
+This is only correct when the body X axis aligns with the world X axis. If the drone yaws 90° so its nose points +Z, the body axes swap: pitch now drives Z-acceleration and roll drives X-acceleration. Using the L2 formula on a drone pointing +Z would command the wrong tilt direction for every horizontal manoeuvre.
+
+---
+
+## The fix: rotate world-frame demands into body frame
+
+For a drone with current yaw angle ψ, the correct mapping is:
+
+```
+pitch_des = (−cos ψ · ax_des + sin ψ · az_des) / g_eff
+roll_des  = ( sin ψ · ax_des + cos ψ · az_des) / g_eff
+```
+
+At ψ = 0 this reduces exactly to the L2 formula. At ψ = π/2 (nose pointing +Z) it becomes:
+
+```
+pitch_des = az_des / g_eff
+roll_des  = ax_des / g_eff
+```
+
+— axes correctly swapped. The derivation: the 2×2 matrix mapping `[θ, φ]` to `[ax, az]/g` under yaw ψ has determinant −1 and is its own inverse, giving the closed-form above directly.
+
+---
+
+## Yaw setpoint
+
+The navigator derives `yaw_des` from the horizontal direction to the current target:
+
+```
+yaw_des = atan2(target.z − pos.z, target.x − pos.x)
+```
+
+For the rectangular route the setpoint steps through four values as waypoints are reached:
+
+| Leg | Direction | yaw_des |
+|-----|-----------|---------|
+| takeoff → WP0 | +X | 0 |
+| WP0 → WP1 | +Z | π/2 |
+| WP1 → WP2 | −X | π |
+| WP2 → WP3 | −Z | −π/2 |
+| WP3 → home | −X → 0 | wraps back |
+
+When the drone is directly over the target (horizontal distance² < 0.01 m²) there is no well-defined direction, so the navigator holds the current `attitude.y` and the setpoint does not jump.
+
+---
+
+## Yaw error wrapping
+
+The stabilizer computes the yaw error as:
+
+```
+err_yaw = wrap(yaw_des − attitude.y)
+```
+
+where `wrap` maps the result to (−π, π]. Without wrapping, a transition from ψ = π to yaw_des = −π/2 would produce an error of −3π/2 instead of +π/2, making the drone spin the wrong way through 270°. Wrapping ensures the stabilizer always takes the shorter arc.
+
+---
+
+## Separate yaw gains
+
+Yaw has significantly less torque headroom than roll and pitch. At hover, each motor produces roughly 2.45 N; the maximum differential yaw torque before two motors saturate at zero is only about 0.2 N·m. Applying `KP_ATT = 2.0` to even a modest yaw error immediately saturates M0 and M2, starving the roll and pitch channels.
+
+L3 uses lower yaw gains:
+
+| Gain | Roll/Pitch | Yaw |
+|------|-----------|-----|
+| KP | 2.0 | 0.5 |
+| KD | 0.2 | 0.15 |
+
+This keeps the yaw torque within the available headroom so roll and pitch authority is never compromised.
+
+---
+
+## Watch it fly
+
+The drone rotates to face each new leg before committing to the turn. Compare the nose direction to L2 where it always points +X.
+
+<SimVis client:only="react" />
+
+---
+
+## Yaw tracking
+
+The yaw setpoint (yellow) steps by 90° at each waypoint transition. The actual yaw (purple) tracks it with a small lag determined by the stabilizer bandwidth. The gap drives the yaw torque term.
+
+<SimCharts varIds={[['fc.nav.yaw_des','attitude.y']]} client:only="react" />
+
+---
+
+## Position and attitude
+
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+
+---
+
+## Navigator output — the interface between controllers
+
+<SimCharts varIds={[['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des']]} client:only="react" />
+
+<SimCharts varIds={[['fc.nav.thrust']]} client:only="react" />
+
+---
+
+## Motor power and mission
+
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+
+---
+
+## Edit the navigator
+
+The navigator owns both the yaw setpoint and the body-frame rotation. Try reverting to the L2 formula — replace the `cp`/`sp` rotation with `pitch_des = -ax_des/g_eff` and `roll_des = az_des/g_eff` — and observe the drone losing lateral control authority once it rotates away from +X.
+
+<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+
+---
+
+## Edit the stabilizer
+
+The stabilizer owns attitude tracking. Try raising `KP_ATT_YAW` toward 2.0 and watch yaw corrections saturate motors M0 and M2, introducing roll and pitch oscillations.
+
+<SimSource sourceIds={['fc_stabilizer']} autoHeight client:only="react" />
+
+---
+
+## Edit the mission, hardware, and physics
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['world']} autoHeight client:only="react" />

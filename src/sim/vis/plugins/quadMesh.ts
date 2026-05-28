@@ -36,7 +36,7 @@ const ROTOR_FRAG = `
   }
 `;
 
-function buildMesh(): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial[] } {
+function buildMesh(frontIndicator: boolean): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial[] } {
   const group = new THREE.Group();
   const rotorMaterials: THREE.ShaderMaterial[] = [];
 
@@ -69,6 +69,18 @@ function buildMesh(): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial
     armGroup.add(rotor);
     rotorMaterials.push(mat);
     group.add(armGroup);
+  }
+
+  if (frontIndicator) {
+    // Small cone pointing in the +X (forward) direction. ConeGeometry points +Y by
+    // default; rotate -90° around Z to aim it along +X.
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.06, 0.22, 8),
+      new THREE.MeshPhongMaterial({ color: 0xff3300, emissive: 0x661100 }),
+    );
+    cone.rotation.z = -Math.PI / 2;
+    cone.position.set(0.22, 0.1, 0);
+    group.add(cone);
   }
 
   return { group, rotorMaterials };
@@ -107,14 +119,17 @@ export interface VisQuad {
   phaseLabels: string[];
 }
 
-export function quadMesh(getVehicle: (state: ModelState) => VisQuad): ScenePlugin {
+export function quadMesh(
+  getVehicle: (state: ModelState) => VisQuad,
+  options: { frontIndicator?: boolean } = {},
+): ScenePlugin {
   let group: THREE.Group | null = null;
   let rotorMaterials: THREE.ShaderMaterial[] = [];
   let phaseSprite: THREE.Sprite | null = null;
 
   return {
     init(scene) {
-      const built = buildMesh();
+      const built = buildMesh(options.frontIndicator ?? false);
       group = built.group;
       rotorMaterials = built.rotorMaterials;
       phaseSprite = makePhaseSprite();

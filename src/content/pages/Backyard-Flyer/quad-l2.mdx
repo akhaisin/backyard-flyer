@@ -169,3 +169,11 @@ The stabilizer owns attitude tracking and motor mixing. Try increasing `KP_ATT` 
 <SimSource sourceIds={['hw']} autoHeight client:only="react" />
 
 <SimSource sourceIds={['world']} autoHeight client:only="react" />
+
+---
+
+## What's missing
+
+One thing L2 never does: rotate. `yaw_des` is always 0, so the drone faces +X throughout the entire mission regardless of which direction it is flying. The position PID assumes the body frame aligns with the world frame — an assumption that silently breaks as soon as yaw departs from zero.
+
+**Quad L3** fixes this by making the navigator yaw-aware: it derives a heading setpoint from the direction to the current target and rotates the roll/pitch demands into the drone's actual body frame.
