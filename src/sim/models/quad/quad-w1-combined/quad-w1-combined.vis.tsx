@@ -73,8 +73,8 @@ const sceneHandler = composeScene(() => [
   windSock(s => view(s).wind, { position: [5, 0, 5], maxForceN: 5 }),
   textLabel({
     text: 'Quad W1 Combined\nW1a (blue): carrot-and-stick planner\nW1b (orange): pre-gate staging approach',
-    position: [-28, 0, -28],
-    fontSize: 36,
+    position: [-20, 0, -20],
+    fontSize: 48,
   }),
 ]);
 
