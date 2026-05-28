@@ -1,7 +1,6 @@
 import {
-  createContext, useCallback, useContext, useEffect, useLayoutEffect,
+  useCallback, useEffect, useLayoutEffect,
   useMemo, useRef, useState,
-  type RefObject,
 } from 'react';
 import {
   subscribe, subscribeRunning, subscribeError,
@@ -11,25 +10,10 @@ import {
 } from '../engine/engine';
 import { resolveSimContext } from '../useSim';
 import type { ModelConfig } from '../engine/types';
+import { SimVisContext } from './SimVisContext';
 import './sim.css';
 
-interface SimVisContextValue {
-  simId: string;
-  config: ModelConfig;
-  // Ref so engine-tick subscribers can synchronously skip visual updates
-  // entering rewind, without waiting for the next React render.
-  rewindTickRef: RefObject<number | null>;
-  rewindTick: number | null;
-  resetCount: number;
-}
-
-const SimVisContext = createContext<SimVisContextValue | null>(null);
-
-export function useSimVis(): SimVisContextValue {
-  const ctx = useContext(SimVisContext);
-  if (!ctx) throw new Error('useSimVis must be used inside <SimVis>');
-  return ctx;
-}
+export { useSimVis } from './SimVisContext';
 
 interface Props {
   simId?: string;
@@ -87,7 +71,30 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
 
   // Request keyboard focus for this frame on mount so Space works immediately
   // when the app is embedded in an iframe without needing a prior click.
-  useEffect(() => { window.focus(); }, []);
+  // Guard: only call when this instance is visible — article islands in #page-store
+  // (display:none) mount permanently and must not steal focus or fire Space.
+  useEffect(() => {
+    if (containerRef.current?.offsetParent !== null) window.focus();
+  }, []);
+
+  // Stop the sim when this instance is hidden or unmounted so simulations don't
+  // run silently in the background after the user navigates away.
+  //   - IntersectionObserver handles article navigation: the DOM node is moved to
+  //     #page-store (display:none), making offsetParent null. The offsetParent guard
+  //     prevents mere scroll-out-of-viewport from stopping the sim.
+  //   - Cleanup handles Vis-tab close, where SimVisInner unmounts entirely.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting && !container.offsetParent) stopSim(simId);
+    });
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+      stopSim(simId);
+    };
+  }, [simId]);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -130,6 +137,9 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return;
+      // Skip hidden instances (articles sitting in #page-store with display:none).
+      // offsetParent is null for elements whose ancestor has display:none.
+      if (!containerRef.current?.offsetParent) return;
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       e.preventDefault();

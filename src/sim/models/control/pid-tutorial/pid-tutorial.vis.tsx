@@ -1,4 +1,4 @@
-import { useSimVis } from '../../../components/SimVis';
+import { useSimVis } from '../../../components/SimVisContext';
 import { usePidSimState } from '../usePidSimState';
 import { PidDiagram, Overlay, Slider, type SliderSpec } from '../PidPrimitives';
 

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { subscribe, getState, getTick, getHistory } from '../engine/engine';
-import { useSimVis } from './SimVis';
+import { useSimVis } from './SimVisContext';
 import type { SceneHandler } from '../engine/types';
 
 interface Props {
