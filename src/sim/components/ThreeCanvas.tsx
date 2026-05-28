@@ -30,6 +30,8 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.domElement.tabIndex = -1;
+    renderer.domElement.style.outline = 'none';
     el.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);

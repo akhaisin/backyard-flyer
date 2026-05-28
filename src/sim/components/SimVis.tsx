@@ -85,6 +85,10 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
     return () => { unsubState(); unsubRunning(); unsubError(); };
   }, [simId]);
 
+  // Request keyboard focus for this frame on mount so Space works immediately
+  // when the app is embedded in an iframe without needing a prior click.
+  useEffect(() => { window.focus(); }, []);
+
   useEffect(() => {
     const onFsChange = () => {
       const isNowFullscreen = document.fullscreenElement === containerRef.current;
