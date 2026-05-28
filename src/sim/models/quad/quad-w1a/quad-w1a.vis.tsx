@@ -6,6 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import { WINDOWS } from './blocks/mission';
 import type { ModelState } from '../../../engine/types';
 
@@ -40,6 +41,11 @@ const sceneHandler = composeScene(() => [
     WINDOWS,
   ),
   windSock(s => view(s).wind, { maxForceN: 1.5 }),
+  textLabel({
+    text: 'Quad W1a\nWindow gates + carrot-and-stick planner\nMISSED recovery phase',
+    position: [-18, 0, 0],
+    fontSize: 36,
+  }),
 ]);
 
 export default function QuadW1aVis() {

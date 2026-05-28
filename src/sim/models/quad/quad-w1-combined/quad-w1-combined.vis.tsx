@@ -6,6 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import { WINDOWS_A } from './blocks/mission_a';
 import { WINDOWS_B } from './blocks/mission_b';
 import type { ModelState } from '../../../engine/types';
@@ -30,7 +31,7 @@ const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING
 const sceneHandler = composeScene(() => [
   // Camera from the +x/+z corner looking diagonally across both tracks.
   // Track A is in -x/+z, track B is in +x/-z — opposite quadrants.
-  baseScene({ bg: 0x080810, camera: { pos: [40, 32, 40], lookAt: [0, 4, 0] } }),
+  baseScene({ bg: 0x080810, camera: { pos: [20, 16, 20], lookAt: [0, 4, 0] } }),
 
   // Home pads at each drone's landing position
   homePad({ position: [-15, 0,  15] }),  // track A
@@ -70,6 +71,11 @@ const sceneHandler = composeScene(() => [
 
   // Windsock in the open +x/+z quadrant, immediately visible from default camera
   windSock(s => view(s).wind, { position: [5, 0, 5], maxForceN: 5 }),
+  textLabel({
+    text: 'Quad W1 Combined\nW1a (blue): carrot-and-stick planner\nW1b (orange): pre-gate staging approach',
+    position: [-28, 0, -28],
+    fontSize: 36,
+  }),
 ]);
 
 export default function QuadW1CombinedVis() {

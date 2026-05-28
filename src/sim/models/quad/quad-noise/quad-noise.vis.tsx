@@ -6,6 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -34,6 +35,11 @@ const sceneHandler = composeScene(() => [
     { addWhen: s => Math.round(view(s).mission.phase) === 2, doneColor: 0x446644 },
   ),
   windSock(s => view(s).wind),
+  textLabel({
+    text: 'Quad Noise\nWind gusts + sensor noise\nposition integral for disturbance rejection',
+    position: [-10, 0, -10],
+    fontSize: 36,
+  }),
 ]);
 
 export default function QuadNoiseVis() {

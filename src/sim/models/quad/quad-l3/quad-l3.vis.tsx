@@ -5,6 +5,7 @@ import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -31,6 +32,11 @@ const sceneHandler = composeScene(() => [
     s => ({ waypointIdx: view(s).mission.waypointIdx, target: view(s).mission.target, phase: view(s).mission.phase }),
     { addWhen: s => Math.round(view(s).mission.phase) === 2, doneColor: 0x446644 },
   ),
+  textLabel({
+    text: 'Quad L3\nYaw-aware navigation\nbody-frame roll/pitch decomposition',
+    position: [-10, 0, -10],
+    fontSize: 36,
+  }),
 ]);
 
 export default function QuadL3Vis() {

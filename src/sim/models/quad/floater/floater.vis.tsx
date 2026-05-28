@@ -4,6 +4,7 @@ import { baseScene } from '../../../vis/plugins/baseScene';
 import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { floaterMesh } from '../../../vis/plugins/floaterMesh';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -25,6 +26,11 @@ const sceneHandler = composeScene(() => [
   floaterMesh(s => ({ pos: view(s).pos, vel: view(s).vel })),
   trail(s => view(s).pos, { length: 400, opacity: 0.6 }),
   waypointTracker(s => ({ waypointIdx: view(s).mission.targetIdx, target: view(s).mission.target })),
+  textLabel({
+    text: 'Floater\n4-block layered model\nmission → fc → hw → world',
+    position: [-10, 0, -10],
+    fontSize: 28,
+  }),
 ]);
 
 export default function FloaterVis() {

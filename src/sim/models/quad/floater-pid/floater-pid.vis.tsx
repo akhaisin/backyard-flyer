@@ -5,6 +5,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { floaterMesh } from '../../../vis/plugins/floaterMesh';
 import { windArrow } from '../../../vis/plugins/windArrow';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -35,6 +36,11 @@ const sceneHandler = composeScene(() => [
     { pendingColor: 0xff8800 },
   ),
   windArrow(s => view(s).wind),
+  textLabel({
+    text: 'Floater PID vs PD\nBlue: PD controller\nOrange: PID controller',
+    position: [-10, 0, -10],
+    fontSize: 28,
+  }),
 ]);
 
 export default function FloaterPidVis() {

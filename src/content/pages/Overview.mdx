@@ -16,23 +16,17 @@ Use the table of contents on the left to navigate. Simulation pages have three t
 
 Quadcopter simulations in order of increasing realism — from a point-mass sphere to a full cascaded flight controller flying through window gates.
 
-- **[Floater — multi-block model with simulated hardware](#Backyard-Flyer/floater)** — a sphere chasing waypoints in 3D. Four blocks (`mission → fc → hw → world`) demonstrate how a controller, an actuator with inertia, and a physics integrator are layered. State is structured into sub-trees (`pos`, `vel`, `thrust.desired/actual`, `mission.target`).
-
-- **[Floater PID vs PD — two controllers, side by side](#Backyard-Flyer/floater-pid)** — two floaters fly mirrored waypoint paths. One uses a PD controller (proportional + damping), the other a full PID. Same hardware, same physics — only the control law differs. Includes a note on why *pure* P can't converge (think planetary orbits).
-
-- **[Quad L1 — full mission sequence](#Backyard-Flyer/quad-l1)** — a quadcopter that executes a complete autonomous mission: arm, take off, navigate a rectangular route through four waypoints, return home, land, and disarm. The `mission` block is a seven-phase state machine; `world` includes a simple ground-contact model (per-tick horizontal friction on landing).
-
-- **[Quad L2 — cascaded controllers: navigator + stabilizer](#Backyard-Flyer/quad-l2)** — the same mission, but the flight controller is split into two independent blocks: `fc_navigator` converts position error into desired attitude and total thrust; `fc_stabilizer` tracks that attitude and drives the motors. The interface between them — `{ roll_des, pitch_des, yaw_des, thrust }` — is live in a dedicated chart.
-
-- **[Quad Noise — wind disturbance and sensor noise](#Backyard-Flyer/quad-noise)** — Quad L2 extended with random wind gusts and realistic Gaussian sensor noise on every channel. The flight controller never reads the true state; it must reject sustained gusts through a position integral term (`KI_POS`) and tolerate gyro/GPS jitter. Because the mission loops indefinitely, each lap is a fresh trial against a different random wind.
-
-- **[Quad W1a — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1a)** — point waypoints replaced by rectangular window gates the drone must physically pass *through*. A new `fc_path_planner` block generates a moving carrot sub-target ahead of the drone so it maintains speed through the gate instead of decelerating to a stop. Missed gates trigger a recovery sequence: fly back to the last checkpoint and retry the approach.
-
-- **[Quad W1b — pre-gate staging approach](#Backyard-Flyer/quad-w1b)** — improves on W1a by adding a pre-gate staging point placed along each gate's approach axis. The drone aligns with the window normal before entering, eliminating the lateral overshoot that occurs when approaching at an oblique angle.
-
-- **[Quad W1 Combined — W1a vs W1b side-by-side](#Backyard-Flyer/quad-w1-combined)** — two quads fly identical window-gate circuits on parallel tracks under shared wind. Blue (A) uses W1a's direct approach; Orange (B) uses W1b's staged approach. The *Loops completed* chart accumulates over time, making the difference in gate miss rate visible across many laps.
-
-- **[Quad Ladder — yaw-aware navigation through a vertical gate stack](#Backyard-Flyer/quad-ladder)** ⚠️ *Work in progress.* — a three-gate FPV ladder where all gates are entered from the back entrance. The drone arcs left/right around the structure between gates while climbing, and the navigator decomposes roll/pitch commands into the drone's body frame using current yaw — so the control law remains correct as heading rotates.
+| Model | Description | New since previous |
+|---|---|---|
+| [**Floater**](#Backyard-Flyer/floater) | Sphere chasing 3D waypoints through a simulated hardware actuator | **4-block layered architecture** (`mission → fc → hw → world`), nested state sub-trees, actuator thrust inertia |
+| [**Floater PID vs PD**](#Backyard-Flyer/floater-pid) | Two floaters on mirrored paths — one PD controller, one PID | **A/B control law comparison**; visible effect of the integral term on steady-state drift |
+| [**Quad L1**](#Backyard-Flyer/quad-l1) | Quadrotor executing a full autonomous waypoint mission | **Quadrotor physics** (4-motor layout, differential torque, ground contact), **7-phase mission state machine** (arm → takeoff → navigate → RTH → land → disarm) |
+| [**Quad L2**](#Backyard-Flyer/quad-l2) | Same mission with a split flight controller | **Cascaded FC**: `fc_navigator` (position → desired attitude) + `fc_stabilizer` (attitude → motors); live interface chart |
+| [**Quad Noise**](#Backyard-Flyer/quad-noise) | Quad L2 with real-world disturbances | **Wind gusts** (random direction and duration), **sensor noise** on all IMU/GPS channels, position integral (`KI_POS`) for wind rejection, **yaw-aware** body-frame navigation |
+| [**Quad W1a**](#Backyard-Flyer/quad-w1a) | Four rectangular window gates the drone must fly through | **Window gate** plane-crossing detection, **carrot-and-stick** path planner (`fc_path_planner`), yaw aligned to gate normal, **MISSED recovery** phase |
+| [**Quad W1b**](#Backyard-Flyer/quad-w1b) | W1a with a smarter gate approach | **Pre-gate staging** point on the approach axis, `preGateDone` latch to prevent staging–gate oscillation |
+| [**Quad W1 Combined**](#Backyard-Flyer/quad-w1-combined) | W1a (Blue) vs W1b (Orange) flying under shared wind | **Shared-environment A/B comparison**; loops-completed chart shows gate miss rate difference over many laps |
+| [**Quad Ladder** ⚠️](#Backyard-Flyer/quad-ladder) | Three-gate vertical FPV ladder with alternating gate normals | **Body-frame roll/pitch decomposition** for arbitrary yaw ψ; vertical mission geometry with switchback path between gates |
 
 ---
 

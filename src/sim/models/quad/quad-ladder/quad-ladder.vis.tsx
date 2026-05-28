@@ -6,6 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
+import { textLabel } from '../../../vis/plugins/textLabel';
 import { GATES, GUIDE_GATES } from './blocks/mission';
 import type { ModelState } from '../../../engine/types';
 
@@ -53,6 +54,11 @@ const sceneHandler = composeScene(() => [
     { opacity: 0.25, noCarrot: false },
   ),
   windSock(s => view(s).wind, { maxForceN: 0.50 }),
+  textLabel({
+    text: 'Quad Ladder\nThree-gate vertical FPV ladder\nguide gates + body-frame yaw decomposition',
+    position: [-15, 0, -15],
+    fontSize: 36,
+  }),
 ]);
 
 export default function QuadLadderVis() {
