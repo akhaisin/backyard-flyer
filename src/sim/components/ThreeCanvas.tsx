@@ -44,7 +44,7 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
 
     const handler = sceneHandler();
     handlerRef.current = handler;
-    handler.init(scene, camera);
+    handler.init(scene, camera, el);
     handler.update(getState(simId), getTick(simId), getHistory(simId));
 
     const animate = () => {
@@ -113,8 +113,10 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
     const camera = cameraRef.current;
     const handler = handlerRef.current;
     if (!scene || !camera || !handler) return;
+    const el = containerRef.current;
+    if (!el) return;
     handler.dispose(scene);
-    handler.init(scene, camera);
+    handler.init(scene, camera, el);
     handler.update(getState(simId), 0, []);
   }, [resetCount, simId]);
 

@@ -51,7 +51,7 @@ export interface BlockConfig {
 }
 
 export interface SceneHandler {
-  init(scene: Scene, camera: PerspectiveCamera): void;
+  init(scene: Scene, camera: PerspectiveCamera, container: HTMLElement): void;
   update(state: ModelState, tick: number, history: ModelState[]): void;
   dispose(scene: Scene): void;
 }

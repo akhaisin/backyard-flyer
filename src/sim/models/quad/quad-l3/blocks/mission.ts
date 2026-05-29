@@ -17,6 +17,11 @@ type MissionOut = {
   ticksInPhase: number;
   armed: number;
   target: Vec3;
+  // Current intended flight segment. Meaningful during NAVIGATE
+  // (line between consecutive waypoints); degenerate (start = end = target)
+  // in other phases. Downstream validators score actual position against it.
+  segStart: Vec3;
+  segEnd: Vec3;
   dist: number;
 };
 
@@ -49,6 +54,17 @@ function dist3(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
+// Build a result with the segment fields filled in. Outside NAVIGATE the
+// segment is degenerate (start = end = target) — validator gates on phase so
+// the values don't matter; degenerate keeps them visualizable as a point.
+function out(
+  phase: number, waypointIdx: number, ticksInPhase: number, armed: number,
+  target: Vec3, dist: number,
+  segStart: Vec3 = target, segEnd: Vec3 = target,
+): MissionOut {
+  return { phase, waypointIdx, ticksInPhase, armed, target, dist, segStart, segEnd };
+}
+
 export function mission(state: MissionIn): MissionOut {
   const phase = Math.round(state.phase);
   const wpIdx = Math.round(state.waypointIdx);
@@ -58,58 +74,59 @@ export function mission(state: MissionIn): MissionOut {
 
   if (phase === ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: cruisePoint, dist: dist3(state.pos, cruisePoint) };
+      return out(TAKEOFF, 0, 0, 1, cruisePoint, dist3(state.pos, cruisePoint));
     }
-    return { phase: ARMING, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 0, target: LAND_PAD, dist: 0 };
+    return out(ARMING, 0, ticks + 1, 0, LAND_PAD, 0);
   }
 
   if (phase === TAKEOFF) {
     const d = dist3(state.pos, cruisePoint);
     if (state.pos.y >= CRUISE_ALT - 0.3) {
-      return { phase: NAVIGATE, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: WAYPOINTS[0], dist: dist3(state.pos, WAYPOINTS[0]) };
+      return out(NAVIGATE, 0, 0, 1, WAYPOINTS[0], dist3(state.pos, WAYPOINTS[0]), HOME, WAYPOINTS[0]);
     }
-    return { phase: TAKEOFF, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 1, target: cruisePoint, dist: d };
+    return out(TAKEOFF, 0, ticks + 1, 1, cruisePoint, d);
   }
 
   if (phase === NAVIGATE) {
     const wp = WAYPOINTS[wpIdx];
+    const segStart = wpIdx === 0 ? HOME : WAYPOINTS[wpIdx - 1];
     const d = dist3(state.pos, wp);
     if (d < THRESHOLD) {
       const next = wpIdx + 1;
       if (next >= WAYPOINTS.length) {
-        return { phase: RTH, waypointIdx: wpIdx, ticksInPhase: 0, armed: 1, target: HOME, dist: dist3(state.pos, HOME) };
+        return out(RTH, wpIdx, 0, 1, HOME, dist3(state.pos, HOME), wp, HOME);
       }
-      return { phase: NAVIGATE, waypointIdx: next, ticksInPhase: 0, armed: 1, target: WAYPOINTS[next], dist: dist3(state.pos, WAYPOINTS[next]) };
+      return out(NAVIGATE, next, 0, 1, WAYPOINTS[next], dist3(state.pos, WAYPOINTS[next]), wp, WAYPOINTS[next]);
     }
-    return { phase: NAVIGATE, waypointIdx: wpIdx, ticksInPhase: ticks + 1, armed: 1, target: wp, dist: d };
+    return out(NAVIGATE, wpIdx, ticks + 1, 1, wp, d, segStart, wp);
   }
 
   if (phase === RTH) {
     const d = dist3(state.pos, HOME);
     if (d < THRESHOLD) {
-      return { phase: LAND, waypointIdx: 0, ticksInPhase: 0, armed: 1, target: LAND_PAD, dist: dist3(state.pos, LAND_PAD) };
+      return out(LAND, 0, 0, 1, LAND_PAD, dist3(state.pos, LAND_PAD), HOME, LAND_PAD);
     }
-    return { phase: RTH, waypointIdx: wpIdx, ticksInPhase: ticks + 1, armed: 1, target: HOME, dist: d };
+    return out(RTH, wpIdx, ticks + 1, 1, HOME, d, WAYPOINTS[wpIdx], HOME);
   }
 
   if (phase === LAND) {
     const d = dist3(state.pos, LAND_PAD);
     if (state.pos.y < 0.3) {
-      return { phase: DISARMING, waypointIdx: 0, ticksInPhase: 0, armed: 0, target: LAND_PAD, dist: d };
+      return out(DISARMING, 0, 0, 0, LAND_PAD, d);
     }
-    return { phase: LAND, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 1, target: LAND_PAD, dist: d };
+    return out(LAND, 0, ticks + 1, 1, LAND_PAD, d, HOME, LAND_PAD);
   }
 
   if (phase === DISARMING) {
     if (ticks >= ARMING_TICKS) {
-      return { phase: DONE, waypointIdx: 0, ticksInPhase: 0, armed: 0, target: LAND_PAD, dist: 0 };
+      return out(DONE, 0, 0, 0, LAND_PAD, 0);
     }
-    return { phase: DISARMING, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 0, target: LAND_PAD, dist: 0 };
+    return out(DISARMING, 0, ticks + 1, 0, LAND_PAD, 0);
   }
 
   // DONE — wait 20 ticks then restart from ARMING
   if (phase === DONE && state.ticksInPhase >= 20) {
-    return { phase: ARMING, waypointIdx: 0, ticksInPhase: 0, armed: 0, target: LAND_PAD, dist: 0 };
+    return out(ARMING, 0, 0, 0, LAND_PAD, 0);
   }
-  return { phase: DONE, waypointIdx: 0, ticksInPhase: ticks + 1, armed: 0, target: LAND_PAD, dist: 0 };
+  return out(DONE, 0, ticks + 1, 0, LAND_PAD, 0);
 }

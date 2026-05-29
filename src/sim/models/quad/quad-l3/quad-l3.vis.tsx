@@ -6,6 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
+import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -15,6 +16,7 @@ interface QuadState {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   mission: { phase: number; waypointIdx: number; target: Vec3 };
+  validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number };
 }
 const view = (s: ModelState): QuadState => s as unknown as QuadState;
 
@@ -36,6 +38,19 @@ const sceneHandler = composeScene(() => [
     text: 'Quad L3\nYaw-aware navigation\nbody-frame roll/pitch decomposition',
     position: [-10, 0, -10],
     fontSize: 36,
+  }),
+  infoOverlay({
+    corner: 'bottom-left',
+    rows: [
+      { label: 'Total laps',  display: s => String(Math.round(view(s).validator.lapsTotal)) },
+      { label: 'Current err',
+        display: s => `${view(s).validator.currentErr.toFixed(3)} m`,
+        plot: true,
+        value: s => view(s).validator.currentErr,
+        color: '#ffaa44' },
+      { label: 'Lap error',   display: s => `${view(s).validator.lapErr.toFixed(3)} m` },
+      { label: 'Avg error',   display: s => `${view(s).validator.avgErr.toFixed(3)} m` },
+    ],
   }),
 ]);
 

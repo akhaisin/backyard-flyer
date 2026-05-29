@@ -8,6 +8,8 @@ import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
+import validatorCode from './blocks/validator.ts?raw';
+import { validator } from './blocks/validator';
 import QuadVis from './quad-l3.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -39,7 +41,19 @@ export const quadL3Config: ModelConfig = {
       ticksInPhase: 0,
       armed: 0,
       dist: 0,
-      target: { x: 0, y: 0, z: 0 },
+      target:   { x: 0, y: 0, z: 0 },
+      segStart: { x: 0, y: 0, z: 0 },
+      segEnd:   { x: 0, y: 0, z: 0 },
+    },
+    validator: {
+      prevPhase:      0,
+      lapsTotal:      0,
+      lapErrSum:      0,
+      lapErrTicks:    0,
+      totalLapErrSum: 0,
+      lapErr:         0,
+      avgErr:         0,
+      currentErr:     0,
     },
   },
   blocks: [
@@ -64,6 +78,8 @@ export const quadL3Config: ModelConfig = {
           ticksInPhase: out.ticksInPhase,
           armed:        out.armed,
           target:       out.target,
+          segStart:     out.segStart,
+          segEnd:       out.segEnd,
           dist:         out.dist,
         },
       }),
@@ -166,6 +182,38 @@ export const quadL3Config: ModelConfig = {
       }),
       tickFrequency: 1,
     },
+    {
+      sourceId: 'validator',
+      exportName: 'validator',
+      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
+      defaultCode: validatorCode,
+      mapStateIn: (s) => ({
+        pos:            s.pos,
+        phase:          (s.mission as ModelState).phase,
+        segStart:       (s.mission as ModelState).segStart,
+        segEnd:         (s.mission as ModelState).segEnd,
+        prevPhase:      (s.validator as ModelState).prevPhase,
+        lapsTotal:      (s.validator as ModelState).lapsTotal,
+        lapErrSum:      (s.validator as ModelState).lapErrSum,
+        lapErrTicks:    (s.validator as ModelState).lapErrTicks,
+        totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
+      }),
+      mapStateOut: (out, s) => ({
+        ...s,
+        validator: {
+          ...(s.validator as ModelState),
+          prevPhase:      out.prevPhase,
+          lapsTotal:      out.lapsTotal,
+          lapErrSum:      out.lapErrSum,
+          lapErrTicks:    out.lapErrTicks,
+          totalLapErrSum: out.totalLapErrSum,
+          lapErr:         out.lapErr,
+          avgErr:         out.avgErr,
+          currentErr:     out.currentErr,
+        },
+      }),
+      tickFrequency: 1,
+    },
   ],
   vis: QuadVis,
   blocksDiagram: [
@@ -176,6 +224,8 @@ export const quadL3Config: ModelConfig = {
     { from: 'world',         to: 'mission',       label: 'pos'         },
     { from: 'world',         to: 'fc_navigator',  label: 'state'       },
     { from: 'world',         to: 'fc_stabilizer', label: 'attitude'    },
+    { from: 'world',         to: 'validator',     label: 'pos'         },
+    { from: 'mission',       to: 'validator',     label: 'phase+seg'   },
   ],
   charts: [
     {
@@ -241,6 +291,14 @@ export const quadL3Config: ModelConfig = {
         { var: 'mission.phase', label: 'phase', color: '#ffaa00' },
         { var: 'mission.dist',  label: 'dist',  color: '#ff66ff' },
         { var: 'mission.armed', label: 'armed', color: '#00ffaa' },
+      ],
+    },
+    {
+      label: 'Track error (m)',
+      series: [
+        { var: 'validator.currentErr', label: 'current err', color: '#ffaa44' },
+        { var: 'validator.lapErr',     label: 'lap err',     color: '#ff8888' },
+        { var: 'validator.avgErr',     label: 'avg err',     color: '#44aaff' },
       ],
     },
   ],
