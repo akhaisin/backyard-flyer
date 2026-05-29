@@ -7,6 +7,7 @@ import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
+import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { WINDOWS } from './blocks/mission';
 import type { ModelState } from '../../../engine/types';
 
@@ -19,8 +20,14 @@ interface QuadW1aState {
   mission: { phase: number; windowIdx: number };
   planner: { carrot: Vec3 };
   wind: { fx: number; fz: number };
+  validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number; misses: number };
 }
 const view = (s: ModelState): QuadW1aState => s as unknown as QuadW1aState;
+
+function windStrength(s: ModelState): number {
+  const w = view(s).wind;
+  return Math.sqrt(w.fx * w.fx + w.fz * w.fz);
+}
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'MISSED'];
 
@@ -45,6 +52,25 @@ const sceneHandler = composeScene(() => [
     text: 'Quad W1a\nWindow gates + carrot-and-stick planner\nMISSED recovery phase',
     position: [-18, 0, 0],
     fontSize: 36,
+  }),
+  infoOverlay({
+    corner: 'bottom-left',
+    rows: [
+      { label: 'Total laps',  display: s => String(Math.round(view(s).validator.lapsTotal)) },
+      { label: 'Misses',      display: s => String(Math.round(view(s).validator.misses)) },
+      { label: 'Current err',
+        display: s => `${view(s).validator.currentErr.toFixed(3)} m`,
+        plot: true,
+        value: s => view(s).validator.currentErr,
+        color: '#ffaa44' },
+      { label: 'Lap error',   display: s => `${view(s).validator.lapErr.toFixed(3)} m` },
+      { label: 'Avg error',   display: s => `${view(s).validator.avgErr.toFixed(3)} m` },
+      { label: 'Wind',
+        display: s => `${windStrength(s).toFixed(2)} N`,
+        plot: true,
+        value: windStrength,
+        color: '#88ccff' },
+    ],
   }),
 ]);
 

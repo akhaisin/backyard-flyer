@@ -14,6 +14,8 @@ import windCode from './blocks/wind.ts?raw';
 import { wind } from './blocks/wind';
 import noiseCode from './blocks/noise.ts?raw';
 import { noise } from './blocks/noise';
+import validatorCode from './blocks/validator.ts?raw';
+import { validator } from './blocks/validator';
 import QuadW1bVis from './quad-w1b.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -55,6 +57,8 @@ export const quadW1bConfig: ModelConfig = {
       windowSide:   0,
       windowCenter: { ...vec0 },
       windowNormal: { x: 1, y: 0, z: 0 },
+      segStart:     { ...vec0 },
+      segEnd:       { ...vec0 },
       dist:         0,
     },
     planner: {
@@ -62,6 +66,17 @@ export const quadW1bConfig: ModelConfig = {
       preGateDone:     0,
       activeWindowIdx: -1,
       yawSetpoint:     0,
+    },
+    validator: {
+      prevPhase:      0,
+      lapsTotal:      0,
+      lapErrSum:      0,
+      lapErrTicks:    0,
+      totalLapErrSum: 0,
+      lapErr:         0,
+      avgErr:         0,
+      currentErr:     0,
+      misses:         0,
     },
   },
   blocks: [
@@ -115,6 +130,8 @@ export const quadW1bConfig: ModelConfig = {
           windowSide:   out.windowSide,
           windowCenter: out.windowCenter,
           windowNormal: out.windowNormal,
+          segStart:     out.segStart,
+          segEnd:       out.segEnd,
           dist:         out.dist,
         },
       }),
@@ -242,6 +259,40 @@ export const quadW1bConfig: ModelConfig = {
       }),
       tickFrequency: 1,
     },
+    {
+      sourceId: 'validator',
+      exportName: 'validator',
+      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
+      defaultCode: validatorCode,
+      mapStateIn: (s) => ({
+        pos:            s.pos,
+        phase:          (s.mission as ModelState).phase,
+        segStart:       (s.mission as ModelState).segStart,
+        segEnd:         (s.mission as ModelState).segEnd,
+        prevPhase:      (s.validator as ModelState).prevPhase,
+        lapsTotal:      (s.validator as ModelState).lapsTotal,
+        lapErrSum:      (s.validator as ModelState).lapErrSum,
+        lapErrTicks:    (s.validator as ModelState).lapErrTicks,
+        totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
+        misses:         (s.validator as ModelState).misses,
+      }),
+      mapStateOut: (out, s) => ({
+        ...s,
+        validator: {
+          ...(s.validator as ModelState),
+          prevPhase:      out.prevPhase,
+          lapsTotal:      out.lapsTotal,
+          lapErrSum:      out.lapErrSum,
+          lapErrTicks:    out.lapErrTicks,
+          totalLapErrSum: out.totalLapErrSum,
+          lapErr:         out.lapErr,
+          avgErr:         out.avgErr,
+          currentErr:     out.currentErr,
+          misses:         out.misses,
+        },
+      }),
+      tickFrequency: 1,
+    },
   ],
   vis: QuadW1bVis,
   blocksDiagram: [
@@ -259,6 +310,8 @@ export const quadW1bConfig: ModelConfig = {
     { from: 'world',           to: 'mission',         label: 'pos'       },
     { from: 'world',           to: 'fc_path_planner', label: 'state'     },
     { from: 'world',           to: 'fc_stabilizer',   label: 'attitude'  },
+    { from: 'world',           to: 'validator',       label: 'pos'       },
+    { from: 'mission',         to: 'validator',       label: 'phase+seg' },
   ],
   charts: [
     {
@@ -329,6 +382,15 @@ export const quadW1bConfig: ModelConfig = {
       series: [
         { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
         { var: 'wind.fz', label: 'wind fz', color: '#888888' },
+      ],
+    },
+    {
+      label: 'Track error (m)',
+      series: [
+        { var: 'validator.currentErr', label: 'current err', color: '#ffaa44' },
+        { var: 'validator.lapErr',     label: 'lap err',     color: '#ff8888' },
+        { var: 'validator.avgErr',     label: 'avg err',     color: '#44aaff' },
+        { var: 'validator.misses',     label: 'misses',      color: '#ff66ff' },
       ],
     },
   ],
