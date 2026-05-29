@@ -26,7 +26,16 @@ Quadcopter simulations in order of increasing realism — from a point-mass sphe
 | [**Quad W1a**](#Backyard-Flyer/quad-w1a) | Four rectangular window gates the drone must fly through | **Window gate** plane-crossing detection, **carrot-and-stick** path planner (`fc_path_planner`), yaw aligned to gate normal, **MISSED recovery** phase |
 | [**Quad W1b**](#Backyard-Flyer/quad-w1b) | W1a with a smarter gate approach | **Pre-gate staging** point on the approach axis, `preGateDone` latch to prevent staging–gate oscillation |
 | [**Quad W1 Combined**](#Backyard-Flyer/quad-w1-combined) | W1a (Blue) vs W1b (Orange) flying under shared wind | **Shared-environment A/B comparison**; loops-completed chart shows gate miss rate difference over many laps |
-| [**Quad Ladder** ⚠️](#Backyard-Flyer/quad-ladder) | Three-gate vertical FPV ladder with alternating gate normals | **Body-frame roll/pitch decomposition** for arbitrary yaw ψ; vertical mission geometry with switchback path between gates |
+
+---
+
+## [Racing](#Racing)
+
+A separate collection of models for FPV racing maneuvers — gate geometries, path-planning tricks, and frame-aware control needed to fly racetrack elements rather than simple waypoint missions.
+
+| Model | Description | New since previous |
+|---|---|---|
+| [**Quad Ladder** ⚠️](#Racing/quad-ladder) | Three-gate vertical FPV ladder with alternating gate normals | **Body-frame roll/pitch decomposition** for arbitrary yaw ψ; vertical mission geometry with switchback path between gates |
 
 ---
 

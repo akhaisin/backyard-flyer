@@ -21,7 +21,7 @@ const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
 export const quadLadderConfig: ModelConfig = {
-  modelId: 'quad/quad-ladder',
+  modelId: 'racing/quad-ladder',
   tickIntervalMs: 50,
   initialState: {
     pos:        { ...vec0 },

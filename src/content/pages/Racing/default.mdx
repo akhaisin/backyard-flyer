@@ -1,0 +1,33 @@
+---
+order: 2
+toc-name: Racing
+---
+
+# Racing
+
+A separate collection of models for simulating FPV racing maneuvers. These build on the Backyard Flyer quad stack (`mission → fc_path_planner → fc_navigator → fc_stabilizer → hw → world`) and add the gate geometries, path-planning tricks, and frame-aware control needed to fly racetrack elements rather than simple waypoint missions.
+
+Use the table of contents on the left to navigate between pages.
+
+---
+
+## [Quad Ladder — yaw-aware navigation through a vertical gate stack](#Racing/quad-ladder)
+
+A three-gate vertical ladder — a standard FPV racing element. The drone starts at the origin, arcs around the left side of the structure to the back, then crosses all three gates from the back entrance (going −X) while alternating left/right arcs between gates and climbing 3 m per gate.
+
+Two new ideas: the mission interleaves positional waypoints (advance on distance) with window gates (advance on crossing), encoding the full arc-cross-arc pattern in a single step list; and the navigator decomposes roll/pitch commands in the drone's actual body frame, correctly handling any yaw angle rather than assuming the drone always faces +X.
+
+**What it introduces:** mixed waypoint/gate step sequences, yaw-aware roll/pitch frame decomposition, explicit yaw setpoints with rate limiting.
+
+---
+
+## Coming soon
+
+Placeholders for upcoming racing maneuver models. Articles and simulations are not yet written.
+
+- **Slalom** 🚧 — weaving through a row of gates on alternating sides, exercising rapid left/right roll reversals at speed.
+- **Figure Eight** 🚧 — two crossing loops sharing a center, testing yaw continuity and banked-turn coordination through the crossover.
+- **Orbit** 🚧 — sustained circular flight around a fixed point with the camera (yaw) tracking inward; constant centripetal acceleration.
+- **Split-S** 🚧 — half-roll into a half-loop downwards: a 180° heading reversal that trades altitude for direction.
+- **Power Loop** 🚧 — full vertical loop through a single gate, entered and exited on the same heading; sustained inverted segment.
+- **Barrel Roll** 🚧 — corkscrew helical roll along the flight axis; coupled roll and pitch with continuous forward velocity.
