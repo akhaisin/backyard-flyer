@@ -12,6 +12,8 @@ import windCode from './blocks/wind.ts?raw';
 import { wind } from './blocks/wind';
 import noiseCode from './blocks/noise.ts?raw';
 import { noise } from './blocks/noise';
+import validatorCode from './blocks/validator.ts?raw';
+import { validator } from './blocks/validator';
 import QuadNoiseVis from './quad-noise.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -53,7 +55,19 @@ export const quadNoiseConfig: ModelConfig = {
       ticksInPhase: 0,
       armed: 0,
       dist: 0,
-      target: { ...vec0 },
+      target:   { ...vec0 },
+      segStart: { ...vec0 },
+      segEnd:   { ...vec0 },
+    },
+    validator: {
+      prevPhase:      0,
+      lapsTotal:      0,
+      lapErrSum:      0,
+      lapErrTicks:    0,
+      totalLapErrSum: 0,
+      lapErr:         0,
+      avgErr:         0,
+      currentErr:     0,
     },
   },
   blocks: [
@@ -104,6 +118,8 @@ export const quadNoiseConfig: ModelConfig = {
           ticksInPhase: out.ticksInPhase,
           armed:        out.armed,
           target:       out.target,
+          segStart:     out.segStart,
+          segEnd:       out.segEnd,
           dist:         out.dist,
         },
       }),
@@ -208,6 +224,38 @@ export const quadNoiseConfig: ModelConfig = {
       }),
       tickFrequency: 1,
     },
+    {
+      sourceId: 'validator',
+      exportName: 'validator',
+      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
+      defaultCode: validatorCode,
+      mapStateIn: (s) => ({
+        pos:            s.pos,
+        phase:          (s.mission as ModelState).phase,
+        segStart:       (s.mission as ModelState).segStart,
+        segEnd:         (s.mission as ModelState).segEnd,
+        prevPhase:      (s.validator as ModelState).prevPhase,
+        lapsTotal:      (s.validator as ModelState).lapsTotal,
+        lapErrSum:      (s.validator as ModelState).lapErrSum,
+        lapErrTicks:    (s.validator as ModelState).lapErrTicks,
+        totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
+      }),
+      mapStateOut: (out, s) => ({
+        ...s,
+        validator: {
+          ...(s.validator as ModelState),
+          prevPhase:      out.prevPhase,
+          lapsTotal:      out.lapsTotal,
+          lapErrSum:      out.lapErrSum,
+          lapErrTicks:    out.lapErrTicks,
+          totalLapErrSum: out.totalLapErrSum,
+          lapErr:         out.lapErr,
+          avgErr:         out.avgErr,
+          currentErr:     out.currentErr,
+        },
+      }),
+      tickFrequency: 1,
+    },
   ],
   vis: QuadNoiseVis,
   blocksDiagram: [
@@ -223,6 +271,8 @@ export const quadNoiseConfig: ModelConfig = {
     { from: 'world',         to: 'mission',       label: 'pos'      },
     { from: 'world',         to: 'fc_navigator',  label: 'state'    },
     { from: 'world',         to: 'fc_stabilizer', label: 'attitude' },
+    { from: 'world',         to: 'validator',     label: 'pos'      },
+    { from: 'mission',       to: 'validator',     label: 'phase+seg' },
   ],
   charts: [
     {
@@ -291,6 +341,14 @@ export const quadNoiseConfig: ModelConfig = {
       series: [
         { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
         { var: 'wind.fz', label: 'wind fz', color: '#888888' },
+      ],
+    },
+    {
+      label: 'Track error (m)',
+      series: [
+        { var: 'validator.currentErr', label: 'current err', color: '#ffaa44' },
+        { var: 'validator.lapErr',     label: 'lap err',     color: '#ff8888' },
+        { var: 'validator.avgErr',     label: 'avg err',     color: '#44aaff' },
       ],
     },
   ],

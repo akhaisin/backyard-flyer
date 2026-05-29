@@ -112,19 +112,6 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
       return data;
     });
 
-    let lo = Infinity, hi = -Infinity;
-    for (const arr of series) for (const v of arr) {
-      if (Number.isFinite(v)) {
-        if (v < lo) lo = v;
-        if (v > hi) hi = v;
-      }
-    }
-    if (!Number.isFinite(lo)) return;
-    if (hi - lo < 1e-9) hi = lo + 1;
-    const padR = (hi - lo) * 0.1;
-    lo -= padR; hi += padR;
-    const range = hi - lo;
-
     // Fixed-width window: X axis always represents `plotTicks` cells. Samples
     // align to the right edge so the line grows in from the right until the
     // buffer is full, then scrolls left.
@@ -133,6 +120,21 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
 
     for (let s = 0; s < plotIndices.length; s++) {
       const data = series[s];
+      // Per-series Y normalization: each line uses the full strip for its
+      // own min..max range, so mixed-unit series stay readable.
+      let lo = Infinity, hi = -Infinity;
+      for (const v of data) {
+        if (Number.isFinite(v)) {
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+      }
+      if (!Number.isFinite(lo)) continue;
+      if (hi - lo < 1e-9) hi = lo + 1;
+      const pad = (hi - lo) * 0.1;
+      lo -= pad; hi += pad;
+      const range = hi - lo;
+
       const row = rows[plotIndices[s]] as Extract<InfoOverlayRow, { plot: true }>;
       ctx.strokeStyle = row.color;
       ctx.lineWidth = 1.25;
