@@ -1,0 +1,66 @@
+---
+order: 2
+simId: Racing/quad-pole
+modelId: racing/quad-pole
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad Pole — acro-mode coordinated turn around a flagpole
+
+**Quad Pole** is a playground for FPV-style scripted maneuvers split along the real-world human/RC/FC boundary:
+
+- **mission** ("human") — high-level: arm, fly to a waypoint, then run a named maneuver, then RTH and land.
+- **planner_wp + navigator_wp / planner_3dturn + navigator_3dturn** ("RC pilot") — convert intent to AETR (Aileron-Elevator-Throttle-Rudder) sticks. Two stacks, one active per mission type.
+- **fc_acro** ("flight controller") — single-mode rate loop. Always interprets inputs as Mode-2 sticks: thrust is a direct value, roll/pitch/yaw are rate commands.
+
+```
+mission ──► planner_wp     ──► navigator_wp     ─┐
+        └─► planner_3dturn ──► navigator_3dturn ─┤
+                                                  ├──► fc_acro ──► hw ──► world
+                                              (one writes aetr;
+                                               the other passes through)
+```
+
+The active stack is selected by `mission.missionType` (0 = WP, 1 = 3DTURN). Inactive blocks see the type, see it's not theirs, and pass `aetr` through unchanged.
+
+<SimVis client:only="react" />
+
+---
+
+## Mission steps and type
+
+The STEPS array has two entries; `missionType` flips when the active step changes:
+
+| Step | Kind | missionType | Notes |
+|------|------|-------------|-------|
+| 0 | waypoint | WP (0) | (8, 3, +3) — staging east of pole |
+| 1 | maneuver | 3DTURN (1) | sweep-left, 5 s (100 ticks) |
+
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.missionType','mission.armed']]} client:only="react" />
+
+---
+
+## AETR sticks
+
+The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the 3DTURN segment navigator_3dturn writes here from the sampled maneuver plan. fc_acro doesn't know or care which one wrote.
+
+<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
+
+---
+
+## 3D-turn planner
+
+Owns the maneuver library and the keyframe sampler. When `missionType !== 3DTURN` it emits zeros with `active = 0`. Edit the keyframe values here to change the maneuver shape.
+
+<SimSource sourceIds={['planner_3dturn']} autoHeight client:only="react" />
+
+---
+
+## fc_acro
+
+Single-mode, always rate-PID. No attitude memory. The `MAX_RATE_*` constants here define what "stick = 1" means; navigator_wp uses the matching constants in its outer attitude loop to invert the mapping.
+
+<SimSource sourceIds={['fc_acro']} autoHeight client:only="react" />
