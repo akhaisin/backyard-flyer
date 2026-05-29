@@ -7,7 +7,8 @@ import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { dynamicLabel } from '../../../vis/plugins/dynamicLabel';
 import { pole } from '../../../vis/plugins/pole';
-import { POLE, POLE_HEIGHT } from './blocks/mission';
+import { waypointTracker } from '../../../vis/plugins/waypointTracker';
+import { POLE, POLE_HEIGHT, PHASE_NAVIGATE, MISSION_WP } from './blocks/mission';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -16,7 +17,7 @@ interface QuadPoleState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
-  mission: { phase: number; missionType: number };
+  mission: { phase: number; missionType: number; stepIdx: number; target: Vec3 };
 }
 const view = (s: ModelState): QuadPoleState => s as unknown as QuadPoleState;
 
@@ -27,6 +28,23 @@ const sceneHandler = composeScene(() => [
   baseScene({ bg: 0x080810, camera: { pos: [-8, 10, 14], lookAt: [4, 2, 0] } }),
   homePad(),
   pole({ position: [POLE.x, POLE.y, POLE.z], height: POLE_HEIGHT }),
+  waypointTracker(
+    s => {
+      const m = view(s).mission;
+      return { waypointIdx: m.stepIdx, target: m.target, phase: m.phase };
+    },
+    {
+      // Only record targets during NAVIGATE-WP steps. During 3dturn the mission
+      // anchors target to the drone's current pos (planner_wp is short-circuited
+      // anyway), so without this filter a sphere would appear under the drone
+      // every tick of the maneuver.
+      addWhen: s => {
+        const m = view(s).mission;
+        return Math.round(m.phase) === PHASE_NAVIGATE && Math.round(m.missionType) === MISSION_WP;
+      },
+      doneColor: 0x446644,
+    },
+  ),
   quadMesh(s => {
     const q = view(s);
     return { pos: q.pos, attitude: q.attitude, motors: q.motors.thrust, phase: q.mission.phase, phaseLabels: PHASE_LABELS };

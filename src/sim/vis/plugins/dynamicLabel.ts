@@ -1,75 +1,75 @@
 // Dynamic text sprite — like textLabel but the text updates from state each tick.
-// Regenerates the canvas texture only when the getter returns a new string.
+// Canvas dimensions are FIXED at creation; we clearRect+redraw on text change.
+// Resizing the canvas after creation breaks Three.js's CanvasTexture upload
+// (it caches the original GL texture dimensions), so we pick a generous
+// canvas size up front and accept extra padding for short labels.
+//
+// This mirrors the pattern in quadMesh.ts's phase-label sprite, which is the
+// reference implementation for dynamic canvas-backed sprites in this project.
 
 import * as THREE from 'three';
 import type { ScenePlugin } from '../scenePlugin';
 import type { ModelState } from '../../engine/types';
 
 export interface DynamicLabelOptions {
-  getText: (state: ModelState) => string;     // called every update tick
+  getText: (state: ModelState) => string;
   position: [number, number, number];
   color?: string;            // default '#ffaa44'
-  fontSize?: number;         // default 36
-  pixelsPerUnit?: number;    // default 50
+  fontSize?: number;         // default 32
+  canvasSize?: [number, number];   // default [320, 80] — must fit the longest expected text
+  pixelsPerUnit?: number;    // default 50; controls world-space sprite scale
 }
 
 export function dynamicLabel(options: DynamicLabelOptions): ScenePlugin {
   let sprite: THREE.Sprite | null = null;
   let canvas: HTMLCanvasElement | null = null;
-  let texture: THREE.CanvasTexture | null = null;
   let lastText: string | null = null;
 
   const {
     position,
     color         = '#ffaa44',
-    fontSize      = 36,
+    fontSize      = 32,
+    canvasSize    = [320, 80],
     pixelsPerUnit = 50,
   } = options;
 
-  const PAD = 16;
-  const LINE_H = fontSize + 8;
   const FONT = `${fontSize}px monospace`;
-
-  function redraw(text: string) {
-    if (!canvas || !texture || !sprite) return;
-    const lines = text.split('\n');
-    const probe = canvas.getContext('2d')!;
-    probe.font = FONT;
-    const maxW = Math.max(...lines.map(l => probe.measureText(l).width));
-    const w = Math.ceil(maxW) + PAD * 2;
-    const h = LINE_H * lines.length + PAD;
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d')!;
-    ctx.font = FONT;
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    lines.forEach((line, i) => {
-      const y = PAD / 2 + LINE_H * i + LINE_H / 2;
-      ctx.fillText(line, w / 2, y);
-    });
-    texture.needsUpdate = true;
-    sprite.scale.set(w / pixelsPerUnit, h / pixelsPerUnit, 1);
-  }
+  const [W, H] = canvasSize;
 
   return {
     init(scene) {
       canvas = document.createElement('canvas');
-      canvas.width = 64; canvas.height = 64;
-      texture = new THREE.CanvasTexture(canvas);
+      canvas.width = W;
+      canvas.height = H;
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: texture, depthTest: false, transparent: true,
+        map: new THREE.CanvasTexture(canvas),
+        depthTest: false,
+        transparent: true,
       }));
+      sprite.scale.set(W / pixelsPerUnit, H / pixelsPerUnit, 1);
       sprite.position.set(...position);
       scene.add(sprite);
     },
     update(state) {
+      if (!canvas || !sprite) return;
       const text = options.getText(state);
-      if (text !== lastText) {
-        lastText = text;
-        redraw(text);
-      }
+      if (text === lastText) return;
+      lastText = text;
+
+      const ctx = canvas.getContext('2d')!;
+      ctx.clearRect(0, 0, W, H);
+      ctx.font = FONT;
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const lines = text.split('\n');
+      const lineH = fontSize + 4;
+      const totalH = lineH * lines.length;
+      lines.forEach((line, i) => {
+        const y = H / 2 - totalH / 2 + lineH / 2 + lineH * i;
+        ctx.fillText(line, W / 2, y);
+      });
+      (sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true;
     },
     dispose(scene) {
       if (sprite) {
@@ -77,7 +77,7 @@ export function dynamicLabel(options: DynamicLabelOptions): ScenePlugin {
         (sprite.material as THREE.SpriteMaterial).map?.dispose();
         sprite.material.dispose();
       }
-      sprite = null; canvas = null; texture = null; lastText = null;
+      sprite = null; canvas = null; lastText = null;
     },
   };
 }

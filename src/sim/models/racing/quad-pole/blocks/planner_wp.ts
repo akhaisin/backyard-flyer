@@ -31,6 +31,15 @@ const MAX_YAW_RATE  = Math.PI / 2;
 const DT            = 0.05;
 const MAX_YAW_DELTA = MAX_YAW_RATE * DT;
 
+// Freeze the yaw setpoint when within this distance of the target. atan2(dz, dx)
+// becomes pathologically sensitive as the position-error vector shrinks: a 5 cm
+// overshoot at 50 cm range = ~6° yaw swing; the same overshoot at 5 cm range =
+// ~90°+. Combined with the cascade's underdamped yaw response (zeta ≈ 0.12 with
+// current fc_acro gains), the drone overshoots wildly trying to chase a target
+// that's already moot. 2.0 m gives the cascade time to settle on the approach
+// heading before threshold effects kick in.
+const YAW_FREEZE_RANGE = 2.0;
+
 function carrotAlong(pos: Vec3, target: Vec3): Vec3 {
   const dx = target.x - pos.x;
   const dy = target.y - pos.y;
@@ -56,7 +65,7 @@ export function planner_wp(state: PlannerIn): PlannerOut {
   let yawSetpoint = state.yawSetpoint;
   const dx = state.target.x - state.pos.x;
   const dz = state.target.z - state.pos.z;
-  if (Math.sqrt(dx * dx + dz * dz) >= 0.5) {
+  if (Math.sqrt(dx * dx + dz * dz) >= YAW_FREEZE_RANGE) {
     yawSetpoint = stepYaw(Math.atan2(dz, dx), state.yawSetpoint);
   }
 

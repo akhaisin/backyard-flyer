@@ -1,8 +1,15 @@
 // fc_acro — single-mode flight controller. Always treats inputs as AETR sticks.
 //
-// Mode-2 RC semantics:
-//   thrust ∈ [0, 1]              raw throttle (per-motor base in Newtons)
-//   roll/pitch/yaw ∈ [-1, 1]     body-frame rate-stick deflection
+// AETR conventions (sign = direction of body-frame rate produced; the inverse
+// of navigator_wp's normalization and the contract planner_3dturn's keyframes
+// must follow):
+//   thrust ∈ [0, 1]      raw throttle, per-motor base in Newtons via × MAX_THRUST_N
+//   roll   ∈ [-1, 1]     +1 = roll right (attitude.x positive)
+//   pitch  ∈ [-1, 1]     +1 = pitch back / nose up (attitude.z positive)
+//                        NOTE: opposite of typical Mode-2 elevator stick. The
+//                        internal AETR bus follows the sim's body-rate sign,
+//                        not transmitter convention.
+//   yaw    ∈ [-1, 1]     +1 = yaw right (attitude.y positive)
 //
 // Inner loop: pure-P rate PID on each axis. tau = KP_RATE × (stick × MAX_RATE − measured_rate).
 // No attitude memory — drone holds attitude only because the upstream navigator

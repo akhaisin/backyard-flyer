@@ -1,7 +1,7 @@
 // Pole-circling mission: arm → takeoff → fly to staging point → coordinated
 // sweep around the pole → return home → land → disarm → restart.
 //
-// Steps (executed during NAVIGATE phase):
+// Steps (executed during PHASE_NAVIGATE phase):
 //   0: waypoint — staging point east of the pole at cruise altitude
 //   1: maneuver — lefthanded 2D coordinated sweep (5 s)
 //
@@ -41,16 +41,16 @@ type MissionOut = {
   dist: number;
 };
 
-const ARMING    = 0;
-const TAKEOFF   = 1;
-const NAVIGATE  = 2;
-const RTH       = 3;
-const LAND      = 4;
-const DISARMING = 5;
-const DONE      = 6;
+export const PHASE_ARMING    = 0;
+export const PHASE_TAKEOFF   = 1;
+export const PHASE_NAVIGATE  = 2;
+export const PHASE_RTH       = 3;
+export const PHASE_LAND      = 4;
+export const PHASE_DISARMING = 5;
+export const PHASE_DONE      = 6;
 
-const MISSION_WP     = 0;
-const MISSION_3DTURN = 1;
+export const MISSION_WP     = 0;
+export const MISSION_3DTURN = 1;
 
 const CRUISE_ALT = 3;
 
@@ -63,11 +63,11 @@ const HOME: Vec3        = { x: 0, y: CRUISE_ALT, z: 0 };
 const LAND_PAD: Vec3    = { x: 0, y: 0, z: 0 };
 
 // Durations are duplicated from planner_3dturn's MANEUVERS table
-// (5 s × 20 Hz = 100 ticks for sweep-left). Keep in sync if the maneuver
+// (3.5 s × 20 Hz = 70 ticks for sweep-left). Keep in sync if the maneuver
 // duration changes.
 export const STEPS: StepDef[] = [
   { type: 'wp',     pos: STAGING, threshold: 0.4 },
-  { type: '3dturn', maneuverIdx: 0, durationTicks: 100 },
+  { type: '3dturn', maneuverIdx: 0, durationTicks: 70 },
 ];
 
 const ARMING_TICKS  = 20;
@@ -90,22 +90,22 @@ export function mission(state: MissionIn): MissionOut {
   const stepIdx = Math.round(state.stepIdx);
   const ticks   = Math.round(state.ticksInPhase);
 
-  if (phase === ARMING) {
+  if (phase === PHASE_ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return makeOut(TAKEOFF, 0, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
+      return makeOut(PHASE_TAKEOFF, 0, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
     }
-    return makeOut(ARMING, 0, ticks + 1, 0, HOME, MISSION_WP, -1, 0);
+    return makeOut(PHASE_ARMING, 0, ticks + 1, 0, HOME, MISSION_WP, -1, 0);
   }
 
-  if (phase === TAKEOFF) {
+  if (phase === PHASE_TAKEOFF) {
     if (state.pos.y >= CRUISE_ALT - 0.3) {
       const s = STEPS[0] as Extract<StepDef, { type: 'wp' }>;
-      return makeOut(NAVIGATE, 0, 0, 1, s.pos, MISSION_WP, -1, dist3(state.pos, s.pos));
+      return makeOut(PHASE_NAVIGATE, 0, 0, 1, s.pos, MISSION_WP, -1, dist3(state.pos, s.pos));
     }
-    return makeOut(TAKEOFF, 0, ticks + 1, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
+    return makeOut(PHASE_TAKEOFF, 0, ticks + 1, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
   }
 
-  if (phase === NAVIGATE) {
+  if (phase === PHASE_NAVIGATE) {
     const step = STEPS[stepIdx];
 
     if (step.type === 'wp') {
@@ -113,59 +113,59 @@ export function mission(state: MissionIn): MissionOut {
       if (d < step.threshold) {
         const next = stepIdx + 1;
         if (next >= STEPS.length) {
-          return makeOut(RTH, stepIdx, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
+          return makeOut(PHASE_RTH, stepIdx, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
         }
         const ns = STEPS[next];
         if (ns.type === 'wp') {
-          return makeOut(NAVIGATE, next, 0, 1, ns.pos, MISSION_WP, -1, dist3(state.pos, ns.pos));
+          return makeOut(PHASE_NAVIGATE, next, 0, 1, ns.pos, MISSION_WP, -1, dist3(state.pos, ns.pos));
         }
         // 3dturn next — anchor target to current pos (visual only; planner_wp short-circuits).
-        return makeOut(NAVIGATE, next, 0, 1, state.pos, MISSION_3DTURN, ns.maneuverIdx, 0);
+        return makeOut(PHASE_NAVIGATE, next, 0, 1, state.pos, MISSION_3DTURN, ns.maneuverIdx, 0);
       }
-      return makeOut(NAVIGATE, stepIdx, ticks + 1, 1, step.pos, MISSION_WP, -1, d);
+      return makeOut(PHASE_NAVIGATE, stepIdx, ticks + 1, 1, step.pos, MISSION_WP, -1, d);
     }
 
     // 3dturn step — advance on elapsed time.
     if (ticks + 1 >= step.durationTicks) {
       const next = stepIdx + 1;
       if (next >= STEPS.length) {
-        return makeOut(RTH, stepIdx, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
+        return makeOut(PHASE_RTH, stepIdx, 0, 1, HOME, MISSION_WP, -1, dist3(state.pos, HOME));
       }
       const ns = STEPS[next];
       if (ns.type === 'wp') {
-        return makeOut(NAVIGATE, next, 0, 1, ns.pos, MISSION_WP, -1, dist3(state.pos, ns.pos));
+        return makeOut(PHASE_NAVIGATE, next, 0, 1, ns.pos, MISSION_WP, -1, dist3(state.pos, ns.pos));
       }
-      return makeOut(NAVIGATE, next, 0, 1, state.pos, MISSION_3DTURN, ns.maneuverIdx, 0);
+      return makeOut(PHASE_NAVIGATE, next, 0, 1, state.pos, MISSION_3DTURN, ns.maneuverIdx, 0);
     }
-    return makeOut(NAVIGATE, stepIdx, ticks + 1, 1, state.pos, MISSION_3DTURN, step.maneuverIdx, 0);
+    return makeOut(PHASE_NAVIGATE, stepIdx, ticks + 1, 1, state.pos, MISSION_3DTURN, step.maneuverIdx, 0);
   }
 
-  if (phase === RTH) {
+  if (phase === PHASE_RTH) {
     const d = dist3(state.pos, HOME);
     if (d < RTH_THRESHOLD) {
-      return makeOut(LAND, 0, 0, 1, LAND_PAD, MISSION_WP, -1, dist3(state.pos, LAND_PAD));
+      return makeOut(PHASE_LAND, 0, 0, 1, LAND_PAD, MISSION_WP, -1, dist3(state.pos, LAND_PAD));
     }
-    return makeOut(RTH, stepIdx, ticks + 1, 1, HOME, MISSION_WP, -1, d);
+    return makeOut(PHASE_RTH, stepIdx, ticks + 1, 1, HOME, MISSION_WP, -1, d);
   }
 
-  if (phase === LAND) {
+  if (phase === PHASE_LAND) {
     const d = dist3(state.pos, LAND_PAD);
     if (state.pos.y < 0.3) {
-      return makeOut(DISARMING, 0, 0, 0, LAND_PAD, MISSION_WP, -1, d);
+      return makeOut(PHASE_DISARMING, 0, 0, 0, LAND_PAD, MISSION_WP, -1, d);
     }
-    return makeOut(LAND, 0, ticks + 1, 1, LAND_PAD, MISSION_WP, -1, d);
+    return makeOut(PHASE_LAND, 0, ticks + 1, 1, LAND_PAD, MISSION_WP, -1, d);
   }
 
-  if (phase === DISARMING) {
+  if (phase === PHASE_DISARMING) {
     if (ticks >= ARMING_TICKS) {
-      return makeOut(DONE, 0, 0, 0, LAND_PAD, MISSION_WP, -1, 0);
+      return makeOut(PHASE_DONE, 0, 0, 0, LAND_PAD, MISSION_WP, -1, 0);
     }
-    return makeOut(DISARMING, 0, ticks + 1, 0, LAND_PAD, MISSION_WP, -1, 0);
+    return makeOut(PHASE_DISARMING, 0, ticks + 1, 0, LAND_PAD, MISSION_WP, -1, 0);
   }
 
-  // DONE — restart
+  // PHASE_DONE — restart
   if (ticks >= 20) {
-    return makeOut(ARMING, 0, 0, 0, HOME, MISSION_WP, -1, 0);
+    return makeOut(PHASE_ARMING, 0, 0, 0, HOME, MISSION_WP, -1, 0);
   }
-  return makeOut(DONE, 0, ticks + 1, 0, LAND_PAD, MISSION_WP, -1, 0);
+  return makeOut(PHASE_DONE, 0, ticks + 1, 0, LAND_PAD, MISSION_WP, -1, 0);
 }
