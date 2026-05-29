@@ -10,10 +10,6 @@ import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
 import { world } from './blocks/world';
-import windCode from './blocks/wind.ts?raw';
-import { wind } from './blocks/wind';
-import noiseCode from './blocks/noise.ts?raw';
-import { noise } from './blocks/noise';
 import QuadLadderVis from './quad-ladder.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -29,13 +25,6 @@ export const quadLadderConfig: ModelConfig = {
     acc:        { ...vec0 },
     attitude:   { ...vec0 },
     angularVel: { ...vec0 },
-    wind: { fx: 0, fz: 0, ticksLeft: 0, season: 0 },
-    sensors: {
-      pos:        { ...vec0 },
-      vel:        { ...vec0 },
-      attitude:   { ...vec0 },
-      angularVel: { ...vec0 },
-    },
     fc: {
       nav:      { roll_des: 0, pitch_des: 0, yaw_des: 0, thrust: 0 },
       integral: { pos: { ...vec0 }, att: { ...vec0 } },
@@ -64,35 +53,12 @@ export const quadLadderConfig: ModelConfig = {
   },
   blocks: [
     {
-      sourceId: 'wind',
-      exportName: 'wind',
-      defaultFn: (s) => wind(s as Parameters<typeof wind>[0]),
-      defaultCode: windCode,
-      mapStateIn:  (s) => s.wind as ModelState,
-      mapStateOut: (out, s) => ({ ...s, wind: out }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'noise',
-      exportName: 'noise',
-      defaultFn: (s) => noise(s as Parameters<typeof noise>[0]),
-      defaultCode: noiseCode,
-      mapStateIn: (s) => ({
-        pos:        s.pos,
-        vel:        s.vel,
-        attitude:   s.attitude,
-        angularVel: s.angularVel,
-      }),
-      mapStateOut: (out, s) => ({ ...s, sensors: out }),
-      tickFrequency: 1,
-    },
-    {
       sourceId: 'mission',
       exportName: 'mission',
       defaultFn: (s) => mission(s as Parameters<typeof mission>[0]),
       defaultCode: missionCode,
       mapStateIn: (s) => ({
-        pos:          (s.sensors as ModelState).pos,
+        pos:          s.pos,
         phase:        (s.mission as ModelState).phase,
         stepIdx:      (s.mission as ModelState).stepIdx,
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
@@ -122,7 +88,7 @@ export const quadLadderConfig: ModelConfig = {
       defaultFn: (s) => fc_path_planner(s as Parameters<typeof fc_path_planner>[0]),
       defaultCode: fcPathPlannerCode,
       mapStateIn: (s) => ({
-        pos:           (s.sensors as ModelState).pos,
+        pos:           s.pos,
         target:        (s.mission as ModelState).target,
         targetNormal:  (s.mission as ModelState).targetNormal,
         stepKind:      (s.mission as ModelState).stepKind,
@@ -150,9 +116,9 @@ export const quadLadderConfig: ModelConfig = {
       defaultFn: (s) => fc_navigator(s as Parameters<typeof fc_navigator>[0]),
       defaultCode: fcNavigatorCode,
       mapStateIn: (s) => ({
-        pos:         (s.sensors as ModelState).pos,
-        vel:         (s.sensors as ModelState).vel,
-        attitude:    (s.sensors as ModelState).attitude,
+        pos:         s.pos,
+        vel:         s.vel,
+        attitude:    s.attitude,
         carrot:      (s.planner as ModelState).carrot,
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
@@ -177,8 +143,8 @@ export const quadLadderConfig: ModelConfig = {
       defaultFn: (s) => fc_stabilizer(s as Parameters<typeof fc_stabilizer>[0]),
       defaultCode: fcStabilizerCode,
       mapStateIn: (s) => ({
-        attitude:    (s.sensors as ModelState).attitude,
-        angularVel:  (s.sensors as ModelState).angularVel,
+        attitude:    s.attitude,
+        angularVel:  s.angularVel,
         roll_des:    ((s.fc as ModelState).nav as ModelState).roll_des,
         pitch_des:   ((s.fc as ModelState).nav as ModelState).pitch_des,
         yaw_des:     ((s.fc as ModelState).nav as ModelState).yaw_des,
@@ -228,8 +194,8 @@ export const quadLadderConfig: ModelConfig = {
         attitude:   s.attitude,
         angularVel: s.angularVel,
         thrust:     (s.motors as ModelState).thrust,
-        windFx:     (s.wind as ModelState).fx,
-        windFz:     (s.wind as ModelState).fz,
+        windFx:     0,
+        windFz:     0,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -244,19 +210,15 @@ export const quadLadderConfig: ModelConfig = {
   ],
   vis: QuadLadderVis,
   blocksDiagram: [
-    { from: 'wind',            to: 'world',           label: 'force'      },
-    { from: 'noise',           to: 'mission',         label: 'pos'        },
-    { from: 'noise',           to: 'fc_path_planner', label: 'pos'        },
-    { from: 'noise',           to: 'fc_navigator',    label: 'sensors'    },
-    { from: 'noise',           to: 'fc_stabilizer',   label: 'sensors'    },
+    { from: 'world',           to: 'mission',         label: 'pos'        },
+    { from: 'world',           to: 'fc_path_planner', label: 'pos'        },
+    { from: 'world',           to: 'fc_navigator',    label: 'state'      },
+    { from: 'world',           to: 'fc_stabilizer',   label: 'state'      },
     { from: 'mission',         to: 'fc_path_planner', label: 'target+kind'},
     { from: 'fc_path_planner', to: 'fc_navigator',    label: 'carrot+yaw' },
     { from: 'fc_navigator',    to: 'fc_stabilizer',   label: 'att cmd'    },
     { from: 'fc_stabilizer',   to: 'hw',              label: 'motors'     },
     { from: 'hw',              to: 'world',           label: 'thrust'     },
-    { from: 'world',           to: 'noise',           label: 'true state' },
-    { from: 'world',           to: 'mission',         label: 'pos'        },
-    { from: 'world',           to: 'fc_stabilizer',   label: 'attitude'   },
   ],
   charts: [
     {
@@ -318,13 +280,6 @@ export const quadLadderConfig: ModelConfig = {
         { var: 'motors.desired.m1', label: 'M1 FR', color: '#ffaa00' },
         { var: 'motors.desired.m2', label: 'M2 RR', color: '#44ff88' },
         { var: 'motors.desired.m3', label: 'M3 RL', color: '#4488ff' },
-      ],
-    },
-    {
-      label: 'Wind force (N)',
-      series: [
-        { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
-        { var: 'wind.fz', label: 'wind fz', color: '#888888' },
       ],
     },
   ],
