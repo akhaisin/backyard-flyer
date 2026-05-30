@@ -1,0 +1,177 @@
+---
+order: 13
+simId: Backyard-Flyer/quad-l4
+modelId: quad/quad-l4
+---
+
+import SimSource from '../../../sim/components/SimSource'
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad L4 — restructured mission, per-waypoint planner/navigator
+
+**Quad L4** flies the exact same 4-waypoint rectangle as L3 but refactors the block layout along the boundaries used by the racing models. The flight is unchanged. The point of L4 is the *structure*: mission becomes a pure phase/step sequencer that knows nothing about waypoint geometry, and a dedicated planner/navigator pair owns everything specific to waypoint flight.
+
+```
+world ──► mission ──► planner_wp ──► navigator_wp ──► fc_acro ──► hw ──► world
+                  ▲       │
+                  └───────┘
+                  stepStatus
+```
+
+The interfaces between blocks become the contract — and the contract is what makes additional waypoint types (gates, coordinated turns, splines) something you *add* rather than something you *rewrite mission for*.
+
+---
+
+## What changed since L3
+
+| Concern | L3 layout | L4 layout |
+|---|---|---|
+| Phase machine | `mission` | `mission` |
+| Waypoint completion check | `mission` (`dist < THRESHOLD`) | `planner_wp` (returns `stepStatus`) |
+| Carrot / lookahead | — (target only) | `planner_wp` (`LOOKAHEAD = 3.0 m`) |
+| Yaw setpoint | `fc_navigator` (atan2) | `planner_wp` (rate-limited atan2) |
+| Position → desired attitude | `fc_navigator` | `navigator_wp` |
+| Attitude → motors | `fc_stabilizer` (angle PID) | `fc_acro` (rate PID, no attitude memory) |
+| Interface to FC | `{ roll_des, pitch_des, yaw_des, thrust }` | `aetr = { thrust, roll, pitch, yaw }` |
+
+The L3 navigator/stabilizer split survives — it just moves up the stack. The cascade becomes:
+
+```
+position PID → desired attitude → rate command → AETR stick
+                                  │
+                                  └── fc_acro inverts back to per-axis rate
+```
+
+navigator_wp does the position-to-rate computation and normalises by `MAX_RATE_*` constants that *must* equal fc_acro's matching constants. That symmetry is the contract.
+
+<SimVis client:only="react" />
+
+---
+
+## mission — phase machine, step list, and a dispatch on status
+
+Mission in L4 owns only two things:
+
+1. **The phase machine** — arm → takeoff → navigate → RTH → land → disarm → done → restart. Identical to L3.
+2. **A step list and a cursor** — `STEPS[stepIdx]` for the four rectangle corners. Each step is just `{ pos, threshold }`.
+
+Mission does *not* do the completion check. Instead, every tick it reads `stepStatus` published by the active planner and dispatches on it during `PHASE_NAVIGATE`:
+
+| `stepStatus` from planner | What mission does |
+|---|---|
+| `STATUS_RUNNING` | `ticksInPhase++` |
+| `STATUS_COMPLETED` | advance `stepIdx` (or transition to `PHASE_RTH` if last) |
+| `STATUS_FAILED` | abort to `PHASE_RTH` |
+| `STATUS_RESTART` | reset `ticksInPhase`, stay on current step |
+
+If a step has an optional `timeout` and `ticksInPhase` reaches it, mission overrides whatever the planner reports with `STATUS_FAILED`. Timeouts only apply during `PHASE_NAVIGATE`.
+
+Mission also publishes the active step on the bus as a numeric `step = { pos, threshold }` so downstream blocks have something to read regardless of phase. During takeoff/RTH/landing the step is a scaffolding waypoint (HOME or LAND_PAD); planners are gated on `phase`, so the scaffolding never triggers a completion event.
+
+<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+
+---
+
+## planner_wp — completion check, carrot, yaw setpoint
+
+planner_wp owns everything waypoint-specific:
+
+- **`step_complete_check`** — Euclidean distance < `step.threshold`. Returns `STATUS_COMPLETED` only while `armed && phase === NAVIGATE`. The naming is deliberate: this is *the* completion check that mission listens to.
+- **Carrot generation** — a virtual sub-target placed `LOOKAHEAD = 3.0 m` along the path to `step.pos`, or the target itself if closer than that. The carrot stops the position PID from collapsing into a stop-on-target servo and keeps the drone at cruise speed through each leg.
+- **Yaw setpoint** — `atan2(-dz, dx)` toward the target, rate-limited at `π/2 rad/s` so the cascade can't be asked for an impossible step change. Frozen within 2.0 m of the target — at short range `atan2` becomes pathologically sensitive (a 5 cm overshoot at 50 cm range produces a ~6° swing; the same overshoot at 5 cm produces ~90°+).
+
+Outside `PHASE_NAVIGATE` the carrot is pinned to the target with no lookahead — the cascade is already pointed when navigation begins.
+
+<SimSource sourceIds={['planner_wp']} autoHeight client:only="react" />
+
+---
+
+## navigator_wp — the "RC pilot"
+
+navigator_wp takes the planner's carrot + yaw setpoint, the sensor state from world, and emits Mode-2 AETR sticks. The cascade has four numbered stages, mirroring the structure quad-pole introduced for its acro pilot:
+
+1. **Position PID** → desired body-frame acceleration `(ax_des, ay_des, az_des)`.
+2. **Acceleration → desired attitude** — yaw-aware decomposition; same math as L3's fc_navigator, with `MAX_TILT = 0.6 rad` so aggressive carrot chases don't immediately clamp.
+3. **Attitude error → desired body rate** — outer P loop with `KP_ATT_OUTER = 40.0`. Sized so the cascade effective gain `40 × 0.05 = 2.0` matches L3's `KP_ATT`.
+4. **Rate → stick** — normalize by `MAX_RATE_ROLL_PITCH = π` and `MAX_RATE_YAW = π/2`, clamp to `[−1, 1]`. fc_acro's matching constants invert this mapping.
+
+Throttle is a direct value (not a rate) — that matches real RC throttle stick:
+
+```
+aetr.thrust = total_thrust_N / (4 · MAX_THRUST_N)   clamped to [0, 1]
+```
+
+The integral term on position is wired through the bus the same way L3 wired through the attitude integral. Same plumbing, same trick — when disturbances are added later, only the gain has to change.
+
+<SimSource sourceIds={['navigator_wp']} autoHeight client:only="react" />
+
+---
+
+## fc_acro — rate-only flight controller
+
+fc_acro is the lowest level. No attitude memory, no waypoint awareness. It reads four AETR numbers and four angular-velocity readings, runs a per-axis P loop on rate error, mixes torques into the four motors:
+
+```
+rate_des     = stick × MAX_RATE
+tau          = KP_RATE × (rate_des − measured_rate)
+motors[i]    = base ± dr ± dp ± dy
+```
+
+The drone holds attitude only because the upstream navigator stops commanding rate. This is the canonical FPV "acro mode": same code that lives in real flight controllers and the only mode an FPV pilot ever uses competitively. Splitting the FC like this keeps the rate inner loop testable in isolation against any source of AETR sticks — a navigator, a maneuver planner, or an actual RC transmitter.
+
+<SimSource sourceIds={['fc_acro']} autoHeight client:only="react" />
+
+---
+
+## What this structure unlocks
+
+The L3 layout encodes "fly to point" into both the mission and the navigator. Adding a second waypoint type — a window gate, a coordinated turn, a spline path — means editing both blocks and the bus shape that connects them.
+
+The L4 layout makes the split explicit:
+
+- **mission** is type-agnostic. Adding a step type means appending an entry to `STEPS`, not changing the dispatch logic.
+- **planner_wp + navigator_wp** is a self-contained pair. Adding a sibling pair (e.g. `planner_gate + navigator_gate`) is an additive change — they share the AETR bus and the planner-status protocol with the existing pair.
+- **fc_acro** never has to know about any of this.
+
+The racing/quad-pole model uses exactly this structure to mix waypoint flight with coordinated turns: same mission shape, same fc_acro, plus a second planner/navigator pair. L4 is the same skeleton with only the wp pair populated.
+
+---
+
+## Validator + pass/fail testing
+
+validator measures perpendicular distance from the drone to the active mission segment (`segStart → segEnd`) on each `PHASE_NAVIGATE` tick. On the `NAVIGATE → other` transition it commits the lap mean and increments `lapsTotal`. From that it derives a running `avgErr` across all completed laps.
+
+L4 adds a `pass` field on top of those statistics:
+
+```
+pass = state.pass !== 0 && avgErr ≤ PASS_AVG_ERR_LIMIT  ? 1 : 0
+```
+
+`pass` starts at `1` and latches to `0` the moment `avgErr` exceeds 2 m. It never recovers — even if subsequent laps drag the average back down, the run is marked failed for the rest of the session. The infoOverlay renders the **Pass** row in green while `pass = 1` and red once it flips, so the model doubles as a regression test for changes to any block: pop open the editor, raise a gain, restart, and watch the indicator. If it stays green over many laps the tuning is at least within the L4 acceptance envelope; if it flips red, you broke something.
+
+<SimSource sourceIds={['validator']} autoHeight client:only="react" />
+
+---
+
+## Charts
+
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} client:only="react" />
+
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+
+<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
+
+<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} client:only="react" />
+
+<SimCharts varIds={[['validator.currentErr','validator.lapErr','validator.avgErr']]} client:only="react" />
+
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3']]} client:only="react" />
+
+---
+
+## Edit the hardware and physics
+
+<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+
+<SimSource sourceIds={['world']} autoHeight client:only="react" />

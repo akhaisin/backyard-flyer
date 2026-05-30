@@ -27,6 +27,9 @@ export type InfoOverlayRow =
       label: string;
       display: (state: ModelState) => string;
       plot?: false;
+      // Optional dynamic label color, evaluated each tick. Overrides the
+      // default static color. Useful for pass/fail indicators.
+      labelColor?: (state: ModelState) => string;
     }
   | {
       label: string;
@@ -36,6 +39,7 @@ export type InfoOverlayRow =
       value: (state: ModelState) => number;
       // Used for both label color and plot stroke color.
       color: string;
+      labelColor?: (state: ModelState) => string;
     };
 
 export interface InfoOverlayOptions {
@@ -78,6 +82,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
 
   let root: HTMLDivElement | null = null;
   let valueCells: HTMLSpanElement[] = [];
+  let labelCells: HTMLSpanElement[] = [];
   let canvas: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
   let ro: ResizeObserver | null = null;
@@ -196,6 +201,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
       } as Partial<CSSStyleDeclaration>);
 
       valueCells = [];
+      labelCells = [];
       for (const row of rows) {
         const labelEl = document.createElement('span');
         labelEl.style.color = row.plot ? row.color : DEFAULT_LABEL_COLOR;
@@ -205,6 +211,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
         valueEl.style.fontVariantNumeric = 'tabular-nums';
         grid.appendChild(labelEl);
         grid.appendChild(valueEl);
+        labelCells.push(labelEl);
         valueCells.push(valueEl);
       }
       root.appendChild(grid);
@@ -228,9 +235,16 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
     update(state, tick, history) {
       if (!root) return;
       for (let i = 0; i < rows.length; i++) {
-        const text = rows[i].display(state);
+        const row = rows[i];
+        const text = row.display(state);
         if (valueCells[i].textContent !== text) {
           valueCells[i].textContent = text;
+        }
+        if (row.labelColor) {
+          const color = row.labelColor(state);
+          if (labelCells[i].style.color !== color) {
+            labelCells[i].style.color = color;
+          }
         }
       }
       if (canvas) drawPlot(history, tick);
@@ -241,6 +255,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
       root?.remove();
       root = null;
       valueCells = [];
+      labelCells = [];
       canvas = null;
       ctx = null;
     },

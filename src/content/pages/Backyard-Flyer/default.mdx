@@ -55,6 +55,22 @@ The two controllers now have separate source editors and independent gain sets. 
 
 ---
 
+## [Quad L3 — yaw-aware navigation](#Backyard-Flyer/quad-l3)
+
+The same mission as L2, but the drone now rotates to face the direction it is flying. The navigator derives a yaw setpoint from the direction to the current waypoint and rotates the roll/pitch demands into the drone's body frame so position control stays correct at any heading.
+
+**What it introduces:** yaw-aware navigation, body-frame rotation of position demands, separate yaw gains to keep torque headroom for roll/pitch.
+
+---
+
+## [Quad L4 — restructured mission, per-waypoint planner](#Backyard-Flyer/quad-l4)
+
+The same 4-waypoint rectangle as L3, but the blocks are repartitioned along the lines used by the racing models. The mission becomes a pure phase/step sequencer that does not know how to check waypoint completion — that and the carrot, yaw setpoint, and rate-PID cascade move into a dedicated `planner_wp` and `navigator_wp` pair. The flight controller becomes rate-only `fc_acro` driven by an AETR stick bus. A `pass`/`fail` validator overlay turns the model into a regression test for tuning changes.
+
+**What it introduces:** mission/planner separation by step type, single-tick `stepStatus` dispatch, the AETR stick interface, rate-only acro flight controller, sticky pass/fail acceptance check.
+
+---
+
 ## [Quad Noise — wind and sensor noise](#Backyard-Flyer/quad-noise)
 
 The same two-controller architecture as L2, but the environment now fights back. A `wind` block injects random horizontal gusts into the physics. A `noise` block corrupts every sensor channel with Gaussian measurement errors before the flight stack runs — the controllers never see the true state.
