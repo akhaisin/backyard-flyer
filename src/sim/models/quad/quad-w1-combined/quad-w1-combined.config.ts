@@ -18,6 +18,8 @@ import fcPathPlannerACode from './blocks/fc_path_planner_a.ts?raw';
 import { fc_path_planner as fc_path_planner_a } from './blocks/fc_path_planner_a';
 import fcPathPlannerBCode from './blocks/fc_path_planner_b.ts?raw';
 import { fc_path_planner as fc_path_planner_b } from './blocks/fc_path_planner_b';
+import validatorCode from './blocks/validator.ts?raw';
+import { validator } from './blocks/validator';
 import QuadW1CombinedVis from './quad-w1-combined.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -67,6 +69,8 @@ const vehicleInit = (startX: number, startZ: number): ModelState => ({
     windowSide:   0,
     windowCenter: { ...vec0 },
     windowNormal: { x: 1, y: 0, z: 0 },
+    segStart:     { ...vec0 },
+    segEnd:       { ...vec0 },
     dist:         0,
     loops:        0,
   },
@@ -75,6 +79,17 @@ const vehicleInit = (startX: number, startZ: number): ModelState => ({
     preGateDone:     0,
     activeWindowIdx: -1,
     yawSetpoint:     0,
+  },
+  validator: {
+    prevPhase:      0,
+    lapsTotal:      0,
+    lapErrSum:      0,
+    lapErrTicks:    0,
+    totalLapErrSum: 0,
+    lapErr:         0,
+    avgErr:         0,
+    currentErr:     0,
+    misses:         0,
   },
 });
 
@@ -131,7 +146,8 @@ export const quadW1CombinedConfig: ModelConfig = {
           ...(va(s).mission as ModelState),
           phase: out.phase, windowIdx: out.windowIdx, ticksInPhase: out.ticksInPhase,
           armed: out.armed, windowSide: out.windowSide, windowCenter: out.windowCenter,
-          windowNormal: out.windowNormal, dist: out.dist, loops: out.loops,
+          windowNormal: out.windowNormal, segStart: out.segStart, segEnd: out.segEnd,
+          dist: out.dist, loops: out.loops,
         },
       }),
       tickFrequency: 1,
@@ -229,6 +245,39 @@ export const quadW1CombinedConfig: ModelConfig = {
       }),
       tickFrequency: 1,
     },
+    {
+      sourceId: 'validator_a',
+      exportName: 'validator',
+      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
+      defaultCode: validatorCode,
+      mapStateIn: (s) => ({
+        pos:            va(s).pos,
+        phase:          (va(s).mission as ModelState).phase,
+        segStart:       (va(s).mission as ModelState).segStart,
+        segEnd:         (va(s).mission as ModelState).segEnd,
+        prevPhase:      (va(s).validator as ModelState).prevPhase,
+        lapsTotal:      (va(s).validator as ModelState).lapsTotal,
+        lapErrSum:      (va(s).validator as ModelState).lapErrSum,
+        lapErrTicks:    (va(s).validator as ModelState).lapErrTicks,
+        totalLapErrSum: (va(s).validator as ModelState).totalLapErrSum,
+        misses:         (va(s).validator as ModelState).misses,
+      }),
+      mapStateOut: (out, s) => writeVehicle(s, 'a', {
+        validator: {
+          ...(va(s).validator as ModelState),
+          prevPhase:      out.prevPhase,
+          lapsTotal:      out.lapsTotal,
+          lapErrSum:      out.lapErrSum,
+          lapErrTicks:    out.lapErrTicks,
+          totalLapErrSum: out.totalLapErrSum,
+          lapErr:         out.lapErr,
+          avgErr:         out.avgErr,
+          currentErr:     out.currentErr,
+          misses:         out.misses,
+        },
+      }),
+      tickFrequency: 1,
+    },
 
     // ── Vehicle B (w1b — pre-gate staging) ─────────────────────────────────
     {
@@ -259,7 +308,8 @@ export const quadW1CombinedConfig: ModelConfig = {
           ...(vb(s).mission as ModelState),
           phase: out.phase, windowIdx: out.windowIdx, ticksInPhase: out.ticksInPhase,
           armed: out.armed, windowSide: out.windowSide, windowCenter: out.windowCenter,
-          windowNormal: out.windowNormal, dist: out.dist, loops: out.loops,
+          windowNormal: out.windowNormal, segStart: out.segStart, segEnd: out.segEnd,
+          dist: out.dist, loops: out.loops,
         },
       }),
       tickFrequency: 1,
@@ -362,6 +412,39 @@ export const quadW1CombinedConfig: ModelConfig = {
       }),
       tickFrequency: 1,
     },
+    {
+      sourceId: 'validator_b',
+      exportName: 'validator',
+      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
+      defaultCode: validatorCode,
+      mapStateIn: (s) => ({
+        pos:            vb(s).pos,
+        phase:          (vb(s).mission as ModelState).phase,
+        segStart:       (vb(s).mission as ModelState).segStart,
+        segEnd:         (vb(s).mission as ModelState).segEnd,
+        prevPhase:      (vb(s).validator as ModelState).prevPhase,
+        lapsTotal:      (vb(s).validator as ModelState).lapsTotal,
+        lapErrSum:      (vb(s).validator as ModelState).lapErrSum,
+        lapErrTicks:    (vb(s).validator as ModelState).lapErrTicks,
+        totalLapErrSum: (vb(s).validator as ModelState).totalLapErrSum,
+        misses:         (vb(s).validator as ModelState).misses,
+      }),
+      mapStateOut: (out, s) => writeVehicle(s, 'b', {
+        validator: {
+          ...(vb(s).validator as ModelState),
+          prevPhase:      out.prevPhase,
+          lapsTotal:      out.lapsTotal,
+          lapErrSum:      out.lapErrSum,
+          lapErrTicks:    out.lapErrTicks,
+          totalLapErrSum: out.totalLapErrSum,
+          lapErr:         out.lapErr,
+          avgErr:         out.avgErr,
+          currentErr:     out.currentErr,
+          misses:         out.misses,
+        },
+      }),
+      tickFrequency: 1,
+    },
   ],
   vis: QuadW1CombinedVis,
   blocksDiagram: [
@@ -376,6 +459,8 @@ export const quadW1CombinedConfig: ModelConfig = {
     { from: 'fc_stabilizer_a',   to: 'hw_a',             label: 'motors'   },
     { from: 'hw_a',              to: 'world_a',          label: 'thrust'   },
     { from: 'world_a',           to: 'noise_a',          label: 'true state'},
+    { from: 'world_a',           to: 'validator_a',      label: 'pos'      },
+    { from: 'mission_a',         to: 'validator_a',      label: 'phase+seg'},
     { from: 'wind',              to: 'world_b',          label: 'force'    },
     { from: 'noise_b',           to: 'mission_b',        label: 'pos'      },
     { from: 'noise_b',           to: 'fc_path_planner_b',label: 'pos'      },
@@ -387,6 +472,8 @@ export const quadW1CombinedConfig: ModelConfig = {
     { from: 'fc_stabilizer_b',   to: 'hw_b',             label: 'motors'   },
     { from: 'hw_b',              to: 'world_b',          label: 'thrust'   },
     { from: 'world_b',           to: 'noise_b',          label: 'true state'},
+    { from: 'world_b',           to: 'validator_b',      label: 'pos'      },
+    { from: 'mission_b',         to: 'validator_b',      label: 'phase+seg'},
   ],
   charts: [
     {
@@ -436,6 +523,27 @@ export const quadW1CombinedConfig: ModelConfig = {
       series: [
         { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
         { var: 'wind.fz', label: 'wind fz', color: '#888888' },
+      ],
+    },
+    {
+      label: 'Track error (m) — current',
+      series: [
+        { var: 'vehicles.a.validator.currentErr', label: 'A current err', color: '#4488ff' },
+        { var: 'vehicles.b.validator.currentErr', label: 'B current err', color: '#ff8800' },
+      ],
+    },
+    {
+      label: 'Track error (m) — lap avg',
+      series: [
+        { var: 'vehicles.a.validator.avgErr', label: 'A avg err', color: '#4488ff' },
+        { var: 'vehicles.b.validator.avgErr', label: 'B avg err', color: '#ff8800' },
+      ],
+    },
+    {
+      label: 'Misses',
+      series: [
+        { var: 'vehicles.a.validator.misses', label: 'A misses', color: '#4488ff' },
+        { var: 'vehicles.b.validator.misses', label: 'B misses', color: '#ff8800' },
       ],
     },
   ],

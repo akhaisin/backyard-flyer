@@ -44,6 +44,10 @@ export interface InfoOverlayOptions {
   margin?: number;                // px from corner, default 12
   plotTicks?: number;             // history window for the plot strip, default 500
   plotHeight?: number;            // css px height of the plot strip, default 28
+  // Static header rendered above the rows — useful when multiple overlays
+  // share a scene and the viewer needs to distinguish which is which.
+  title?: string;
+  titleColor?: string;            // default 'rgba(255, 255, 255, 0.9)'
 }
 
 const DEFAULT_LABEL_COLOR = 'rgba(255, 255, 255, 0.55)';
@@ -64,6 +68,8 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
     margin = 12,
     plotTicks = 500,
     plotHeight = 28,
+    title,
+    titleColor = 'rgba(255, 255, 255, 0.9)',
   } = opts;
 
   const plotIndices: number[] = [];
@@ -170,6 +176,17 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
         zIndex:        '5',
       } as Partial<CSSStyleDeclaration>);
       applyCorner(root, corner, margin);
+
+      if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.textContent = title;
+        Object.assign(titleEl.style, {
+          color:         titleColor,
+          fontWeight:    '600',
+          letterSpacing: '0.04em',
+        } as Partial<CSSStyleDeclaration>);
+        root.appendChild(titleEl);
+      }
 
       const grid = document.createElement('div');
       Object.assign(grid.style, {

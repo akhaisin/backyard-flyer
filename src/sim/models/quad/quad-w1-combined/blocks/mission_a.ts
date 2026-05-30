@@ -30,6 +30,11 @@ type MissionOut = {
   windowSide: number;
   windowCenter: Vec3;
   windowNormal: Vec3;
+  // Current intended flight segment — during NAVIGATE this is the line from
+  // the previous window center (or HOME for the first) to the current window
+  // center. Degenerate elsewhere.
+  segStart: Vec3;
+  segEnd: Vec3;
   dist: number;
   loops: number;
 };
@@ -80,6 +85,21 @@ function perpDist(pos: Vec3, win: WindowDef): number {
   return Math.sqrt(rx * rx + ry * ry + rz * rz);
 }
 
+// Build a result with the segment fields filled in. Outside NAVIGATE the
+// segment is degenerate (start = end = windowCenter); the validator gates
+// error accumulation on phase so values don't matter there.
+function out(
+  phase: number, windowIdx: number, ticksInPhase: number, armed: number, windowSide: number,
+  windowCenter: Vec3, windowNormal: Vec3, dist: number, loops: number,
+  segStart: Vec3 = windowCenter, segEnd: Vec3 = windowCenter,
+): MissionOut {
+  return { phase, windowIdx, ticksInPhase, armed, windowSide, windowCenter, windowNormal, segStart, segEnd, dist, loops };
+}
+
+function entrySegStart(winIdx: number): Vec3 {
+  return winIdx > 0 ? WINDOWS_A[winIdx - 1].center : HOME;
+}
+
 export function mission_a(state: MissionIn): MissionOut {
   const phase  = Math.round(state.phase);
   const winIdx = Math.round(state.windowIdx);
@@ -87,24 +107,22 @@ export function mission_a(state: MissionIn): MissionOut {
   const loops  = Math.round(state.loops);
 
   const noWin: Vec3 = { x: state.pos.x, y: CRUISE_ALT, z: state.pos.z };
+  const n0 = WINDOWS_A[0].normal;
 
   if (phase === ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return { phase: TAKEOFF, windowIdx: 0, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: noWin, windowNormal: WINDOWS_A[0].normal, dist: dist3(state.pos, HOME), loops };
+      return out(TAKEOFF, 0, 0, 1, 0, noWin, n0, dist3(state.pos, HOME), loops);
     }
-    return { phase: ARMING, windowIdx: 0, ticksInPhase: ticks + 1, armed: 0, windowSide: 0,
-             windowCenter: noWin, windowNormal: WINDOWS_A[0].normal, dist: 0, loops };
+    return out(ARMING, 0, ticks + 1, 0, 0, noWin, n0, 0, loops);
   }
 
   if (phase === TAKEOFF) {
     if (state.pos.y >= CRUISE_ALT - 0.3) {
       const win0 = WINDOWS_A[0];
-      return { phase: NAVIGATE, windowIdx: 0, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: win0.center, windowNormal: win0.normal, dist: dist3(state.pos, win0.center), loops };
+      return out(NAVIGATE, 0, 0, 1, 0, win0.center, win0.normal,
+                 dist3(state.pos, win0.center), loops, HOME, win0.center);
     }
-    return { phase: TAKEOFF, windowIdx: 0, ticksInPhase: ticks + 1, armed: 1, windowSide: 0,
-             windowCenter: noWin, windowNormal: WINDOWS_A[0].normal, dist: dist3(state.pos, HOME), loops };
+    return out(TAKEOFF, 0, ticks + 1, 1, 0, noWin, n0, dist3(state.pos, HOME), loops);
   }
 
   if (phase === NAVIGATE) {
@@ -112,11 +130,11 @@ export function mission_a(state: MissionIn): MissionOut {
     const score = sideScore(state.pos, win);
     const currentSide = score > 0 ? 1 : -1;
     const prevSide = Math.round(state.windowSide);
+    const segStart = entrySegStart(winIdx);
 
     if (prevSide === 0) {
-      return { phase: NAVIGATE, windowIdx: winIdx, ticksInPhase: ticks + 1, armed: 1,
-               windowSide: currentSide, windowCenter: win.center, windowNormal: win.normal,
-               dist: dist3(state.pos, win.center), loops };
+      return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
+                 dist3(state.pos, win.center), loops, segStart, win.center);
     }
 
     const planeCrossed = prevSide === -1 && currentSide === 1;
@@ -125,74 +143,61 @@ export function mission_a(state: MissionIn): MissionOut {
     if (planeCrossed && withinFrame) {
       const next = winIdx + 1;
       if (next >= WINDOWS_A.length) {
-        return { phase: RTH, windowIdx: winIdx, ticksInPhase: 0, armed: 1, windowSide: 0,
-                 windowCenter: HOME, windowNormal: WINDOWS_A[0].normal, dist: dist3(state.pos, HOME), loops };
+        return out(RTH, winIdx, 0, 1, 0, HOME, n0, dist3(state.pos, HOME), loops, win.center, HOME);
       }
       const nextWin = WINDOWS_A[next];
-      return { phase: NAVIGATE, windowIdx: next, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: nextWin.center, windowNormal: nextWin.normal,
-               dist: dist3(state.pos, nextWin.center), loops };
+      return out(NAVIGATE, next, 0, 1, 0, nextWin.center, nextWin.normal,
+                 dist3(state.pos, nextWin.center), loops, win.center, nextWin.center);
     }
 
     if (planeCrossed && !withinFrame) {
-      const recoveryCenter = winIdx > 0 ? WINDOWS_A[winIdx - 1].center : HOME;
-      return { phase: MISSED, windowIdx: winIdx, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: recoveryCenter, windowNormal: win.normal,
-               dist: dist3(state.pos, recoveryCenter), loops };
+      const recoveryCenter = entrySegStart(winIdx);
+      return out(MISSED, winIdx, 0, 1, 0, recoveryCenter, win.normal,
+                 dist3(state.pos, recoveryCenter), loops, win.center, recoveryCenter);
     }
 
-    return { phase: NAVIGATE, windowIdx: winIdx, ticksInPhase: ticks + 1, armed: 1,
-             windowSide: currentSide, windowCenter: win.center, windowNormal: win.normal,
-             dist: dist3(state.pos, win.center), loops };
+    return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
+               dist3(state.pos, win.center), loops, segStart, win.center);
   }
 
   if (phase === RTH) {
     const d = dist3(state.pos, HOME);
     if (d < RTH_THRESHOLD) {
-      return { phase: LAND, windowIdx: 0, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: dist3(state.pos, LAND_PAD), loops };
+      return out(LAND, 0, 0, 1, 0, LAND_PAD, n0, dist3(state.pos, LAND_PAD), loops, HOME, LAND_PAD);
     }
-    return { phase: RTH, windowIdx: winIdx, ticksInPhase: ticks + 1, armed: 1, windowSide: 0,
-             windowCenter: HOME, windowNormal: WINDOWS_A[0].normal, dist: d, loops };
+    return out(RTH, winIdx, ticks + 1, 1, 0, HOME, n0, d, loops,
+               WINDOWS_A[WINDOWS_A.length - 1].center, HOME);
   }
 
   if (phase === LAND) {
     const d = dist3(state.pos, LAND_PAD);
     if (state.pos.y < 0.3) {
-      return { phase: DISARMING, windowIdx: 0, ticksInPhase: 0, armed: 0, windowSide: 0,
-               windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: d, loops };
+      return out(DISARMING, 0, 0, 0, 0, LAND_PAD, n0, d, loops);
     }
-    return { phase: LAND, windowIdx: 0, ticksInPhase: ticks + 1, armed: 1, windowSide: 0,
-             windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: d, loops };
+    return out(LAND, 0, ticks + 1, 1, 0, LAND_PAD, n0, d, loops, HOME, LAND_PAD);
   }
 
   if (phase === DISARMING) {
     if (ticks >= ARMING_TICKS) {
-      return { phase: DONE, windowIdx: 0, ticksInPhase: 0, armed: 0, windowSide: 0,
-               windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: 0, loops };
+      return out(DONE, 0, 0, 0, 0, LAND_PAD, n0, 0, loops);
     }
-    return { phase: DISARMING, windowIdx: 0, ticksInPhase: ticks + 1, armed: 0, windowSide: 0,
-             windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: 0, loops };
+    return out(DISARMING, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0, loops);
   }
 
   if (phase === MISSED) {
-    const recoveryCenter = winIdx > 0 ? WINDOWS_A[winIdx - 1].center : HOME;
+    const recoveryCenter = entrySegStart(winIdx);
     const d = dist3(state.pos, recoveryCenter);
     if (d < RTH_THRESHOLD) {
       const win = WINDOWS_A[winIdx];
-      return { phase: NAVIGATE, windowIdx: winIdx, ticksInPhase: 0, armed: 1, windowSide: 0,
-               windowCenter: win.center, windowNormal: win.normal,
-               dist: dist3(state.pos, win.center), loops };
+      return out(NAVIGATE, winIdx, 0, 1, 0, win.center, win.normal,
+                 dist3(state.pos, win.center), loops, recoveryCenter, win.center);
     }
-    return { phase: MISSED, windowIdx: winIdx, ticksInPhase: ticks + 1, armed: 1, windowSide: 0,
-             windowCenter: recoveryCenter, windowNormal: WINDOWS_A[winIdx].normal, dist: d, loops };
+    return out(MISSED, winIdx, ticks + 1, 1, 0, recoveryCenter, WINDOWS_A[winIdx].normal, d, loops);
   }
 
   // DONE — wait 20 ticks then restart; increment loops counter on restart.
   if (ticks >= 20) {
-    return { phase: ARMING, windowIdx: 0, ticksInPhase: 0, armed: 0, windowSide: 0,
-             windowCenter: noWin, windowNormal: WINDOWS_A[0].normal, dist: 0, loops: loops + 1 };
+    return out(ARMING, 0, 0, 0, 0, noWin, n0, 0, loops + 1);
   }
-  return { phase: DONE, windowIdx: 0, ticksInPhase: ticks + 1, armed: 0, windowSide: 0,
-           windowCenter: LAND_PAD, windowNormal: WINDOWS_A[0].normal, dist: 0, loops };
+  return out(DONE, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0, loops);
 }
