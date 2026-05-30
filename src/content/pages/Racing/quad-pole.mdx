@@ -13,18 +13,18 @@ import SimCharts from '../../../sim/components/SimCharts'
 **Quad Pole** is a playground for FPV-style scripted maneuvers split along the real-world human/RC/FC boundary:
 
 - **mission** ("human") — high-level: arm, fly to a waypoint, then run a named maneuver, then RTH and land.
-- **planner_wp + navigator_wp / planner_3dturn + navigator_3dturn** ("RC pilot") — convert intent to AETR (Aileron-Elevator-Throttle-Rudder) sticks. Two stacks, one active per mission type.
+- **planner_wp + navigator_wp / planner_cturn + navigator_cturn** ("RC pilot") — convert intent to AETR (Aileron-Elevator-Throttle-Rudder) sticks. Two stacks, one active per mission type.
 - **fc_acro** ("flight controller") — single-mode rate loop. Always interprets inputs as Mode-2 sticks: thrust is a direct value, roll/pitch/yaw are rate commands.
 
 ```
 mission ──► planner_wp     ──► navigator_wp     ─┐
-        └─► planner_3dturn ──► navigator_3dturn ─┤
+        └─► planner_cturn ──► navigator_cturn ─┤
                                                   ├──► fc_acro ──► hw ──► world
                                               (one writes aetr;
                                                the other passes through)
 ```
 
-The active stack is selected by `mission.missionType` (0 = WP, 1 = 3DTURN). Inactive blocks see the type, see it's not theirs, and pass `aetr` through unchanged.
+The active stack is selected by `mission.missionType` (0 = WP, 1 = CTURN). Inactive blocks see the type, see it's not theirs, and pass `aetr` through unchanged.
 
 <SimVis client:only="react" />
 
@@ -37,7 +37,7 @@ The STEPS array has two entries; `missionType` flips when the active step change
 | Step | Kind | missionType | Notes |
 |------|------|-------------|-------|
 | 0 | waypoint | WP (0) | (8, 3, +3) — staging east of pole |
-| 1 | maneuver | 3DTURN (1) | sweep-left, 5 s (100 ticks) |
+| 1 | maneuver | CTURN (1) | sweep-left, 5 s (100 ticks) |
 
 <SimCharts varIds={[['mission.phase','mission.stepIdx','mission.missionType','mission.armed']]} client:only="react" />
 
@@ -45,17 +45,17 @@ The STEPS array has two entries; `missionType` flips when the active step change
 
 ## AETR sticks
 
-The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the 3DTURN segment navigator_3dturn writes here from the sampled maneuver plan. fc_acro doesn't know or care which one wrote.
+The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the CTURN segment navigator_cturn writes here from the sampled maneuver plan. fc_acro doesn't know or care which one wrote.
 
 <SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
 
 ---
 
-## 3D-turn planner
+## coordinated-turn planner
 
-Owns the maneuver library and the keyframe sampler. When `missionType !== 3DTURN` it emits zeros with `active = 0`. Edit the keyframe values here to change the maneuver shape.
+Owns the maneuver library and the keyframe sampler. When `missionType !== CTURN` it emits zeros with `active = 0`. Edit the keyframe values here to change the maneuver shape.
 
-<SimSource sourceIds={['planner_3dturn']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_cturn']} autoHeight client:only="react" />
 
 ---
 

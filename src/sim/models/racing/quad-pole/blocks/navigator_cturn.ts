@@ -1,8 +1,8 @@
-// 3D-turn navigator — the "RC pilot" for scripted maneuvers.
+// coordinated-turn navigator — the "RC pilot" for scripted maneuvers.
 //
-// Trivial today: reads planner_3dturn's sampled plan and writes it to aetr.
+// Trivial today: reads planner_cturn's sampled plan and writes it to aetr.
 // Same role as navigator_wp but for the maneuver path. Kept as a separate
-// block (rather than collapsed into planner_3dturn) so the planner ↔ navigator
+// block (rather than collapsed into planner_cturn) so the planner ↔ navigator
 // split is consistent across all mission types — and so future logic (rate
 // limiting, transitions between maneuvers, stick blending) has a home that
 // doesn't touch the maneuver library.
@@ -23,7 +23,7 @@ type NavIn = {
 
 type NavOut = { aetr: Aetr };
 
-export function navigator_3dturn(state: NavIn): NavOut {
+export function navigator_cturn(state: NavIn): NavOut {
   if (Math.round(state.planActive) !== 1) {
     return { aetr: state.aetr };
   }

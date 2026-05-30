@@ -22,7 +22,7 @@ interface QuadPoleState {
 const view = (s: ModelState): QuadPoleState => s as unknown as QuadPoleState;
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
-const MISSION_TYPE_LABELS = ['WP', '3DTURN'];
+const MISSION_TYPE_LABELS = ['WP', 'CTURN'];
 
 const sceneHandler = composeScene(() => [
   baseScene({ bg: 0x080810, camera: { pos: [-8, 10, 14], lookAt: [4, 2, 0] } }),
@@ -34,7 +34,7 @@ const sceneHandler = composeScene(() => [
       return { waypointIdx: m.stepIdx, target: m.target, phase: m.phase };
     },
     {
-      // Only record targets during NAVIGATE-WP steps. During 3dturn the mission
+      // Only record targets during NAVIGATE-WP steps. During cturn the mission
       // anchors target to the drone's current pos (planner_wp is short-circuited
       // anyway), so without this filter a sphere would appear under the drone
       // every tick of the maneuver.

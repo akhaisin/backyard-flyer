@@ -10,7 +10,7 @@ import PidTuneRelayVis from './pid-tune-relay.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const obj = (v: ModelState[string] | undefined): ModelState =>
-  (typeof v === 'object' && v !== null) ? v : {};
+  (typeof v === 'object' && v !== null && !Array.isArray(v)) ? v : {};
 const num = (v: ModelState[string] | undefined, fb = 0): number =>
   typeof v === 'number' ? v : fb;
 const numOrNull = (v: ModelState[string] | undefined): number | null =>

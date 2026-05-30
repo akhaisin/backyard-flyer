@@ -16,7 +16,7 @@ export function usePidSimState(simId: string, rewindTick: number | null) {
       const snap = getHistory(simId)[rewindTick!];
       if (snap) {
         const snapInputs = snap.inputs;
-        setInputsView(typeof snapInputs === 'object' && snapInputs !== null ? snapInputs : {});
+        setInputsView(typeof snapInputs === 'object' && snapInputs !== null && !Array.isArray(snapInputs) ? snapInputs : {});
         setStateView(snap);
       }
       return;
@@ -30,7 +30,7 @@ export function usePidSimState(simId: string, rewindTick: number | null) {
 
   const readBlock = (blockId: string): ModelState => {
     const v = inputs[blockId];
-    return typeof v === 'object' && v !== null ? v : {};
+    return typeof v === 'object' && v !== null && !Array.isArray(v) ? v : {};
   };
 
   const readNum = (path: string[]): number => {

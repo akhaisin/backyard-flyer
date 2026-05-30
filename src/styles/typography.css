@@ -57,4 +57,10 @@
   margin: 2rem 0;
 }
 
+/* Keep the first column on one line so it sets the column to its natural text
+ * width instead of wrapping. Override with a more specific rule per-table if
+ * a wrappable first column is ever needed. */
+.chapter-content table th:first-child,
+.chapter-content table td:first-child { white-space: nowrap; }
+
 .page-not-found { padding: 24px; color: var(--color-text-ghost); }

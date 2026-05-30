@@ -11,13 +11,23 @@ Use the table of contents on the left to navigate between pages.
 
 ---
 
-## [Quad Ladder — yaw-aware navigation through a vertical gate stack](#Racing/quad-ladder)
+## [Quad Ladder ⚠️ — yaw-aware navigation through a vertical gate stack](#Racing/quad-ladder)
 
 A three-gate vertical ladder — a standard FPV racing element. The drone starts at the origin, arcs around the left side of the structure to the back, then crosses all three gates from the back entrance (going −X) while alternating left/right arcs between gates and climbing 3 m per gate.
 
 Two new ideas: the mission interleaves positional waypoints (advance on distance) with window gates (advance on crossing), encoding the full arc-cross-arc pattern in a single step list; and the navigator decomposes roll/pitch commands in the drone's actual body frame, correctly handling any yaw angle rather than assuming the drone always faces +X.
 
 **What it introduces:** mixed waypoint/gate step sequences, yaw-aware roll/pitch frame decomposition, explicit yaw setpoints with rate limiting.
+
+---
+
+## [Quad Pole ⚠️ — coordinated horizontal turn around a flagpole](#Racing/quad-pole)
+
+An FPV-style coordinated turn around a fixed pole, flown in acro mode (single rate-loop flight controller). The drone arms, climbs to cruise altitude, flies to a staging point, sweeps a circular arc around the pole, then returns to home and lands.
+
+Two new ideas: the mission separates step sequencing from step execution into per-type planner/navigator stacks dispatched by the active step type, with a status protocol (running / completed / failed / restart) for handoff back to the sequencer; and the coordinated-turn planner fits a circle through three waypoints, derives the bank angle from the physics of constant-radius turning (φ = atan(v²/(g·r))), and drives the rate sticks closed-loop on attitude.
+
+**What it introduces:** per-step-type planner/navigator dispatch, step status protocol with optional per-step timeout, acro-mode flight controller, 3-point circular arc fit, coordinated-turn bank angle derivation.
 
 ---
 

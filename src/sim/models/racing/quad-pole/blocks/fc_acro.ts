@@ -1,7 +1,7 @@
 // fc_acro — single-mode flight controller. Always treats inputs as AETR sticks.
 //
 // AETR conventions (sign = direction of body-frame rate produced; the inverse
-// of navigator_wp's normalization and the contract planner_3dturn's keyframes
+// of navigator_wp's normalization and the contract planner_cturn's keyframes
 // must follow):
 //   thrust ∈ [0, 1]      raw throttle, per-motor base in Newtons via × MAX_THRUST_N
 //   roll   ∈ [-1, 1]     +1 = roll right (attitude.x positive)

@@ -1,30 +1,41 @@
 import type { Scene, PerspectiveCamera } from 'three';
 import type { ComponentType } from 'react';
 
-// Recursive: leaves are numbers or null, sub-trees are nested objects.
+// Recursive: leaves are numbers or null, sub-trees are nested objects, plus
+// arrays of either (for block-published list data such as per-step waypoints).
 // null leaves are used by the inputs channel to mean "use block-internal default".
-export type ModelState = { [key: string]: number | null | ModelState };
+export type ModelState = { [key: string]: number | null | ModelState | number[] | ModelState[] };
 export type BlockFn = (local: ModelState) => ModelState;
 
 // Resolve a dotted path to a number leaf. Returns 0 if the path is missing,
-// null, or doesn't land on a number. Used by charts to plot deeply-nested values.
+// null, or doesn't land on a number. Used by charts to plot deeply-nested
+// values. Numeric segments index into arrays (e.g. "step.waypoints.0.x").
 export function getPath(state: ModelState, path: string): number {
   const parts = path.split('.');
-  let cur: number | null | ModelState | undefined = state;
+  let cur: number | null | ModelState | number[] | ModelState[] | undefined = state;
   for (const p of parts) {
-    if (typeof cur !== 'object' || cur === null) return 0;
-    cur = cur[p];
+    if (cur === null || cur === undefined) return 0;
+    if (Array.isArray(cur)) {
+      cur = cur[Number(p)];
+    } else if (typeof cur === 'object') {
+      cur = cur[p];
+    } else {
+      return 0;
+    }
   }
   return typeof cur === 'number' ? cur : 0;
 }
 
 // Write a number or null at a dotted path, creating intermediate objects as needed.
-// Used by the inputs channel to set slider values from UI.
+// Used by the inputs channel to set slider values from UI. Bails if traversal
+// crosses an array — inputs are scalar paths under `state.inputs.<sourceId>.<key>`
+// and never cross block-published list data.
 export function setPath(state: ModelState, path: string, value: number | null): void {
   const parts = path.split('.');
   let cur: ModelState = state;
   for (let i = 0; i < parts.length - 1; i++) {
     const next = cur[parts[i]];
+    if (Array.isArray(next)) return;
     if (typeof next !== 'object' || next === null) {
       const obj: ModelState = {};
       cur[parts[i]] = obj;

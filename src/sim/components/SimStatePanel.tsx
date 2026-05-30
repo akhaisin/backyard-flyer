@@ -11,8 +11,17 @@ function flatten(state: ModelState, prefix = ''): Array<[string, number]> {
   const out: Array<[string, number]> = [];
   for (const [key, value] of Object.entries(state)) {
     const path = prefix ? `${prefix}.${key}` : key;
-    if (typeof value === 'number') out.push([path, value]);
-    else if (value !== null) out.push(...flatten(value, path));
+    if (typeof value === 'number') {
+      out.push([path, value]);
+    } else if (Array.isArray(value)) {
+      value.forEach((v, i) => {
+        const p = `${path}.${i}`;
+        if (typeof v === 'number') out.push([p, v]);
+        else if (v !== null) out.push(...flatten(v, p));
+      });
+    } else if (value !== null) {
+      out.push(...flatten(value, path));
+    }
   }
   return out;
 }

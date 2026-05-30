@@ -4,10 +4,10 @@ import plannerWpCode from './blocks/planner_wp.ts?raw';
 import { planner_wp } from './blocks/planner_wp';
 import navigatorWpCode from './blocks/navigator_wp.ts?raw';
 import { navigator_wp } from './blocks/navigator_wp';
-import planner3dturnCode from './blocks/planner_3dturn.ts?raw';
-import { planner_3dturn } from './blocks/planner_3dturn';
-import navigator3dturnCode from './blocks/navigator_3dturn.ts?raw';
-import { navigator_3dturn } from './blocks/navigator_3dturn';
+import plannercturnCode from './blocks/planner_cturn.ts?raw';
+import { planner_cturn } from './blocks/planner_cturn';
+import navigatorcturnCode from './blocks/navigator_cturn.ts?raw';
+import { navigator_cturn } from './blocks/navigator_cturn';
 import fcAcroCode from './blocks/fc_acro.ts?raw';
 import { fc_acro } from './blocks/fc_acro';
 import hwCode from './blocks/hw.ts?raw';
@@ -42,13 +42,13 @@ export const quadPoleConfig: ModelConfig = {
       stepIdx:      0,
       ticksInPhase: 0,
       armed:        0,
+      step:         { pos: { x: 0, y: 3, z: 0 }, threshold: 0.4, durationTicks: 0, waypoints: [] },
       target:       { ...vec0 },
       missionType:  0,
-      maneuverIdx:  -1,
       dist:         0,
     },
-    planner_wp:     { carrot: { ...vec0 }, yawSetpoint: 0 },
-    planner_3dturn: { thrust: 0, roll: 0, pitch: 0, yaw: 0, active: 0 },
+    planner_wp:    { carrot: { ...vec0 }, yawSetpoint: 0, stepStatus: 0 },
+    planner_cturn: { thrust: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0 },
   },
   blocks: [
     {
@@ -62,6 +62,8 @@ export const quadPoleConfig: ModelConfig = {
         stepIdx:      (s.mission as ModelState).stepIdx,
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
         armed:        (s.mission as ModelState).armed,
+        statusWp:     (s.planner_wp as ModelState).stepStatus,
+        statusCturn:  (s.planner_cturn as ModelState).stepStatus,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -71,9 +73,9 @@ export const quadPoleConfig: ModelConfig = {
           stepIdx:      out.stepIdx,
           ticksInPhase: out.ticksInPhase,
           armed:        out.armed,
+          step:         out.step,
           target:       out.target,
           missionType:  out.missionType,
-          maneuverIdx:  out.maneuverIdx,
           dist:         out.dist,
         },
       }),
@@ -86,7 +88,7 @@ export const quadPoleConfig: ModelConfig = {
       defaultCode: plannerWpCode,
       mapStateIn: (s) => ({
         pos:         s.pos,
-        target:      (s.mission as ModelState).target,
+        step:        (s.mission as ModelState).step,
         missionType: (s.mission as ModelState).missionType,
         armed:       (s.mission as ModelState).armed,
         phase:       (s.mission as ModelState).phase,
@@ -94,7 +96,7 @@ export const quadPoleConfig: ModelConfig = {
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        planner_wp: { carrot: out.carrot, yawSetpoint: out.yawSetpoint },
+        planner_wp: { carrot: out.carrot, yawSetpoint: out.yawSetpoint, stepStatus: out.stepStatus },
       }),
       tickFrequency: 1,
     },
@@ -125,34 +127,35 @@ export const quadPoleConfig: ModelConfig = {
       tickFrequency: 1,
     },
     {
-      sourceId: 'planner_3dturn',
-      exportName: 'planner_3dturn',
-      defaultFn: (s) => planner_3dturn(s as Parameters<typeof planner_3dturn>[0]),
-      defaultCode: planner3dturnCode,
+      sourceId: 'planner_cturn',
+      exportName: 'planner_cturn',
+      defaultFn: (s) => planner_cturn(s as Parameters<typeof planner_cturn>[0]),
+      defaultCode: plannercturnCode,
       mapStateIn: (s) => ({
         missionType:  (s.mission as ModelState).missionType,
-        maneuverIdx:  (s.mission as ModelState).maneuverIdx,
+        step:         (s.mission as ModelState).step,
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
         armed:        (s.mission as ModelState).armed,
         phase:        (s.mission as ModelState).phase,
+        attitude:     s.attitude,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        planner_3dturn: out,
+        planner_cturn: out,
       }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'navigator_3dturn',
-      exportName: 'navigator_3dturn',
-      defaultFn: (s) => navigator_3dturn(s as Parameters<typeof navigator_3dturn>[0]),
-      defaultCode: navigator3dturnCode,
+      sourceId: 'navigator_cturn',
+      exportName: 'navigator_cturn',
+      defaultFn: (s) => navigator_cturn(s as Parameters<typeof navigator_cturn>[0]),
+      defaultCode: navigatorcturnCode,
       mapStateIn: (s) => ({
-        planThrust: (s.planner_3dturn as ModelState).thrust,
-        planRoll:   (s.planner_3dturn as ModelState).roll,
-        planPitch:  (s.planner_3dturn as ModelState).pitch,
-        planYaw:    (s.planner_3dturn as ModelState).yaw,
-        planActive: (s.planner_3dturn as ModelState).active,
+        planThrust: (s.planner_cturn as ModelState).thrust,
+        planRoll:   (s.planner_cturn as ModelState).roll,
+        planPitch:  (s.planner_cturn as ModelState).pitch,
+        planYaw:    (s.planner_cturn as ModelState).yaw,
+        planActive: (s.planner_cturn as ModelState).active,
         aetr:       s.aetr,
       }),
       mapStateOut: (out, s) => ({ ...s, aetr: out.aetr }),
@@ -224,12 +227,12 @@ export const quadPoleConfig: ModelConfig = {
     { from: 'world',             to: 'navigator_wp',     label: 'state'       },
     { from: 'world',             to: 'fc_acro',          label: 'rates'       },
     { from: 'mission',           to: 'planner_wp',       label: 'target+type' },
-    { from: 'mission',           to: 'planner_3dturn',   label: 'maneuverIdx' },
+    { from: 'mission',           to: 'planner_cturn',   label: 'maneuverIdx' },
     { from: 'mission',           to: 'navigator_wp',     label: 'type'        },
     { from: 'planner_wp',        to: 'navigator_wp',     label: 'carrot+yaw'  },
-    { from: 'planner_3dturn',    to: 'navigator_3dturn', label: 'plan'        },
-    { from: 'navigator_wp',      to: 'navigator_3dturn', label: 'aetr'        },
-    { from: 'navigator_3dturn',  to: 'fc_acro',          label: 'aetr'        },
+    { from: 'planner_cturn',    to: 'navigator_cturn', label: 'plan'        },
+    { from: 'navigator_wp',      to: 'navigator_cturn', label: 'aetr'        },
+    { from: 'navigator_cturn',  to: 'fc_acro',          label: 'aetr'        },
     { from: 'fc_acro',           to: 'hw',               label: 'motors'      },
     { from: 'hw',                to: 'world',            label: 'thrust'      },
   ],
