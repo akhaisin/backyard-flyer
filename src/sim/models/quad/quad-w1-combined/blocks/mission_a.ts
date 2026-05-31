@@ -1,52 +1,63 @@
-// Window-gate mission for vehicle A (original track at z = 0).
-// Identical logic to w1a/mission.ts with a `loops` counter added:
-// `loops` increments each time the full circuit (DONE → ARMING) restarts.
+// Window-gate mission for vehicle A (track A, -x/+z quadrant), restructured
+// around the step+status pattern (quad-l4 / quad-pole). Identical shape to
+// quad-w1a/mission.ts with two differences: STEPS are translated to track A,
+// and a `loops` counter increments on DONE → ARMING for the lap-rate chart.
 
 type Vec3 = { x: number; y: number; z: number };
 
-export type WindowDef = {
+export type WindowStep = {
   center: Vec3;
   normal: Vec3;
   width: number;
   height: number;
+  preStageDist?: number;
+  timeout?: number;
   label?: string;
 };
 
 type MissionIn = {
   pos: Vec3;
   phase: number;
-  windowIdx: number;
+  stepIdx: number;
   ticksInPhase: number;
   armed: number;
-  windowSide: number;
+  statusWindow: number;
   loops: number;
+};
+
+type StepBus = {
+  center: Vec3;
+  normal: Vec3;
+  width: number;
+  height: number;
+  preStageDist: number;
 };
 
 type MissionOut = {
   phase: number;
-  windowIdx: number;
+  stepIdx: number;
   ticksInPhase: number;
   armed: number;
-  windowSide: number;
-  windowCenter: Vec3;
-  windowNormal: Vec3;
-  // Current intended flight segment — during NAVIGATE this is the line from
-  // the previous window center (or HOME for the first) to the current window
-  // center. Degenerate elsewhere.
+  step: StepBus;
+  target: Vec3;
+  dist: number;
   segStart: Vec3;
   segEnd: Vec3;
-  dist: number;
   loops: number;
 };
 
-const ARMING    = 0;
-const TAKEOFF   = 1;
-const NAVIGATE  = 2;
-const RTH       = 3;
-const LAND      = 4;
-const DISARMING = 5;
-const DONE      = 6;
-const MISSED    = 7;
+const PHASE_ARMING    = 0;
+const PHASE_TAKEOFF   = 1;
+const PHASE_NAVIGATE  = 2;
+const PHASE_RTH       = 3;
+const PHASE_LAND      = 4;
+const PHASE_DISARMING = 5;
+const PHASE_DONE      = 6;
+const PHASE_MISSED    = 7;
+
+const STATUS_COMPLETED = 1;
+const STATUS_FAILED    = 2;
+const STATUS_RESTART   = 3;
 
 const CRUISE_ALT  = 5;
 const WINDOW_SIZE = 4;
@@ -56,12 +67,14 @@ const Z_OFF =  15;
 const HOME: Vec3     = { x: X_OFF, y: CRUISE_ALT, z: Z_OFF };
 const LAND_PAD: Vec3 = { x: X_OFF, y: 0,          z: Z_OFF };
 
-export const WINDOWS_A: WindowDef[] = [
-  { center: { x: 8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x: 1, y: 0, z: 0 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A1' },
-  { center: { x: 8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x: 0, y: 0, z: 1 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A2' },
-  { center: { x:-8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x:-1, y: 0, z: 0 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A3' },
-  { center: { x:-8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x: 0, y: 0, z:-1 },  width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A4' },
+export const STEPS_A: WindowStep[] = [
+  { center: { x:  8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x:  1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A1' },
+  { center: { x:  8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x:  0, y: 0, z:  1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A2' },
+  { center: { x: -8 + X_OFF, y: CRUISE_ALT, z:  8 + Z_OFF }, normal: { x: -1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A3' },
+  { center: { x: -8 + X_OFF, y: CRUISE_ALT, z: -8 + Z_OFF }, normal: { x:  0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'A4' },
 ];
+
+export const WINDOWS_A = STEPS_A;
 
 const ARMING_TICKS  = 20;
 const RTH_THRESHOLD = 1.2;
@@ -71,133 +84,154 @@ function dist3(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function sideScore(pos: Vec3, win: WindowDef): number {
-  return (pos.x - win.center.x) * win.normal.x
-       + (pos.y - win.center.y) * win.normal.y
-       + (pos.z - win.center.z) * win.normal.z;
+function stepToBus(step: WindowStep): StepBus {
+  return {
+    center:       step.center,
+    normal:       step.normal,
+    width:        step.width,
+    height:       step.height,
+    preStageDist: step.preStageDist ?? 0,
+  };
 }
 
-function perpDist(pos: Vec3, win: WindowDef): number {
-  const score = sideScore(pos, win);
-  const rx = (pos.x - win.center.x) - score * win.normal.x;
-  const ry = (pos.y - win.center.y) - score * win.normal.y;
-  const rz = (pos.z - win.center.z) - score * win.normal.z;
-  return Math.sqrt(rx * rx + ry * ry + rz * rz);
-}
-
-// Build a result with the segment fields filled in. Outside NAVIGATE the
-// segment is degenerate (start = end = windowCenter); the validator gates
-// error accumulation on phase so values don't matter there.
-function out(
-  phase: number, windowIdx: number, ticksInPhase: number, armed: number, windowSide: number,
-  windowCenter: Vec3, windowNormal: Vec3, dist: number, loops: number,
-  segStart: Vec3 = windowCenter, segEnd: Vec3 = windowCenter,
+function makeOut(
+  phase: number, stepIdx: number, ticksInPhase: number, armed: number,
+  step: WindowStep, target: Vec3, dist: number, loops: number,
+  segStart: Vec3 = target, segEnd: Vec3 = target,
 ): MissionOut {
-  return { phase, windowIdx, ticksInPhase, armed, windowSide, windowCenter, windowNormal, segStart, segEnd, dist, loops };
+  return {
+    phase, stepIdx, ticksInPhase, armed,
+    step: stepToBus(step),
+    target, dist, segStart, segEnd, loops,
+  };
 }
 
-function entrySegStart(winIdx: number): Vec3 {
-  return winIdx > 0 ? WINDOWS_A[winIdx - 1].center : HOME;
+function recoveryAnchor(stepIdx: number): Vec3 {
+  return stepIdx > 0 ? STEPS_A[stepIdx - 1].center : HOME;
+}
+
+const HOME_STEP: WindowStep = { center: HOME,     normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE };
+const LAND_STEP: WindowStep = { center: LAND_PAD, normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE };
+function recoveryStep(stepIdx: number): WindowStep {
+  return {
+    center: recoveryAnchor(stepIdx),
+    normal: STEPS_A[stepIdx].normal,
+    width:  WINDOW_SIZE,
+    height: WINDOW_SIZE,
+  };
+}
+
+function navigateStep(stepIdx: number, ticks: number, pos: Vec3, loops: number): MissionOut {
+  const step = STEPS_A[stepIdx];
+  return makeOut(
+    PHASE_NAVIGATE, stepIdx, ticks, 1,
+    step, step.center, dist3(pos, step.center), loops,
+    recoveryAnchor(stepIdx), step.center,
+  );
 }
 
 export function mission_a(state: MissionIn): MissionOut {
-  const phase  = Math.round(state.phase);
-  const winIdx = Math.round(state.windowIdx);
-  const ticks  = Math.round(state.ticksInPhase);
-  const loops  = Math.round(state.loops);
+  const phase   = Math.round(state.phase);
+  const stepIdx = Math.round(state.stepIdx);
+  const ticks   = Math.round(state.ticksInPhase);
+  const loops   = Math.round(state.loops);
 
-  const noWin: Vec3 = { x: state.pos.x, y: CRUISE_ALT, z: state.pos.z };
-  const n0 = WINDOWS_A[0].normal;
-
-  if (phase === ARMING) {
+  if (phase === PHASE_ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return out(TAKEOFF, 0, 0, 1, 0, noWin, n0, dist3(state.pos, HOME), loops);
+      return makeOut(PHASE_TAKEOFF, 0, 0, 1, HOME_STEP, HOME, dist3(state.pos, HOME), loops);
     }
-    return out(ARMING, 0, ticks + 1, 0, 0, noWin, n0, 0, loops);
+    return makeOut(PHASE_ARMING, 0, ticks + 1, 0, HOME_STEP, HOME, 0, loops);
   }
 
-  if (phase === TAKEOFF) {
+  if (phase === PHASE_TAKEOFF) {
     if (state.pos.y >= CRUISE_ALT - 0.3) {
-      const win0 = WINDOWS_A[0];
-      return out(NAVIGATE, 0, 0, 1, 0, win0.center, win0.normal,
-                 dist3(state.pos, win0.center), loops, HOME, win0.center);
+      return navigateStep(0, 0, state.pos, loops);
     }
-    return out(TAKEOFF, 0, ticks + 1, 1, 0, noWin, n0, dist3(state.pos, HOME), loops);
+    return makeOut(
+      PHASE_TAKEOFF, 0, ticks + 1, 1, HOME_STEP, HOME, dist3(state.pos, HOME), loops,
+      HOME, STEPS_A[0].center,
+    );
   }
 
-  if (phase === NAVIGATE) {
-    const win = WINDOWS_A[winIdx];
-    const score = sideScore(state.pos, win);
-    const currentSide = score > 0 ? 1 : -1;
-    const prevSide = Math.round(state.windowSide);
-    const segStart = entrySegStart(winIdx);
+  if (phase === PHASE_NAVIGATE) {
+    const step: WindowStep = STEPS_A[stepIdx];
+    const timedOut = step.timeout !== undefined && ticks >= step.timeout;
+    const status   = timedOut ? STATUS_FAILED : Math.round(state.statusWindow);
 
-    if (prevSide === 0) {
-      return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
-                 dist3(state.pos, win.center), loops, segStart, win.center);
-    }
-
-    const planeCrossed = prevSide === -1 && currentSide === 1;
-    const withinFrame  = perpDist(state.pos, win) < Math.max(win.width, win.height) / 2;
-
-    if (planeCrossed && withinFrame) {
-      const next = winIdx + 1;
-      if (next >= WINDOWS_A.length) {
-        return out(RTH, winIdx, 0, 1, 0, HOME, n0, dist3(state.pos, HOME), loops, win.center, HOME);
+    if (status === STATUS_COMPLETED) {
+      const next = stepIdx + 1;
+      if (next >= STEPS_A.length) {
+        return makeOut(
+          PHASE_RTH, stepIdx, 0, 1,
+          HOME_STEP, HOME, dist3(state.pos, HOME), loops,
+          step.center, HOME,
+        );
       }
-      const nextWin = WINDOWS_A[next];
-      return out(NAVIGATE, next, 0, 1, 0, nextWin.center, nextWin.normal,
-                 dist3(state.pos, nextWin.center), loops, win.center, nextWin.center);
+      return navigateStep(next, 0, state.pos, loops);
     }
 
-    if (planeCrossed && !withinFrame) {
-      const recoveryCenter = entrySegStart(winIdx);
-      return out(MISSED, winIdx, 0, 1, 0, recoveryCenter, win.normal,
-                 dist3(state.pos, recoveryCenter), loops, win.center, recoveryCenter);
+    if (status === STATUS_FAILED) {
+      const anchor = recoveryAnchor(stepIdx);
+      return makeOut(
+        PHASE_MISSED, stepIdx, 0, 1,
+        recoveryStep(stepIdx), anchor, dist3(state.pos, anchor), loops,
+        step.center, anchor,
+      );
     }
 
-    return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
-               dist3(state.pos, win.center), loops, segStart, win.center);
+    if (status === STATUS_RESTART) {
+      return navigateStep(stepIdx, 0, state.pos, loops);
+    }
+
+    return navigateStep(stepIdx, ticks + 1, state.pos, loops);
   }
 
-  if (phase === RTH) {
+  if (phase === PHASE_MISSED) {
+    const anchor = recoveryAnchor(stepIdx);
+    const d = dist3(state.pos, anchor);
+    if (d < RTH_THRESHOLD) {
+      return navigateStep(stepIdx, 0, state.pos, loops);
+    }
+    return makeOut(
+      PHASE_MISSED, stepIdx, ticks + 1, 1,
+      recoveryStep(stepIdx), anchor, d, loops,
+      STEPS_A[stepIdx].center, anchor,
+    );
+  }
+
+  if (phase === PHASE_RTH) {
     const d = dist3(state.pos, HOME);
     if (d < RTH_THRESHOLD) {
-      return out(LAND, 0, 0, 1, 0, LAND_PAD, n0, dist3(state.pos, LAND_PAD), loops, HOME, LAND_PAD);
+      return makeOut(
+        PHASE_LAND, 0, 0, 1,
+        LAND_STEP, LAND_PAD, dist3(state.pos, LAND_PAD), loops,
+        HOME, LAND_PAD,
+      );
     }
-    return out(RTH, winIdx, ticks + 1, 1, 0, HOME, n0, d, loops,
-               WINDOWS_A[WINDOWS_A.length - 1].center, HOME);
+    return makeOut(
+      PHASE_RTH, stepIdx, ticks + 1, 1, HOME_STEP, HOME, d, loops,
+      STEPS_A[STEPS_A.length - 1].center, HOME,
+    );
   }
 
-  if (phase === LAND) {
+  if (phase === PHASE_LAND) {
     const d = dist3(state.pos, LAND_PAD);
     if (state.pos.y < 0.3) {
-      return out(DISARMING, 0, 0, 0, 0, LAND_PAD, n0, d, loops);
+      return makeOut(PHASE_DISARMING, 0, 0, 0, LAND_STEP, LAND_PAD, d, loops);
     }
-    return out(LAND, 0, ticks + 1, 1, 0, LAND_PAD, n0, d, loops, HOME, LAND_PAD);
+    return makeOut(PHASE_LAND, 0, ticks + 1, 1, LAND_STEP, LAND_PAD, d, loops, HOME, LAND_PAD);
   }
 
-  if (phase === DISARMING) {
+  if (phase === PHASE_DISARMING) {
     if (ticks >= ARMING_TICKS) {
-      return out(DONE, 0, 0, 0, 0, LAND_PAD, n0, 0, loops);
+      return makeOut(PHASE_DONE, 0, 0, 0, LAND_STEP, LAND_PAD, 0, loops);
     }
-    return out(DISARMING, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0, loops);
+    return makeOut(PHASE_DISARMING, 0, ticks + 1, 0, LAND_STEP, LAND_PAD, 0, loops);
   }
 
-  if (phase === MISSED) {
-    const recoveryCenter = entrySegStart(winIdx);
-    const d = dist3(state.pos, recoveryCenter);
-    if (d < RTH_THRESHOLD) {
-      const win = WINDOWS_A[winIdx];
-      return out(NAVIGATE, winIdx, 0, 1, 0, win.center, win.normal,
-                 dist3(state.pos, win.center), loops, recoveryCenter, win.center);
-    }
-    return out(MISSED, winIdx, ticks + 1, 1, 0, recoveryCenter, WINDOWS_A[winIdx].normal, d, loops);
-  }
-
-  // DONE — wait 20 ticks then restart; increment loops counter on restart.
+  // PHASE_DONE — wait 20 ticks then restart; bump loops counter on restart.
   if (ticks >= 20) {
-    return out(ARMING, 0, 0, 0, 0, noWin, n0, 0, loops + 1);
+    return makeOut(PHASE_ARMING, 0, 0, 0, HOME_STEP, HOME, 0, loops + 1);
   }
-  return out(DONE, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0, loops);
+  return makeOut(PHASE_DONE, 0, ticks + 1, 0, LAND_STEP, LAND_PAD, 0, loops);
 }

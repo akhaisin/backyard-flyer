@@ -1,11 +1,11 @@
 import missionCode from './blocks/mission.ts?raw';
 import { mission } from './blocks/mission';
-import fcPathPlannerCode from './blocks/fc_path_planner.ts?raw';
-import { fc_path_planner } from './blocks/fc_path_planner';
-import fcNavigatorCode from './blocks/fc_navigator.ts?raw';
-import { fc_navigator } from './blocks/fc_navigator';
-import fcStabilizerCode from './blocks/fc_stabilizer.ts?raw';
-import { fc_stabilizer } from './blocks/fc_stabilizer';
+import plannerWindowCode from './blocks/planner_window.ts?raw';
+import { planner_window } from './blocks/planner_window';
+import navigatorWindowCode from './blocks/navigator_window.ts?raw';
+import { navigator_window } from './blocks/navigator_window';
+import fcAcroCode from './blocks/fc_acro.ts?raw';
+import { fc_acro } from './blocks/fc_acro';
 import hwCode from './blocks/hw.ts?raw';
 import { hw } from './blocks/hw';
 import worldCode from './blocks/world.ts?raw';
@@ -39,33 +39,37 @@ export const quadW1bConfig: ModelConfig = {
       angularVel: { ...vec0 },
     },
     fc: {
-      nav: { roll_des: 0, pitch_des: 0, yaw_des: 0, thrust: 0 },
-      integral: {
-        pos: { ...vec0 },
-        att: { ...vec0 },
-      },
+      integral: { pos: { ...vec0 } },
     },
+    aetr: { thrust: 0, roll: 0, pitch: 0, yaw: 0 },
     motors: {
       desired: { ...motors0 },
       thrust:  { ...motors0 },
     },
     mission: {
       phase:        0,
-      windowIdx:    0,
+      stepIdx:      0,
       ticksInPhase: 0,
       armed:        0,
-      windowSide:   0,
-      windowCenter: { ...vec0 },
-      windowNormal: { x: 1, y: 0, z: 0 },
-      segStart:     { ...vec0 },
-      segEnd:       { ...vec0 },
-      dist:         0,
+      step: {
+        center:       { x: 0, y: 5, z: 0 },
+        normal:       { x: 1, y: 0, z: 0 },
+        width:        5,
+        height:       5,
+        preStageDist: 5,
+      },
+      target:   { ...vec0 },
+      dist:     0,
+      segStart: { ...vec0 },
+      segEnd:   { ...vec0 },
     },
-    planner: {
-      carrot:          { ...vec0 },
-      preGateDone:     0,
-      activeWindowIdx: -1,
-      yawSetpoint:     0,
+    planner_window: {
+      carrot:        { ...vec0 },
+      yawSetpoint:   0,
+      stepStatus:    0,
+      windowSide:    0,
+      activeStepIdx: -1,
+      preGateDone:   0,
     },
     validator: {
       prevPhase:      0,
@@ -80,7 +84,6 @@ export const quadW1bConfig: ModelConfig = {
     },
   },
   blocks: [
-    // --- Environment ---
     {
       sourceId: 'wind',
       exportName: 'wind',
@@ -104,8 +107,6 @@ export const quadW1bConfig: ModelConfig = {
       mapStateOut: (out, s) => ({ ...s, sensors: out }),
       tickFrequency: 1,
     },
-
-    // --- Flight stack (reads noisy sensors) ---
     {
       sourceId: 'mission',
       exportName: 'mission',
@@ -114,106 +115,98 @@ export const quadW1bConfig: ModelConfig = {
       mapStateIn: (s) => ({
         pos:          (s.sensors as ModelState).pos,
         phase:        (s.mission as ModelState).phase,
-        windowIdx:    (s.mission as ModelState).windowIdx,
+        stepIdx:      (s.mission as ModelState).stepIdx,
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
         armed:        (s.mission as ModelState).armed,
-        windowSide:   (s.mission as ModelState).windowSide,
+        statusWindow: (s.planner_window as ModelState).stepStatus,
       }),
       mapStateOut: (out, s) => ({
         ...s,
         mission: {
           ...(s.mission as ModelState),
           phase:        out.phase,
-          windowIdx:    out.windowIdx,
+          stepIdx:      out.stepIdx,
           ticksInPhase: out.ticksInPhase,
           armed:        out.armed,
-          windowSide:   out.windowSide,
-          windowCenter: out.windowCenter,
-          windowNormal: out.windowNormal,
+          step:         out.step,
+          target:       out.target,
+          dist:         out.dist,
           segStart:     out.segStart,
           segEnd:       out.segEnd,
-          dist:         out.dist,
         },
       }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'fc_path_planner',
-      exportName: 'fc_path_planner',
-      defaultFn: (s) => fc_path_planner(s as Parameters<typeof fc_path_planner>[0]),
-      defaultCode: fcPathPlannerCode,
+      sourceId: 'planner_window',
+      exportName: 'planner_window',
+      defaultFn: (s) => planner_window(s as Parameters<typeof planner_window>[0]),
+      defaultCode: plannerWindowCode,
       mapStateIn: (s) => ({
-        pos:             (s.sensors as ModelState).pos,
-        windowCenter:    (s.mission as ModelState).windowCenter,
-        windowNormal:    (s.mission as ModelState).windowNormal,
-        windowIdx:       (s.mission as ModelState).windowIdx,
-        armed:           (s.mission as ModelState).armed,
-        phase:           (s.mission as ModelState).phase,
-        preGateDone:     (s.planner as ModelState).preGateDone,
-        activeWindowIdx: (s.planner as ModelState).activeWindowIdx,
-        yawSetpoint:     (s.planner as ModelState).yawSetpoint,
+        pos:           (s.sensors as ModelState).pos,
+        step:          (s.mission as ModelState).step,
+        stepIdx:       (s.mission as ModelState).stepIdx,
+        armed:         (s.mission as ModelState).armed,
+        phase:         (s.mission as ModelState).phase,
+        yawSetpoint:   (s.planner_window as ModelState).yawSetpoint,
+        windowSide:    (s.planner_window as ModelState).windowSide,
+        activeStepIdx: (s.planner_window as ModelState).activeStepIdx,
+        preGateDone:   (s.planner_window as ModelState).preGateDone,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        planner: { carrot: out.carrot, preGateDone: out.preGateDone, activeWindowIdx: out.activeWindowIdx, yawSetpoint: out.yawSetpoint },
+        planner_window: {
+          carrot:        out.carrot,
+          yawSetpoint:   out.yawSetpoint,
+          stepStatus:    out.stepStatus,
+          windowSide:    out.windowSide,
+          activeStepIdx: out.activeStepIdx,
+          preGateDone:   out.preGateDone,
+        },
       }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'fc_navigator',
-      exportName: 'fc_navigator',
-      defaultFn: (s) => fc_navigator(s as Parameters<typeof fc_navigator>[0]),
-      defaultCode: fcNavigatorCode,
+      sourceId: 'navigator_window',
+      exportName: 'navigator_window',
+      defaultFn: (s) => navigator_window(s as Parameters<typeof navigator_window>[0]),
+      defaultCode: navigatorWindowCode,
       mapStateIn: (s) => ({
         pos:         (s.sensors as ModelState).pos,
         vel:         (s.sensors as ModelState).vel,
         attitude:    (s.sensors as ModelState).attitude,
-        carrot:      (s.planner as ModelState).carrot,
+        carrot:      (s.planner_window as ModelState).carrot,
+        yawSetpoint: (s.planner_window as ModelState).yawSetpoint,
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
-        yawSetpoint: (s.planner as ModelState).yawSetpoint,
+        aetr:        s.aetr,
       }),
       mapStateOut: (out, s) => ({
         ...s,
+        aetr: out.aetr,
         fc: {
           ...(s.fc as ModelState),
-          nav: { roll_des: out.roll_des, pitch_des: out.pitch_des, yaw_des: out.yaw_des, thrust: out.thrust },
-          integral: {
-            ...(((s.fc as ModelState).integral) as ModelState),
-            pos: out.integralPos,
-          },
+          integral: { ...(((s.fc as ModelState).integral) as ModelState), pos: out.integralPos },
         },
       }),
       tickFrequency: 1,
     },
     {
-      sourceId: 'fc_stabilizer',
-      exportName: 'fc_stabilizer',
-      defaultFn: (s) => fc_stabilizer(s as Parameters<typeof fc_stabilizer>[0]),
-      defaultCode: fcStabilizerCode,
+      sourceId: 'fc_acro',
+      exportName: 'fc_acro',
+      defaultFn: (s) => fc_acro(s as Parameters<typeof fc_acro>[0]),
+      defaultCode: fcAcroCode,
       mapStateIn: (s) => ({
-        attitude:    (s.sensors as ModelState).attitude,
-        angularVel:  (s.sensors as ModelState).angularVel,
-        roll_des:    ((s.fc as ModelState).nav as ModelState).roll_des,
-        pitch_des:   ((s.fc as ModelState).nav as ModelState).pitch_des,
-        yaw_des:     ((s.fc as ModelState).nav as ModelState).yaw_des,
-        thrust:      ((s.fc as ModelState).nav as ModelState).thrust,
-        armed:       (s.mission as ModelState).armed,
-        integralAtt: ((s.fc as ModelState).integral as ModelState).att,
+        angularVel: (s.sensors as ModelState).angularVel,
+        armed:      (s.mission as ModelState).armed,
+        aetrThrust: (s.aetr as ModelState).thrust,
+        aetrRoll:   (s.aetr as ModelState).roll,
+        aetrPitch:  (s.aetr as ModelState).pitch,
+        aetrYaw:    (s.aetr as ModelState).yaw,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        fc: {
-          ...(s.fc as ModelState),
-          integral: {
-            ...(((s.fc as ModelState).integral) as ModelState),
-            att: out.integralAtt,
-          },
-        },
-        motors: {
-          ...(s.motors as ModelState),
-          desired: out.motors,
-        },
+        motors: { ...(s.motors as ModelState), desired: out.motors },
       }),
       tickFrequency: 1,
     },
@@ -228,10 +221,7 @@ export const quadW1bConfig: ModelConfig = {
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        motors: {
-          ...(s.motors as ModelState),
-          thrust: out.thrust,
-        },
+        motors: { ...(s.motors as ModelState), thrust: out.thrust },
       }),
       tickFrequency: 1,
     },
@@ -296,22 +286,20 @@ export const quadW1bConfig: ModelConfig = {
   ],
   vis: QuadW1bVis,
   blocksDiagram: [
-    { from: 'wind',            to: 'world',           label: 'force'     },
-    { from: 'noise',           to: 'mission',         label: 'pos'       },
-    { from: 'noise',           to: 'fc_path_planner', label: 'pos'       },
-    { from: 'noise',           to: 'fc_navigator',    label: 'sensors'   },
-    { from: 'noise',           to: 'fc_stabilizer',   label: 'sensors'   },
-    { from: 'mission',         to: 'fc_path_planner', label: 'window'    },
-    { from: 'fc_path_planner', to: 'fc_navigator',    label: 'carrot'    },
-    { from: 'fc_navigator',    to: 'fc_stabilizer',   label: 'att cmd'   },
-    { from: 'fc_stabilizer',   to: 'hw',              label: 'motors'    },
-    { from: 'hw',              to: 'world',           label: 'thrust'    },
-    { from: 'world',           to: 'noise',           label: 'true state' },
-    { from: 'world',           to: 'mission',         label: 'pos'       },
-    { from: 'world',           to: 'fc_path_planner', label: 'state'     },
-    { from: 'world',           to: 'fc_stabilizer',   label: 'attitude'  },
-    { from: 'world',           to: 'validator',       label: 'pos'       },
-    { from: 'mission',         to: 'validator',       label: 'phase+seg' },
+    { from: 'wind',             to: 'world',            label: 'force'      },
+    { from: 'noise',            to: 'mission',          label: 'pos'        },
+    { from: 'noise',            to: 'planner_window',   label: 'pos'        },
+    { from: 'noise',            to: 'navigator_window', label: 'sensors'    },
+    { from: 'noise',            to: 'fc_acro',          label: 'rates'      },
+    { from: 'mission',          to: 'planner_window',   label: 'step'       },
+    { from: 'mission',          to: 'validator',        label: 'phase+seg'  },
+    { from: 'planner_window',   to: 'mission',          label: 'status'     },
+    { from: 'planner_window',   to: 'navigator_window', label: 'carrot+yaw' },
+    { from: 'navigator_window', to: 'fc_acro',          label: 'aetr'       },
+    { from: 'fc_acro',          to: 'hw',               label: 'motors'     },
+    { from: 'hw',               to: 'world',            label: 'thrust'     },
+    { from: 'world',            to: 'noise',            label: 'true state' },
+    { from: 'world',            to: 'validator',        label: 'pos'        },
   ],
   charts: [
     {
@@ -337,12 +325,12 @@ export const quadW1bConfig: ModelConfig = {
       ],
     },
     {
-      label: 'Carrot vs window center',
+      label: 'Carrot vs gate center',
       series: [
-        { var: 'planner.carrot.x',        label: 'carrot x',  color: '#ffee00' },
-        { var: 'mission.windowCenter.x',  label: 'window x',  color: '#ff8800' },
-        { var: 'planner.carrot.z',        label: 'carrot z',  color: '#aaee00' },
-        { var: 'mission.windowCenter.z',  label: 'window z',  color: '#88aa00' },
+        { var: 'planner_window.carrot.x',  label: 'carrot x', color: '#ffee00' },
+        { var: 'mission.step.center.x',    label: 'gate x',   color: '#ff8800' },
+        { var: 'planner_window.carrot.z',  label: 'carrot z', color: '#aaee00' },
+        { var: 'mission.step.center.z',    label: 'gate z',   color: '#88aa00' },
       ],
     },
     {
@@ -354,9 +342,12 @@ export const quadW1bConfig: ModelConfig = {
       ],
     },
     {
-      label: 'Navigator output (thrust)',
+      label: 'AETR sticks',
       series: [
-        { var: 'fc.nav.thrust', label: 'thrust', color: '#ffdd44' },
+        { var: 'aetr.thrust', label: 'thrust', color: '#ffee44' },
+        { var: 'aetr.roll',   label: 'roll',   color: '#ff8844' },
+        { var: 'aetr.pitch',  label: 'pitch',  color: '#44ffaa' },
+        { var: 'aetr.yaw',    label: 'yaw',    color: '#cc88ff' },
       ],
     },
     {
@@ -371,10 +362,16 @@ export const quadW1bConfig: ModelConfig = {
     {
       label: 'Mission',
       series: [
-        { var: 'mission.phase',     label: 'phase',     color: '#ffaa00' },
-        { var: 'mission.dist',      label: 'dist',      color: '#ff66ff' },
-        { var: 'mission.windowIdx', label: 'windowIdx', color: '#00ffaa' },
-        { var: 'mission.armed',     label: 'armed',     color: '#aaaaaa' },
+        { var: 'mission.phase',   label: 'phase',   color: '#ffaa00' },
+        { var: 'mission.stepIdx', label: 'stepIdx', color: '#00ffaa' },
+        { var: 'mission.dist',    label: 'dist',    color: '#ff66ff' },
+        { var: 'mission.armed',   label: 'armed',   color: '#aaaaaa' },
+      ],
+    },
+    {
+      label: 'Pre-gate latch',
+      series: [
+        { var: 'planner_window.preGateDone', label: 'preGateDone', color: '#ffaa00' },
       ],
     },
     {

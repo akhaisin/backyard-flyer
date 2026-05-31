@@ -17,8 +17,8 @@ interface QuadW1bState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
-  mission: { phase: number; windowIdx: number };
-  planner: { carrot: Vec3 };
+  mission: { phase: number; stepIdx: number };
+  planner_window: { carrot: Vec3 };
   wind: { fx: number; fz: number };
   validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number; misses: number };
 }
@@ -41,15 +41,15 @@ const sceneHandler = composeScene(() => [
   trail(s => view(s).pos),
   windowGate(
     s => ({
-      windowIdx: view(s).mission.windowIdx,
+      windowIdx: view(s).mission.stepIdx,
       phase:     view(s).mission.phase,
-      carrot:    view(s).planner.carrot,
+      carrot:    view(s).planner_window.carrot,
     }),
     WINDOWS,
   ),
   windSock(s => view(s).wind, { maxForceN: 1.5 }),
   textLabel({
-    text: 'Quad W1b\nPre-gate staging approach\naligns on gate normal before crossing',
+    text: 'Quad W1b\nPre-gate staging approach\nstep.preStageDist drives the offset',
     position: [-18, 0, 0],
     fontSize: 36,
   }),

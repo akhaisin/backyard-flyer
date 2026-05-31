@@ -1,66 +1,95 @@
-// Window-gate mission sequencer: arm → takeoff → fly through 4 rectangular windows → RTH → land → disarm.
-// Windows replace waypoints: the drone must physically cross each rectangular gate plane to advance.
-// Crossing detection: track which side of the window plane the drone is on; a sign flip while
-// within the gate's half-extents counts as a crossing. `windowSide = 0` is the "not yet set"
-// sentinel on the first tick for a given window.
+// Window-gate mission, restructured to the quad-l4 / quad-pole step+status
+// pattern. Mission owns phase sequencing and the step list only. Crossing
+// detection (whether the drone passed through the gate, missed the frame, or
+// is still approaching) is delegated to planner_window via stepStatus:
+//
+//   STATUS_RUNNING   → tick++
+//   STATUS_COMPLETED → advance stepIdx (or PHASE_RTH if last)
+//   STATUS_FAILED    → enter PHASE_MISSED (off-frame plane crossing)
+//   STATUS_RESTART   → reset ticksInPhase, stay on current step
+//
+// PHASE_MISSED retreats to the previous gate center (or HOME for the first
+// gate) and re-enters NAVIGATE on the same stepIdx once close enough. This
+// recovery is mission-local, identical to RTH/LAND distance checks.
+//
+// All step types are window steps. `step.preStageDist` is a per-window prop
+// used by the w1b pre-stage planner; w1a's planner ignores it. It lives on
+// the shared bus so the type is uniform across both models.
 
 type Vec3 = { x: number; y: number; z: number };
 
-export type WindowDef = {
+export type WindowStep = {
   center: Vec3;
-  normal: Vec3;   // unit vector — direction of travel through the gate
+  normal: Vec3;       // unit vector — direction of travel through the gate
   width: number;
   height: number;
+  preStageDist?: number;
+  timeout?: number;
   label?: string;
 };
 
 type MissionIn = {
   pos: Vec3;
   phase: number;
-  windowIdx: number;
+  stepIdx: number;
   ticksInPhase: number;
   armed: number;
-  windowSide: number;  // -1 | 0 | 1  (0 = not yet computed for current window)
+  statusWindow: number;
+};
+
+// Numeric projection of the active step on the bus.
+type StepBus = {
+  center: Vec3;
+  normal: Vec3;
+  width: number;
+  height: number;
+  preStageDist: number;
 };
 
 type MissionOut = {
   phase: number;
-  windowIdx: number;
+  stepIdx: number;
   ticksInPhase: number;
   armed: number;
-  windowSide: number;
-  windowCenter: Vec3;
-  windowNormal: Vec3;
-  // Current intended flight segment — during NAVIGATE this is the line from
-  // the previous window center (or HOME for the first) to the current window
-  // center. Degenerate elsewhere. Downstream validators score actual position
-  // against it.
+  step: StepBus;
+  target: Vec3;
+  dist: number;
+  // Active flight segment for the validator. During NAVIGATE this is the line
+  // from the previous gate center (HOME for the first) to the current gate.
   segStart: Vec3;
   segEnd: Vec3;
-  dist: number;
 };
 
-const ARMING    = 0;
-const TAKEOFF   = 1;
-const NAVIGATE  = 2;
-const RTH       = 3;
-const LAND      = 4;
-const DISARMING = 5;
-const DONE      = 6;
-const MISSED    = 7;
+export const PHASE_ARMING    = 0;
+export const PHASE_TAKEOFF   = 1;
+export const PHASE_NAVIGATE  = 2;
+export const PHASE_RTH       = 3;
+export const PHASE_LAND      = 4;
+export const PHASE_DISARMING = 5;
+export const PHASE_DONE      = 6;
+export const PHASE_MISSED    = 7;
+
+export const STATUS_RUNNING   = 0;
+export const STATUS_COMPLETED = 1;
+export const STATUS_FAILED    = 2;
+export const STATUS_RESTART   = 3;
 
 const CRUISE_ALT  = 5;
 const WINDOW_SIZE = 5;
 const HOME: Vec3     = { x: 0, y: CRUISE_ALT, z: 0 };
-const LAND_PAD: Vec3 = { x: 0, y: 0, z: 0 };
+const LAND_PAD: Vec3 = { x: 0, y: 0,          z: 0 };
 
-// 4 gates forming a rectangle. Normal points in the direction of intended travel through each gate.
-export const WINDOWS: WindowDef[] = [
-  { center: { x: 10, y: CRUISE_ALT, z: -10 }, normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W1' },
-  { center: { x: 10, y: CRUISE_ALT, z: 10 }, normal: { x: 0, y: 0, z: 1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W2' },
-  { center: { x: -10, y: CRUISE_ALT, z: 10 }, normal: { x: -1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W3' },
-  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x: 0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W4' },
+// 4 gates forming a rectangle. Normal points in the direction of intended
+// travel through each gate.
+export const STEPS: WindowStep[] = [
+  { center: { x:  10, y: CRUISE_ALT, z: -10 }, normal: { x:  1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W1' },
+  { center: { x:  10, y: CRUISE_ALT, z:  10 }, normal: { x:  0, y: 0, z:  1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W2' },
+  { center: { x: -10, y: CRUISE_ALT, z:  10 }, normal: { x: -1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W3' },
+  { center: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x:  0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, label: 'W4' },
 ];
+
+// Exported so vis plugins keep working with the windowGate plugin.
+export const WINDOWS = STEPS;
 
 const ARMING_TICKS  = 20;
 const RTH_THRESHOLD = 1.2;
@@ -70,138 +99,154 @@ function dist3(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-// Returns signed distance from pos to the window plane (positive = "exit" side).
-function sideScore(pos: Vec3, win: WindowDef): number {
-  return (pos.x - win.center.x) * win.normal.x
-       + (pos.y - win.center.y) * win.normal.y
-       + (pos.z - win.center.z) * win.normal.z;
+function stepToBus(step: WindowStep): StepBus {
+  return {
+    center:       step.center,
+    normal:       step.normal,
+    width:        step.width,
+    height:       step.height,
+    preStageDist: step.preStageDist ?? 0,
+  };
 }
 
-// Perpendicular distance from pos to the window plane center (within-gate check).
-function perpDist(pos: Vec3, win: WindowDef): number {
-  const score = sideScore(pos, win);
-  const rx = (pos.x - win.center.x) - score * win.normal.x;
-  const ry = (pos.y - win.center.y) - score * win.normal.y;
-  const rz = (pos.z - win.center.z) - score * win.normal.z;
-  return Math.sqrt(rx * rx + ry * ry + rz * rz);
-}
-
-// Build a result with the segment fields filled in. Outside NAVIGATE the
-// segment is degenerate (start = end = windowCenter) — validator gates on
-// phase so the values don't matter there.
-function out(
-  phase: number, windowIdx: number, ticksInPhase: number, armed: number, windowSide: number,
-  windowCenter: Vec3, windowNormal: Vec3, dist: number,
-  segStart: Vec3 = windowCenter, segEnd: Vec3 = windowCenter,
+function makeOut(
+  phase: number, stepIdx: number, ticksInPhase: number, armed: number,
+  step: WindowStep, target: Vec3, dist: number,
+  segStart: Vec3 = target, segEnd: Vec3 = target,
 ): MissionOut {
-  return { phase, windowIdx, ticksInPhase, armed, windowSide, windowCenter, windowNormal, segStart, segEnd, dist };
+  return {
+    phase, stepIdx, ticksInPhase, armed,
+    step: stepToBus(step),
+    target, dist, segStart, segEnd,
+  };
 }
 
-function entrySegStart(winIdx: number): Vec3 {
-  return winIdx > 0 ? WINDOWS[winIdx - 1].center : HOME;
+function recoveryAnchor(stepIdx: number): Vec3 {
+  return stepIdx > 0 ? STEPS[stepIdx - 1].center : HOME;
+}
+
+// Scaffolding steps published during phases that don't have a real gate.
+const HOME_STEP: WindowStep    = { center: HOME,     normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE };
+const LAND_STEP: WindowStep    = { center: LAND_PAD, normal: { x: 1, y: 0, z: 0 }, width: WINDOW_SIZE, height: WINDOW_SIZE };
+function recoveryStep(stepIdx: number): WindowStep {
+  return {
+    center: recoveryAnchor(stepIdx),
+    normal: STEPS[stepIdx].normal,
+    width:  WINDOW_SIZE,
+    height: WINDOW_SIZE,
+  };
+}
+
+function navigateStep(stepIdx: number, ticks: number, pos: Vec3): MissionOut {
+  const step = STEPS[stepIdx];
+  return makeOut(
+    PHASE_NAVIGATE, stepIdx, ticks, 1,
+    step, step.center, dist3(pos, step.center),
+    recoveryAnchor(stepIdx), step.center,
+  );
 }
 
 export function mission(state: MissionIn): MissionOut {
-  const phase  = Math.round(state.phase);
-  const winIdx = Math.round(state.windowIdx);
-  const ticks  = Math.round(state.ticksInPhase);
+  const phase   = Math.round(state.phase);
+  const stepIdx = Math.round(state.stepIdx);
+  const ticks   = Math.round(state.ticksInPhase);
 
-  const noWin: Vec3 = { x: state.pos.x, y: CRUISE_ALT, z: state.pos.z };
-  const n0 = WINDOWS[0].normal;
-
-  if (phase === ARMING) {
+  if (phase === PHASE_ARMING) {
     if (ticks >= ARMING_TICKS) {
-      return out(TAKEOFF, 0, 0, 1, 0, noWin, n0, dist3(state.pos, HOME));
+      return makeOut(PHASE_TAKEOFF, 0, 0, 1, HOME_STEP, HOME, dist3(state.pos, HOME));
     }
-    return out(ARMING, 0, ticks + 1, 0, 0, noWin, n0, 0);
+    return makeOut(PHASE_ARMING, 0, ticks + 1, 0, HOME_STEP, HOME, 0);
   }
 
-  if (phase === TAKEOFF) {
+  if (phase === PHASE_TAKEOFF) {
     if (state.pos.y >= CRUISE_ALT - 0.3) {
-      const win0 = WINDOWS[0];
-      return out(NAVIGATE, 0, 0, 1, 0, win0.center, win0.normal, dist3(state.pos, win0.center), HOME, win0.center);
+      return navigateStep(0, 0, state.pos);
     }
-    return out(TAKEOFF, 0, ticks + 1, 1, 0, noWin, n0, dist3(state.pos, HOME));
+    return makeOut(
+      PHASE_TAKEOFF, 0, ticks + 1, 1, HOME_STEP, HOME, dist3(state.pos, HOME),
+      HOME, STEPS[0].center,
+    );
   }
 
-  if (phase === NAVIGATE) {
-    const win = WINDOWS[winIdx];
-    const score = sideScore(state.pos, win);
-    const currentSide = score > 0 ? 1 : -1;
-    const prevSide = Math.round(state.windowSide);
-    const segStart = entrySegStart(winIdx);
+  if (phase === PHASE_NAVIGATE) {
+    const step: WindowStep = STEPS[stepIdx];
+    const timedOut = step.timeout !== undefined && ticks >= step.timeout;
+    const status   = timedOut ? STATUS_FAILED : Math.round(state.statusWindow);
 
-    // First tick for this window: just record side, no crossing yet.
-    if (prevSide === 0) {
-      return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
-                 dist3(state.pos, win.center), segStart, win.center);
-    }
-
-    // Only approach→exit (−1 → +1) counts; exit→approach is the drone retreating, not crossing.
-    const planeCrossed = prevSide === -1 && currentSide === 1;
-    const withinFrame  = perpDist(state.pos, win) < Math.max(win.width, win.height) / 2;
-
-    if (planeCrossed && withinFrame) {
-      const next = winIdx + 1;
-      if (next >= WINDOWS.length) {
-        return out(RTH, winIdx, 0, 1, 0, HOME, n0, dist3(state.pos, HOME), win.center, HOME);
+    if (status === STATUS_COMPLETED) {
+      const next = stepIdx + 1;
+      if (next >= STEPS.length) {
+        return makeOut(
+          PHASE_RTH, stepIdx, 0, 1,
+          HOME_STEP, HOME, dist3(state.pos, HOME),
+          step.center, HOME,
+        );
       }
-      const nextWin = WINDOWS[next];
-      return out(NAVIGATE, next, 0, 1, 0, nextWin.center, nextWin.normal,
-                 dist3(state.pos, nextWin.center), win.center, nextWin.center);
+      return navigateStep(next, 0, state.pos);
     }
 
-    if (planeCrossed && !withinFrame) {
-      // Missed: crossed the gate plane but outside the frame. Return to the previous gate
-      // center (or HOME for the first gate) as a staging point, then retry this gate.
-      const recoveryCenter = entrySegStart(winIdx);
-      return out(MISSED, winIdx, 0, 1, 0, recoveryCenter, win.normal,
-                 dist3(state.pos, recoveryCenter), win.center, recoveryCenter);
+    if (status === STATUS_FAILED) {
+      const anchor = recoveryAnchor(stepIdx);
+      return makeOut(
+        PHASE_MISSED, stepIdx, 0, 1,
+        recoveryStep(stepIdx), anchor, dist3(state.pos, anchor),
+        step.center, anchor,
+      );
     }
 
-    return out(NAVIGATE, winIdx, ticks + 1, 1, currentSide, win.center, win.normal,
-               dist3(state.pos, win.center), segStart, win.center);
+    if (status === STATUS_RESTART) {
+      return navigateStep(stepIdx, 0, state.pos);
+    }
+
+    return navigateStep(stepIdx, ticks + 1, state.pos);
   }
 
-  if (phase === RTH) {
+  if (phase === PHASE_MISSED) {
+    const anchor = recoveryAnchor(stepIdx);
+    const d = dist3(state.pos, anchor);
+    if (d < RTH_THRESHOLD) {
+      return navigateStep(stepIdx, 0, state.pos);
+    }
+    return makeOut(
+      PHASE_MISSED, stepIdx, ticks + 1, 1,
+      recoveryStep(stepIdx), anchor, d,
+      STEPS[stepIdx].center, anchor,
+    );
+  }
+
+  if (phase === PHASE_RTH) {
     const d = dist3(state.pos, HOME);
     if (d < RTH_THRESHOLD) {
-      return out(LAND, 0, 0, 1, 0, LAND_PAD, n0, dist3(state.pos, LAND_PAD), HOME, LAND_PAD);
+      return makeOut(
+        PHASE_LAND, 0, 0, 1,
+        LAND_STEP, LAND_PAD, dist3(state.pos, LAND_PAD),
+        HOME, LAND_PAD,
+      );
     }
-    return out(RTH, winIdx, ticks + 1, 1, 0, HOME, n0, d,
-               WINDOWS[WINDOWS.length - 1].center, HOME);
+    return makeOut(
+      PHASE_RTH, stepIdx, ticks + 1, 1, HOME_STEP, HOME, d,
+      STEPS[STEPS.length - 1].center, HOME,
+    );
   }
 
-  if (phase === LAND) {
+  if (phase === PHASE_LAND) {
     const d = dist3(state.pos, LAND_PAD);
     if (state.pos.y < 0.3) {
-      return out(DISARMING, 0, 0, 0, 0, LAND_PAD, n0, d);
+      return makeOut(PHASE_DISARMING, 0, 0, 0, LAND_STEP, LAND_PAD, d);
     }
-    return out(LAND, 0, ticks + 1, 1, 0, LAND_PAD, n0, d, HOME, LAND_PAD);
+    return makeOut(PHASE_LAND, 0, ticks + 1, 1, LAND_STEP, LAND_PAD, d, HOME, LAND_PAD);
   }
 
-  if (phase === DISARMING) {
+  if (phase === PHASE_DISARMING) {
     if (ticks >= ARMING_TICKS) {
-      return out(DONE, 0, 0, 0, 0, LAND_PAD, n0, 0);
+      return makeOut(PHASE_DONE, 0, 0, 0, LAND_STEP, LAND_PAD, 0);
     }
-    return out(DISARMING, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0);
+    return makeOut(PHASE_DISARMING, 0, ticks + 1, 0, LAND_STEP, LAND_PAD, 0);
   }
 
-  if (phase === MISSED) {
-    const recoveryCenter = entrySegStart(winIdx);
-    const d = dist3(state.pos, recoveryCenter);
-    if (d < RTH_THRESHOLD) {
-      // Reached the recovery point — re-attempt the missed gate.
-      const win = WINDOWS[winIdx];
-      return out(NAVIGATE, winIdx, 0, 1, 0, win.center, win.normal,
-                 dist3(state.pos, win.center), recoveryCenter, win.center);
-    }
-    return out(MISSED, winIdx, ticks + 1, 1, 0, recoveryCenter, WINDOWS[winIdx].normal, d);
-  }
-
-  // DONE — wait 20 ticks then restart
+  // PHASE_DONE — restart
   if (ticks >= 20) {
-    return out(ARMING, 0, 0, 0, 0, noWin, n0, 0);
+    return makeOut(PHASE_ARMING, 0, 0, 0, HOME_STEP, HOME, 0);
   }
-  return out(DONE, 0, ticks + 1, 0, 0, LAND_PAD, n0, 0);
+  return makeOut(PHASE_DONE, 0, ticks + 1, 0, LAND_STEP, LAND_PAD, 0);
 }

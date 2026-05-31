@@ -18,8 +18,8 @@ interface VehicleState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
-  mission: { phase: number; windowIdx: number };
-  planner: { carrot: Vec3 };
+  mission: { phase: number; stepIdx: number };
+  planner_window: { carrot: Vec3 };
   validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number; misses: number };
 }
 interface CombinedState {
@@ -53,9 +53,9 @@ const sceneHandler = composeScene(() => [
   trail(s => view(s).vehicles.a.pos, { color: 0x4488ff, opacity: 0.7 }),
   windowGate(
     s => ({
-      windowIdx: view(s).vehicles.a.mission.windowIdx,
+      windowIdx: view(s).vehicles.a.mission.stepIdx,
       phase:     view(s).vehicles.a.mission.phase,
-      carrot:    view(s).vehicles.a.planner.carrot,
+      carrot:    view(s).vehicles.a.planner_window.carrot,
     }),
     WINDOWS_A,
   ),
@@ -69,9 +69,9 @@ const sceneHandler = composeScene(() => [
   trail(s => view(s).vehicles.b.pos, { color: 0xff8800, opacity: 0.7 }),
   windowGate(
     s => ({
-      windowIdx: view(s).vehicles.b.mission.windowIdx,
+      windowIdx: view(s).vehicles.b.mission.stepIdx,
       phase:     view(s).vehicles.b.mission.phase,
-      carrot:    view(s).vehicles.b.planner.carrot,
+      carrot:    view(s).vehicles.b.planner_window.carrot,
     }),
     WINDOWS_B,
   ),

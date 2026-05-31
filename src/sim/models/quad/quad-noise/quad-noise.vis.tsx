@@ -16,7 +16,7 @@ interface QuadNoiseState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
-  mission: { phase: number; waypointIdx: number; target: Vec3 };
+  mission: { phase: number; stepIdx: number; target: Vec3 };
   wind: { fx: number; fz: number };
   validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number };
 }
@@ -38,7 +38,7 @@ const sceneHandler = composeScene(() => [
   }, { frontIndicator: true }),
   trail(s => view(s).pos),
   waypointTracker(
-    s => ({ waypointIdx: view(s).mission.waypointIdx, target: view(s).mission.target, phase: view(s).mission.phase }),
+    s => ({ waypointIdx: view(s).mission.stepIdx, target: view(s).mission.target, phase: view(s).mission.phase }),
     { addWhen: s => Math.round(view(s).mission.phase) === 2, doneColor: 0x446644 },
   ),
   windSock(s => view(s).wind),
