@@ -61,6 +61,16 @@ export function renderLifecycleSource(values: QuadConsts, route: StepDef[]): str
 // validator + simTest each tick and stops the sim at K.simDuration ticks.
 // afterSim() finalizes the pass/fail verdict.
 
+export function beforeSim() {
+  const CRUISE_ALT = ${fmt(values.CRUISE_ALT)};
+  return {
+${scalarLines}
+    steps: [
+${stepLines}
+    ],
+  };
+}
+
 function distPointToSegment(p, a, b) {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
   const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
@@ -86,16 +96,6 @@ function simTest(state) {
     judgedAccErr < K.ACC_ERR_LIMIT,   // accumulated cross-track error (IAE)
   ];
   return { passed: checks.filter(Boolean).length, total: checks.length };
-}
-
-export function beforeSim() {
-  const CRUISE_ALT = ${fmt(values.CRUISE_ALT)};
-  return {
-${scalarLines}
-    steps: [
-${stepLines}
-    ],
-  };
 }
 
 export function before(state) {
