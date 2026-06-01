@@ -22,24 +22,28 @@ import type { ScenePlugin } from '../scenePlugin';
 export type InfoOverlayCorner =
   | 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
 
+// Row callbacks receive the dynamic `state`, the current `tick`, and the static
+// slice `staticState` (e.g. K). `tick`/`staticState` let rows display values
+// against constants/limits that live outside per-tick state.
 export type InfoOverlayRow =
   | {
       label: string;
-      display: (state: ModelState) => string;
+      display: (state: ModelState, tick: number, staticState: ModelState) => string;
       plot?: false;
       // Optional dynamic label color, evaluated each tick. Overrides the
       // default static color. Useful for pass/fail indicators.
-      labelColor?: (state: ModelState) => string;
+      labelColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
     }
   | {
       label: string;
-      display: (state: ModelState) => string;
+      display: (state: ModelState, tick: number, staticState: ModelState) => string;
       plot: true;
-      // Numeric series sampled from each history tick.
+      // Numeric series sampled from each history tick. (history entries carry no
+      // static slice, so `value` gets only the state.)
       value: (state: ModelState) => number;
       // Used for both label color and plot stroke color.
       color: string;
-      labelColor?: (state: ModelState) => string;
+      labelColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
     };
 
 export interface InfoOverlayOptions {
@@ -232,16 +236,16 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
       container.appendChild(root);
       if (canvas) resizeCanvas();
     },
-    update(state, tick, history) {
+    update(state, tick, history, staticState) {
       if (!root) return;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const text = row.display(state);
+        const text = row.display(state, tick, staticState);
         if (valueCells[i].textContent !== text) {
           valueCells[i].textContent = text;
         }
         if (row.labelColor) {
-          const color = row.labelColor(state);
+          const color = row.labelColor(state, tick, staticState);
           if (labelCells[i].style.color !== color) {
             labelCells[i].style.color = color;
           }

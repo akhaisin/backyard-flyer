@@ -59,19 +59,69 @@ export interface BlockConfig {
   // `state.inputs.<sourceId>` and writable via `setInput`. Defaults of `null`
   // signal "use block-internal default" to the block's code.
   inputs?: ModelState;
+  // Static blocks run ONCE before the tick loop (and on reset / when staged code
+  // is applied), never per tick. Their output populates the static slice, which
+  // every tick's block sees merged into its input but which is NOT duplicated
+  // into per-tick history. `staticKeys` declares which top-level state keys this
+  // block contributes to that slice (e.g. ['K']). A non-static block ignores
+  // both fields.
+  static?: boolean;
+  staticKeys?: string[];
+  // Optional lifecycle hooks. A block may export extra fns beyond `exportName`
+  // (its source compiles them all together) that the engine calls around the
+  // tick loop and on stop. The quad `lifecycle` block uses this: `exportName` is
+  // `beforeSim` (the static consts bag), plus `before`/`after` per-tick hooks and
+  // an `afterSim` stop hook. See LifecycleConfig.
+  lifecycle?: LifecycleConfig;
+}
+
+// A lifecycle fn may signal a stop by returning false (used by `after`). It
+// receives the dynamic state with the static slice (e.g. `K`) and the current
+// tick index (`tick`) merged in, and returns the mutated state (or false). The
+// engine strips the injected static keys + `tick` before persisting, so a hook
+// can read `K`/`tick` freely without leaking them into history.
+export type HookFn = (local: ModelState) => ModelState | false;
+
+// A lifecycle hook: an export name plus its compiled-from-source default fn.
+// When the lifecycle block's source is edited, the engine recompiles this hook's
+// `exportName` from the shared source and swaps the fn in.
+export interface LifecycleHook {
+  exportName: string;
+  defaultFn: HookFn;
+}
+
+export interface LifecycleConfig {
+  // Runs each tick BEFORE the block loop.
+  before?: LifecycleHook;
+  // Runs each tick AFTER the block loop. Returning `false` stops the sim (the
+  // tick is still committed) and triggers afterSim.
+  after?: LifecycleHook;
+  // Runs once when the sim stops (natural end, manual stop, or error). Its
+  // return is ignored (used for teardown/summary).
+  afterSim?: LifecycleHook;
 }
 
 export interface SceneHandler {
   init(scene: Scene, camera: PerspectiveCamera, container: HTMLElement): void;
-  update(state: ModelState, tick: number, history: ModelState[]): void;
+  // `staticState` is the run's static slice (e.g. { K }). It is NOT in `state`
+  // or `history` — handlers that render static data (labels, gates sized by a
+  // const) read it from here. Stable for the whole run.
+  update(state: ModelState, tick: number, history: ModelState[], staticState: ModelState): void;
   dispose(scene: Scene): void;
 }
 
 export interface ChartSeries {
+  // Dynamic value path, resolved against each `state`/`history[i]`.
   var?: string;
+  // Static value path, resolved against the run's static slice (e.g.
+  // 'K.MAX_THRUST_N'). Plotted as a flat line across the time axis. Mutually
+  // exclusive with `var`/`fn`.
+  staticVar?: string;
   label: string;
   color: string;
-  fn?: (state: ModelState) => number;
+  // `staticState` is the run's static slice — lets a series combine dynamic and
+  // const data (e.g. normalize position by a const altitude).
+  fn?: (state: ModelState, staticState: ModelState) => number;
 }
 
 export interface ChartConfig {

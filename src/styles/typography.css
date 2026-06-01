@@ -57,6 +57,23 @@
   margin: 2rem 0;
 }
 
+.chapter-content table {
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.9375rem;
+}
+
+/* Bordered cells. border-collapse merges adjacent borders into single lines. */
+.chapter-content th,
+.chapter-content td {
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.chapter-content thead th { background: var(--color-bg-elevated); }
+
 /* Keep the first column on one line so it sets the column to its natural text
  * width instead of wrapping. Override with a more specific rule per-table if
  * a wrappable first column is ever needed. */

@@ -6,7 +6,9 @@ export interface ScenePlugin {
   // render HTML overlays (e.g. infoOverlay) attach into it. THREE-only plugins
   // can ignore it.
   init(scene: Scene, camera: PerspectiveCamera, container: HTMLElement): void;
-  update(state: ModelState, tick: number, history: ModelState[]): void;
+  // `staticState` is the run's static slice (e.g. { K }); not part of `state`/
+  // `history`. Optional in the param list so plugins that ignore it stay terse.
+  update(state: ModelState, tick: number, history: ModelState[], staticState: ModelState): void;
   dispose(scene: Scene): void;
 }
 
@@ -15,7 +17,7 @@ export function composeScene(factory: () => ScenePlugin[]): () => SceneHandler {
     const plugins = factory();
     return {
       init: (scene, camera, container) => plugins.forEach(p => p.init(scene, camera, container)),
-      update: (state, tick, history) => plugins.forEach(p => p.update(state, tick, history)),
+      update: (state, tick, history, staticState) => plugins.forEach(p => p.update(state, tick, history, staticState)),
       dispose: (scene) => plugins.forEach(p => p.dispose(scene)),
     };
   };

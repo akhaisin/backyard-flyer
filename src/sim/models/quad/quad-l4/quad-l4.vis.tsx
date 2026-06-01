@@ -17,9 +17,17 @@ interface QuadL4State {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   mission: { phase: number; stepIdx: number; target: Vec3 };
-  validator: { lapsTotal: number; lapErr: number; avgErr: number; currentErr: number; pass: number };
+  validator: { lapsTotal: number; currentErr: number; accErr: number; passCount: number; passTotal: number; pass: number };
 }
 const view = (s: ModelState): QuadL4State => s as unknown as QuadL4State;
+
+// Read a numeric constant from the static slice. The overlay's 3rd arg is the
+// whole static slice `{ K: {...} }`, so unwrap `.K` before indexing.
+const num = (staticState: ModelState, key: string): number => {
+  const K = staticState.K as ModelState | undefined;
+  const v = K?.[key];
+  return typeof v === 'number' ? v : 0;
+};
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
 
@@ -46,17 +54,31 @@ const sceneHandler = composeScene(() => [
   infoOverlay({
     corner: 'bottom-left',
     rows: [
-      { label: 'Total laps',  display: s => String(Math.round(view(s).validator.lapsTotal)) },
+      // Each criterion row shows current / limit, with the limit pulled from the
+      // static slice K so it stays in sync with the lifecycle's pass conditions.
+      { label: 'Total laps',
+        display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}` },
       { label: 'Current err',
         display: s => `${view(s).validator.currentErr.toFixed(3)} m`,
         plot: true,
         value: s => view(s).validator.currentErr,
         color: '#ffaa44' },
-      { label: 'Lap error',   display: s => `${view(s).validator.lapErr.toFixed(3)} m` },
-      { label: 'Avg error',   display: s => `${view(s).validator.avgErr.toFixed(3)} m` },
+      { label: 'Acc error',
+        display: (s, _t, K) => `${view(s).validator.accErr.toFixed(0)}/${num(K, 'ACC_ERR_LIMIT')}` },
+      { label: 'Duration',
+        display: (_s, tick, K) => `${tick}/${num(K, 'MAX_TICKS')}` },
       { label: 'Pass',
-        display: s => view(s).validator.pass ? 'PASS' : 'FAIL',
-        labelColor: s => view(s).validator.pass ? '#44dd66' : '#ff4444' },
+        // While running (pass = -1) show live X/N; after afterSim's verdict
+        // append PASS/FAIL.
+        display: s => {
+          const v = view(s).validator;
+          const count = `${Math.round(v.passCount)}/${Math.round(v.passTotal)}`;
+          return v.pass < 0 ? count : `${count} ${v.pass ? 'PASS' : 'FAIL'}`;
+        },
+        labelColor: s => {
+          const p = view(s).validator.pass;
+          return p < 0 ? '#cccc44' : (p ? '#44dd66' : '#ff4444');
+        } },
     ],
   }),
 ]);

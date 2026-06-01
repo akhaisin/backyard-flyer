@@ -63,11 +63,20 @@ The same mission as L2, but the drone now rotates to face the direction it is fl
 
 ---
 
-## [Quad L4 — restructured mission, per-waypoint planner](#Backyard-Flyer/quad-l4)
+## [Quad L4 — the reference architecture ⭐](#Backyard-Flyer/quad-l4)
 
-The same 4-waypoint rectangle as L3, but the blocks are repartitioned along the lines used by the racing models. The mission becomes a pure phase/step sequencer that does not know how to check waypoint completion — that and the carrot, yaw setpoint, and rate-PID cascade move into a dedicated `planner_wp` and `navigator_wp` pair. The flight controller becomes rate-only `fc_acro` driven by an AETR stick bus. A `pass`/`fail` validator overlay turns the model into a regression test for tuning changes.
+The same 4-waypoint rectangle as L3, but rebuilt into the structure **every model after it inherits**. If you read one model closely, read this one — the later models add disturbances and gates *on top of* this skeleton rather than reinventing it.
 
-**What it introduces:** mission/planner separation by step type, single-tick `stepStatus` dispatch, the AETR stick interface, rate-only acro flight controller, sticky pass/fail acceptance check.
+Four things change at once, and they are the reason L4 is the recommended starting point:
+
+- **A shared block library.** The flight stack (`mission`, `planner_wp`, `navigator_wp`, `fc_acro`, `hw`, `world`) no longer lives inside the model — it lives in a reusable `lib/quad` that each model imports. The model file becomes mostly wiring.
+- **A static portion of the state bus.** Tunable constants (gains, limits, frame geometry) and the mission route are frozen into `state.K` once before the run, instead of being duplicated into every tick of history. Blocks read `state.K.*`; the values are immutable to them.
+- **A lifecycle block.** `beforeSim`/`before`/`after`/`afterSim` hooks own setup and teardown. The cross-track validator moves out of its own block and into the `after` hook, and `afterSim` finalizes a verdict when the run ends.
+- **A multi-criteria pass/fail test.** Instead of one sticky flag, the model checks several conditions — laps completed, ran within the tick budget, lap error and average error under their limits — and the **infoOverlay reports the live score (e.g. `3/4`) and a final PASS/FAIL**.
+
+The flight itself is unchanged from L3. As before, mission is a pure phase/step sequencer, the `planner_wp + navigator_wp` pair owns everything waypoint-specific, and `fc_acro` is a rate-only controller driven by an AETR stick bus.
+
+**What it introduces:** the shared block library, the static `state.K` constants slice, the lifecycle block (setup/teardown + validation hooks), multi-criteria pass/fail testing surfaced in the overlay, and mission/planner separation by step type.
 
 ---
 

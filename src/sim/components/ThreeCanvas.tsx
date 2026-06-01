@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { subscribe, getState, getTick, getHistory } from '../engine/engine';
+import { subscribe, getState, getTick, getHistory, getStatic } from '../engine/engine';
 import { useSimVis } from './SimVisContext';
 import type { SceneHandler } from '../engine/types';
 
@@ -45,7 +45,7 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
     const handler = sceneHandler();
     handlerRef.current = handler;
     handler.init(scene, camera, el);
-    handler.update(getState(simId), getTick(simId), getHistory(simId));
+    handler.update(getState(simId), getTick(simId), getHistory(simId), getStatic(simId));
 
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate);
@@ -81,7 +81,7 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
   useEffect(() => {
     const unsub = subscribe(simId, (state, tick) => {
       if (rewindTickRef.current === null && sceneRef.current) {
-        handlerRef.current?.update(state, tick, getHistory(simId));
+        handlerRef.current?.update(state, tick, getHistory(simId), getStatic(simId));
       }
     });
     return unsub;
@@ -96,12 +96,12 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
     if (rewindTick !== null) {
       const history = getHistory(simId);
       if (history[rewindTick]) {
-        handlerRef.current?.update(history[rewindTick], rewindTick, history);
+        handlerRef.current?.update(history[rewindTick], rewindTick, history, getStatic(simId));
       }
     } else if (prev !== null) {
       const history = getHistory(simId);
       if (history.length > 0) {
-        handlerRef.current?.update(history[history.length - 1], history.length, history);
+        handlerRef.current?.update(history[history.length - 1], history.length, history, getStatic(simId));
       }
     }
   }, [rewindTick, simId]);
@@ -117,7 +117,7 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
     if (!el) return;
     handler.dispose(scene);
     handler.init(scene, camera, el);
-    handler.update(getState(simId), 0, []);
+    handler.update(getState(simId), 0, [], getStatic(simId));
   }, [resetCount, simId]);
 
   return <div ref={containerRef} className="sim-vis__canvas" />;

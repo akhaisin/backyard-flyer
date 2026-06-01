@@ -54,19 +54,21 @@ export type QuadConsts = {
   // ── hw (motor spool-up) ──
   THRUST_RATE_N_PER_S: number;
 
-  // ── planner_wp ──
-  LOOKAHEAD: number;
-  MAX_YAW_RATE: number;
-  YAW_FREEZE_RANGE: number;
-
-  // ── validator ──
-  PASS_AVG_ERR_LIMIT: number;
-
   // ── mission ──
   CRUISE_ALT: number;
   ARMING_TICKS: number;
   RTH_THRESHOLD: number;
   LAND_THRESHOLD: number;
+
+  // ── simulation lifecycle + pass/fail criteria (lifecycle.after → simTest) ──
+  // Run length in ticks: lifecycle.after stops the sim once tick >= simDuration.
+  simDuration: number;
+  // Pass criteria. MAX_TICKS is the duration pass-condition (tick <= MAX_TICKS),
+  // kept distinct from simDuration (the hard stop) so the budget can be tighter
+  // than the run length.
+  MAX_TICKS: number;
+  REQUIRED_LAPS: number;   // completed laps needed to pass (lapsTotal >= this)
+  ACC_ERR_LIMIT: number;   // accumulated cross-track error (IAE) must be < this
 };
 
 // The full per-instance params bag published to state.K: shared scalar tunables
@@ -102,14 +104,17 @@ export const QUAD_DEFAULTS: QuadConsts = {
 
   THRUST_RATE_N_PER_S: 40,
 
-  LOOKAHEAD: 3.0,
-  MAX_YAW_RATE: Math.PI / 2,
-  YAW_FREEZE_RANGE: 2.0,
-
-  PASS_AVG_ERR_LIMIT: 2.0,
-
   CRUISE_ALT: 5,
   ARMING_TICKS: 20,
   RTH_THRESHOLD: 1.2,
   LAND_THRESHOLD: 0.3,
+
+  // Calibrated headless against the simplified planner: ~370 ticks/lap and
+  // ~570 accumulated XTE/lap. A clean 5-lap run finishes near ~1800 ticks /
+  // ~2300 accErr. The run early-stops when REQUIRED_LAPS is reached, so the
+  // final tick reflects how long the laps took.
+  REQUIRED_LAPS: 5,
+  MAX_TICKS: 2200,       // duration pass-budget: 5 laps should finish under this
+  ACC_ERR_LIMIT: 3000,   // accumulated XTE (IAE) ceiling (clean run ~2300)
+  simDuration: 4000,     // hard cap — only fires if the run never makes 5 laps
 };

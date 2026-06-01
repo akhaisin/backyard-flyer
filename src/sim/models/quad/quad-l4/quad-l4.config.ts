@@ -10,9 +10,7 @@ import hwCode from '../../lib/quad/hw.ts?raw';
 import { hw } from '../../lib/quad/hw';
 import worldCode from '../../lib/quad/world.ts?raw';
 import { world } from '../../lib/quad/world';
-import validatorCode from '../../lib/quad/validator.ts?raw';
-import { validator } from '../../lib/quad/validator';
-import { makeParamsBlock } from '../../lib/quad/params';
+import { makeLifecycleBlock } from '../../lib/quad/lifecycle';
 import { QUAD_DEFAULTS } from '../../lib/quad/consts';
 import type { QuadConsts, StepDef } from '../../lib/quad/consts';
 import QuadL4Vis from './quad-l4.vis';
@@ -23,7 +21,7 @@ const vec0    = { x: 0, y: 0, z: 0 };
 
 export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
   // The mission route — model-specific data, published into the params bag so
-  // it's config-driven and editable in the params block UI (state.K.steps).
+  // it's config-driven and editable in the lifecycle block UI (state.K.steps).
   const route: StepDef[] = [
     { pos: { x: 8, y: 5, z: 0 }, threshold: 1.2 },
     { pos: { x: 8, y: 5, z: 8 }, threshold: 1.2 },
@@ -34,7 +32,8 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
   modelId: 'quad/quad-l4',
   tickIntervalMs: 50,
   initialState: {
-    K:          {},
+    // K is provided by the static `params` block (engine static slice), not
+    // dynamic state — so it's not duplicated into per-tick history.
     pos:        { ...vec0 },
     vel:        { ...vec0 },
     acc:        { ...vec0 },
@@ -61,19 +60,17 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
     },
     planner_wp: { carrot: { ...vec0 }, yawSetpoint: 0, stepStatus: 0 },
     validator: {
-      prevPhase:      0,
-      lapsTotal:      0,
-      lapErrSum:      0,
-      lapErrTicks:    0,
-      totalLapErrSum: 0,
-      lapErr:         0,
-      avgErr:         0,
-      currentErr:     0,
-      pass:           1,
+      prevPhase:  0,
+      lapsTotal:  0,
+      currentErr: 0,
+      accErr:     0,
+      passCount:  0,
+      passTotal:  3,
+      pass:      -1,   // -1 = still running; afterSim sets 1 (pass) / 0 (fail)
     },
   },
   blocks: [
-    makeParamsBlock(QUAD_DEFAULTS, route, overrides),
+    makeLifecycleBlock(QUAD_DEFAULTS, route, overrides),
     {
       sourceId: 'mission',
       exportName: 'mission',
@@ -116,7 +113,6 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
         armed:       (s.mission as ModelState).armed,
         phase:       (s.mission as ModelState).phase,
         yawSetpoint: (s.planner_wp as ModelState).yawSetpoint,
-        K:           s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -209,51 +205,16 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
       }),
       tickFrequency: 1,
     },
-    {
-      sourceId: 'validator',
-      exportName: 'validator',
-      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
-      defaultCode: validatorCode,
-      mapStateIn: (s) => ({
-        pos:            s.pos,
-        phase:          (s.mission as ModelState).phase,
-        segStart:       (s.mission as ModelState).segStart,
-        segEnd:         (s.mission as ModelState).segEnd,
-        prevPhase:      (s.validator as ModelState).prevPhase,
-        lapsTotal:      (s.validator as ModelState).lapsTotal,
-        lapErrSum:      (s.validator as ModelState).lapErrSum,
-        lapErrTicks:    (s.validator as ModelState).lapErrTicks,
-        totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
-        pass:           (s.validator as ModelState).pass,
-        K:              s.K,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        validator: {
-          ...(s.validator as ModelState),
-          prevPhase:      out.prevPhase,
-          lapsTotal:      out.lapsTotal,
-          lapErrSum:      out.lapErrSum,
-          lapErrTicks:    out.lapErrTicks,
-          totalLapErrSum: out.totalLapErrSum,
-          lapErr:         out.lapErr,
-          avgErr:         out.avgErr,
-          currentErr:     out.currentErr,
-          pass:           out.pass,
-        },
-      }),
-      tickFrequency: 1,
-    },
+    // validator now lives in the lifecycle block's after() hook.
   ],
   vis: QuadL4Vis,
   blocksDiagram: [
+    { from: 'lifecycle',    to: 'mission',      label: 'K'          },
     { from: 'world',        to: 'mission',      label: 'pos'        },
     { from: 'world',        to: 'planner_wp',   label: 'pos'        },
     { from: 'world',        to: 'navigator_wp', label: 'state'      },
     { from: 'world',        to: 'fc_acro',      label: 'rates'      },
-    { from: 'world',        to: 'validator',    label: 'pos'        },
     { from: 'mission',      to: 'planner_wp',   label: 'step'       },
-    { from: 'mission',      to: 'validator',    label: 'phase+seg'  },
     { from: 'planner_wp',   to: 'navigator_wp', label: 'carrot+yaw' },
     { from: 'planner_wp',   to: 'mission',      label: 'status'     },
     { from: 'navigator_wp', to: 'fc_acro',      label: 'aetr'       },
@@ -323,11 +284,10 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
       ],
     },
     {
-      label: 'Track error (m)',
+      label: 'Track error',
       series: [
-        { var: 'validator.currentErr', label: 'current err', color: '#ffaa44' },
-        { var: 'validator.lapErr',     label: 'lap err',     color: '#ff8888' },
-        { var: 'validator.avgErr',     label: 'avg err',     color: '#44aaff' },
+        { var: 'validator.currentErr', label: 'current err (m)', color: '#ffaa44' },
+        { var: 'validator.accErr',     label: 'accumulated',     color: '#44aaff' },
       ],
     },
   ],

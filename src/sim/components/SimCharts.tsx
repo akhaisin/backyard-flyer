@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
-import { subscribe, getHistory } from '../engine/engine';
+import { subscribe, getHistory, getStatic } from '../engine/engine';
 import type { SimContext } from '../useSim';
 import { useResolvedSimContext } from '../useResolvedSimContext';
-import { getPath, type ChartConfig } from '../engine/types';
+import { getPath, type ChartConfig, type ChartSeries, type ModelState } from '../engine/types';
 import './sim.css';
 
 // Pairs of solid/light colors cycling per series slot across charts
@@ -93,9 +93,17 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     };
 
     const history = getHistory(simId);
+    // Static slice (e.g. { K }) lives outside history; resolve staticVar/fn
+    // against it so a const plots as a flat line, identical live vs. over history.
+    const evalSeries = (s: ChartSeries, h: ModelState, stat: ModelState): number => {
+      if (s.fn) return s.fn(h, stat);
+      if (s.staticVar) return getPath(stat, s.staticVar);
+      return getPath(h, s.var ?? '');
+    };
+    const stat = getStatic(simId);
     dataRef.current = [
       history.map((_, i) => i),
-      ...chart.series.map(s => history.map(h => s.fn ? s.fn(h) : getPath(h, s.var ?? ''))),
+      ...chart.series.map(s => history.map(h => evalSeries(s, h, stat))),
     ];
 
     plotRef.current?.destroy();
@@ -107,9 +115,12 @@ export function SingleChart({ simId, chart }: SingleChartProps) {
     ro.observe(el);
 
     const unsub = subscribe(simId, (state, tick) => {
+      // Re-read the static slice each tick (O(1)) so a staged retune + restart
+      // is reflected without re-running this effect.
+      const liveStat = getStatic(simId);
       dataRef.current[0].push(tick);
       chart.series.forEach((s, i) => {
-        dataRef.current[i + 1].push(s.fn ? s.fn(state) : getPath(state, s.var ?? ''));
+        dataRef.current[i + 1].push(evalSeries(s, state, liveStat));
       });
       plotRef.current?.setData(dataRef.current as uPlot.AlignedData);
     });

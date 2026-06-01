@@ -71,11 +71,29 @@ export interface Connection { from: string; to: string; vars: string[]; label?: 
 
 export const connKey = (from: string, to: string) => `${from}->${to}`;
 
+// Reproduce the engine's static slice (e.g. { K }) so dataflow analysis runs
+// blocks against the same state they see at tick time. Without this, any block
+// that reads `state.K.*` throws in getWritePaths (K is absent from initialState
+// since the static-slice change), losing every edge that originates from it.
+function computeStaticSlice(config: ModelConfig): ModelState {
+  let slice: ModelState = {};
+  for (const block of config.blocks) {
+    if (!block.static) continue;
+    try {
+      const out = block.defaultFn(block.mapStateIn(slice));
+      slice = block.mapStateOut(out, slice);
+    } catch { /* ignore — best-effort for diagram only */ }
+  }
+  return slice;
+}
+
 export function analyzeConnections(config: ModelConfig): Connection[] {
+  // Static keys are authoritative (match engine's `{ ...state, ...staticState }`).
+  const analysisState: ModelState = { ...config.initialState, ...computeStaticSlice(config) };
   const infos = config.blocks.map(b => ({
     id:     b.sourceId,
-    writes: getWritePaths(b, config.initialState),
-    reads:  getReadPaths(b,  config.initialState),
+    writes: getWritePaths(b, analysisState),
+    reads:  getReadPaths(b,  analysisState),
   }));
   const out: Connection[] = [];
   for (let i = 0; i < infos.length; i++)
