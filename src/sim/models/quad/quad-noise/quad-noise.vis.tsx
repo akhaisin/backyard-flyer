@@ -49,6 +49,8 @@ function maxWindForce(staticState: ModelState): number {
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
 const PASS_GREEN = '#44dd66';
+const FAIL_RED = '#ff4444';
+const NEUTRAL_TEXT = 'rgba(255, 255, 255, 0.85)';
 
 const sceneHandler = composeScene(() => [
   baseScene({ bg: 0x080810, camera: { pos: [14, 14, 20], lookAt: [4, 4, 4] } }),
@@ -73,9 +75,12 @@ const sceneHandler = composeScene(() => [
     rows: [
       { label: 'Total laps',
         display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}`,
-        valueColor: (s, _t, K) => Math.round(view(s).validator.lapsTotal) >= num(K, 'REQUIRED_LAPS')
-          ? PASS_GREEN
-          : 'rgba(255, 255, 255, 0.85)' },
+        valueColor: (s, tick, K) => {
+          const v = view(s).validator;
+          const passed = Math.round(v.lapsTotal) >= num(K, 'REQUIRED_LAPS');
+          const timedOut = tick > num(K, 'MAX_TICKS');
+          return passed ? PASS_GREEN : ((timedOut || v.pass >= 0) ? FAIL_RED : NEUTRAL_TEXT);
+        } },
       { label: 'Current err',
         display: s => `${view(s).validator.currentErr.toFixed(3)} m`,
         plot: true,
@@ -89,9 +94,8 @@ const sceneHandler = composeScene(() => [
         },
         valueColor: (s, _t, K) => {
           const v = view(s).validator;
-          return v.completionAccErr >= 0 && v.completionAccErr < num(K, 'ACC_ERR_LIMIT')
-            ? PASS_GREEN
-            : 'rgba(255, 255, 255, 0.85)';
+          const accErr = v.completionAccErr >= 0 ? v.completionAccErr : v.accErr;
+          return accErr < num(K, 'ACC_ERR_LIMIT') ? PASS_GREEN : FAIL_RED;
         } },
       { label: 'Duration',
         display: (s, tick, K) => {
@@ -99,11 +103,10 @@ const sceneHandler = composeScene(() => [
           const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
           return `${judgedTick}/${num(K, 'MAX_TICKS')}`;
         },
-        valueColor: (s, _t, K) => {
+        valueColor: (s, tick, K) => {
           const v = view(s).validator;
-          return v.completionTick >= 0 && v.completionTick <= num(K, 'MAX_TICKS')
-            ? PASS_GREEN
-            : 'rgba(255, 255, 255, 0.85)';
+          const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
+          return judgedTick <= num(K, 'MAX_TICKS') ? PASS_GREEN : FAIL_RED;
         } },
       { label: 'Wind',
         display: s => `${windStrength(s).toFixed(2)} N`,
