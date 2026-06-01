@@ -18,6 +18,13 @@ Educational app for learning quadcopter control fundamentals through articles an
 | Testing | Vitest 4 + jsdom |
 | Available (unused) | Zustand 5, json-edit-react 1 — installed, not yet wired up |
 
+## Current Product Shape
+
+- The app is a hash-routed reading + simulation workspace: each chapter page can expose `Chapter`, `Source`, `Blocks`, and `Visualization` tabs for the same underlying sim instance.
+- Quadcopter models after `quad-l4` are built around a shared `src/sim/models/lib/quad/` block library. Model configs mostly wire shared blocks together and provide route/config overrides.
+- `quad-noise` now uses the same shared quad stack as `quad-l4`, including shared `wind`, `noise`, `world`, and lifecycle validation; the model-specific logic is mostly configuration and visualization.
+- Sim instances persist across tab switches on the same chapter. Navigating to a different chapter pauses the previous chapter's sim so only one chapter is active at a time without firing `afterSim`.
+
 ## Commands
 
 ```bash
@@ -49,6 +56,7 @@ src/
     pages.astro                     # SPA shell — server-renders all MDX, mounts PageShell island
 
   components/
+    BlocksTab.tsx                   # Blocks tab — block graph / wiring view when page has a sim
     PageShell.tsx                   # hash router, three-panel layout, tab bar
     CollapsibleSidePanel.tsx        # IDE-style collapsible panel (left / right / bottom positions)
     CollapsibleSidePanel.module.css
@@ -60,7 +68,7 @@ src/
   sim/
     engine/
       types.ts                      # ModelState, BlockFn, BlockConfig, SceneHandler, ModelConfig
-      engine.ts                     # core engine — init/start/stop/reset/stage/revert/subscribe
+      engine.ts                     # core engine — init/start/pause/stop/reset/stage/revert/subscribe
       stripTypes.ts                 # regex TS→JS stripper used by stageBlock eval
     models/
       inc/
@@ -78,7 +86,8 @@ src/
     useSim.ts                       # resolveSimContext(simId, modelId?) — looks up registry, inits engine
     components/
       SimSource.tsx                 # tabbed code editor with stage/revert per block
-      SimVis.tsx                    # Three.js canvas + rewind slider + start/stop/reset controls
+      SimVis.tsx                    # Three.js canvas + rewind slider + start/pause/stop/reset controls
+      SimBlocks.tsx                 # model block graph view used by BlocksTab
       SimCharts.tsx                 # uPlot time-series charts driven by varIds, chartId, or config
       SimStatePanel.tsx             # live flat key→value display of current model state
       sim.css                       # styles for all sim components
@@ -99,15 +108,16 @@ All routing is hash-based, handled client-side by `PageShell.tsx`.
 | `/pages/#Overview` | `Overview.mdx` | Chapter |
 | `/pages/#sim-demo/floater` | `sim-demo/floater.mdx` | Chapter |
 | `/pages/#sim-demo/floater?view=src` | same | Source |
+| `/pages/#sim-demo/floater?view=blocks` | same | Blocks |
 | `/pages/#sim-demo/floater?view=vis` | same | Visualization |
 
-`PageShell` parses `window.location.hash` on load and every `hashchange`. Format: `#<page-id>[?view=src|vis]`.
+`PageShell` parses `window.location.hash` on load and every `hashchange`. Format: `#<page-id>[?view=src|blocks|vis]`.
 
 ## Layout Architecture
 
 ```
 ┌─────────────┬────────────────────────────────────┬───────────────┐
-│ Left        │ [Chapter] [Source] [Visualization] │ Right         │
+│ Left        │ [Chapter] [Source] [Blocks] [Visualization] │ Right         │
 │ (TOC)       ├────────────────────────────────────┤ (State)       │
 │             │                                    │               │
 │  collapsed  │   Tab content                      │  collapsed    │
@@ -160,7 +170,7 @@ Sorting is a two-key tuple `[folderOrder, pageOrder]` computed in `pages.astro`.
 
 ## Sim Components in MDX Pages
 
-The four components in `src/sim/components/` are designed to be used directly in `.mdx` files without any props. They resolve their simulation context automatically via DOM attributes injected by `pages.astro`.
+The primary sim components in `src/sim/components/` are designed to be used directly in `.mdx` files without any props. They resolve their simulation context automatically via DOM attributes injected by `pages.astro`.
 
 ### Context Resolution
 
@@ -180,7 +190,7 @@ All three resolution paths share the same engine instance identified by `simId`.
 
 ### SimVis
 
-Renders the Three.js canvas with rewind slider and Start/Stop/Reset controls.
+Renders the Three.js canvas with rewind slider and Start/Pause/Stop/Reset controls.
 
 ```mdx
 <SimVis client:only="react" />
@@ -232,6 +242,7 @@ Live flat key→value table of the current model state. Used in the right panel 
 
 - All components render a zero-size sentinel div while context is resolving, then re-render with the real content — no loading flicker visible to the user
 - All components subscribe to the same engine instance; starting the sim in the Chapter tab and switching to the Vis tab shows the same running simulation
+- Switching tabs on the same chapter must not stop the sim; changing chapters pauses the previous chapter's sim
 
 ## Simulation Engine
 
@@ -242,6 +253,7 @@ Live flat key→value table of the current model state. Used in the right panel 
 - **BlockConfig**: declares one block — `sourceId`, `exportName`, `defaultFn`, `defaultCode`, `mapStateIn`, `mapStateOut`, `tickFrequency`
 - **ModelConfig**: complete model definition — `modelId`, `tickIntervalMs`, `initialState`, `blocks[]`, `sceneHandler`, `charts[]`
 - One engine *instance* per `simId`; `initSim` is idempotent
+- Engine run state is explicit: `stopped`, `running`, or `paused`
 
 ### Tick Loop
 
@@ -260,7 +272,7 @@ The Source tab lets the user edit any block's TypeScript source. Pressing **Stag
 4. On success: stores the compiled fn in `pendingFns`, saves raw source to `localStorage`
 5. On error: returns `'Compilation failed — check syntax or function name'`
 
-Staged changes are applied (and `initialState` reset) the next time **Start** is pressed. While the sim is running, Start becomes **Apply & Start**.
+Staged changes are applied (and `initialState` reset) the next time **Start** is pressed from the stopped state. The engine now distinguishes `running`, `paused`, and `stopped`; chapter navigation pauses a sim, while an explicit Stop finalizes the run and fires `afterSim`.
 
 **Revert** removes the localStorage entry and restores `defaultFn`.
 
@@ -312,11 +324,12 @@ The scene builds waypoint markers dynamically: `ensureWaypoint(idx, x, y, z)` is
 
 ### Subscriptions
 
-The engine exposes three subscription channels (all return unsubscribe functions):
+The engine exposes status + state subscription channels (all return unsubscribe functions):
 
 ```typescript
 subscribe(simId, (state, tick) => void)       // fired every tick
 subscribeRunning(simId, (running: boolean) => void)
+subscribeStatus(simId, (status) => void)      // 'stopped' | 'running' | 'paused'
 subscribeError(simId, (error: Error | null) => void)
 ```
 
@@ -338,7 +351,7 @@ React components use these in `useEffect` to drive live updates.
 - [ ] 1. Hash-based routing — `parseHash`, `hashchange` listener, `navigate`/`switchView` callbacks, `pageId`/`view` state
 - [ ] 2. Host communication (iframe sync) — receiving `NAVIGATE_TO_HASH` and posting `HASH_CHANGED` back to the parent window
 - [ ] 3. DOM-based page content swapping — `ChapterContent` reads pre-rendered MDX from `#page-store` and moves DOM nodes in/out
-- [ ] 4. Tab bar rendering — the `Chapter / Source / Visualization` switcher UI
+- [ ] 4. Tab bar rendering — the `Chapter / Source / Blocks / Visualization` switcher UI
 - [ ] 5. Panel layout — the resizable 3-column + bottom-charts split using `react-resizable-panels`
 - [ ] 6. Sim context resolution — deriving `simId`/`modelId` from the current page and passing them down to tabs and side panels
 - [ ] 7. Overlay widgets — `MeflyNavReceiver` (dots menu), GitHub repo link button, help/tour button with `helpSeen` persistence
