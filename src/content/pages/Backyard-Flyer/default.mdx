@@ -80,13 +80,13 @@ The flight stack keeps the same overall architecture, but the waypoint path is s
 
 ---
 
-## [Quad Noise — wind and sensor noise](#Backyard-Flyer/quad-noise)
+## [Quad Noise — wind and sensor noise ⭐](#Backyard-Flyer/quad-noise)
 
-The same two-controller architecture as L2, but the environment now fights back. A `wind` block injects random horizontal gusts into the physics. A `noise` block corrupts every sensor channel with Gaussian measurement errors before the flight stack runs — the controllers never see the true state.
+Quad Noise now keeps the same canonical architecture as L4 and layers disturbances on top of it. The whole stack is shared: `lifecycle`, `mission`, `planner_wp`, `navigator_wp`, `fc_acro`, `hw`, `world`, plus shared `wind` and `noise` blocks. The controllers still fly the same waypoint mission structure, but now they do it through noisy sensors and under random gusts.
 
-`KI_POS` is nonzero here for the first time: without integral action, a sustained gust produces a steady-state position offset that PD alone cannot cancel. The mission loops indefinitely so the quad flies consecutive laps through changing wind conditions.
+This makes Quad Noise a good second recommended read alongside L4: L4 shows the clean reference architecture, and Quad Noise shows the same architecture under more realistic conditions. The lifecycle block still owns validation and pass/fail scoring, but this model relaxes the accumulated-error threshold to fit the disturbance environment.
 
-**What it introduces:** external disturbances, sensor noise, and why integral action is necessary when persistent forces must be rejected.
+**What it introduces:** the L4 shared architecture operating under external disturbances, sensor noise injected ahead of the full flight stack, wind acting through the shared physics block, and the need for integral action when persistent forces must be rejected.
 
 ---
 
