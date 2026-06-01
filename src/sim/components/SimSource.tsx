@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getBlockCode, stageBlock, revertBlock,
-  hasPendingChanges, subscribeRunning, isRunning,
+  hasPendingChanges, subscribeStatus, getStatus,
 } from '../engine/engine';
 import type { SimContext } from '../useSim';
 import { useResolvedSimContext } from '../useResolvedSimContext';
@@ -55,12 +55,12 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
     return init;
   });
   const [hasPending, setHasPending] = useState(() => hasPendingChanges(simId));
-  const [running, setRunning] = useState(() => isRunning(simId));
+  const [status, setStatus] = useState(() => getStatus(simId));
 
   useEffect(() => {
-    return subscribeRunning(simId, (r) => {
-      setRunning(r);
-      if (!r) setHasPending(hasPendingChanges(simId));
+    return subscribeStatus(simId, (next) => {
+      setStatus(next);
+      if (next !== 'running') setHasPending(hasPendingChanges(simId));
     });
   }, [simId]);
 
@@ -117,6 +117,9 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
 
   const activeBlock = blockStates[activeSourceId];
 
+  const running = status === 'running';
+  const paused = status === 'paused';
+
   return (
     <div className={`sim-source${autoHeight ? ' sim-source--auto-height' : ''}`}>
       {visibleBlocks.length > 1 && (
@@ -156,7 +159,7 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
         {!activeBlock?.error && hasPending && !running && (
           <span className="sim-source__hint">Changes staged — press Start in the Visualization tab to apply</span>
         )}
-        {!activeBlock?.error && hasPending && running && (
+        {!activeBlock?.error && hasPending && (running || paused) && (
           <span className="sim-source__hint">Stop the simulation to apply staged changes</span>
         )}
       </div>

@@ -153,8 +153,18 @@
   background: var(--color-bg-active);
   color: var(--color-text);
 }
-.sim-vis__btn:hover { opacity: 0.8; }
-.sim-vis__btn--stop { background: #3a1010; border-color: #6a2020; color: #ffaaaa; }
+.sim-vis__btn:hover:not(:disabled) { opacity: 0.8; }
+.sim-vis__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+}
+.sim-vis__btn--stop {
+  background: var(--color-bg-active);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
 .sim-vis__btn--reset { background: transparent; color: var(--color-text-muted); }
 .sim-vis__btn--pending { background: #1a3a0a; border-color: #3a6a1a; color: #aaffaa; }
 .sim-vis__btn--small { font-size: 11px; padding: 2px 8px; }

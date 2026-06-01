@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  initSim, startSim, stopSim, resetSim,
-  getState, getStatic, getHistory, getTick, isRunning,
+  initSim, startSim, pauseSim, stopSim, resetSim,
+  getState, getStatic, getHistory, getTick, isRunning, getStatus,
 } from './engine';
 import type { ModelConfig, ModelState } from './types';
 
@@ -199,6 +199,28 @@ describe('engine lifecycle hooks', () => {
     await new Promise(r => setTimeout(r, 10));
     expect(isRunning('l3')).toBe(true);
     stopSim('l3');
+    expect(afterSimFired).toBe(1);
+  });
+
+  it('pause halts ticking without firing afterSim, and start resumes', async () => {
+    initSim('l5', makeLifecycleConfig(10000));
+    startSim('l5');
+    await new Promise(r => setTimeout(r, 10));
+    pauseSim('l5');
+
+    const pausedTick = getTick('l5');
+    expect(getStatus('l5')).toBe('paused');
+    expect(afterSimFired).toBe(0);
+
+    await new Promise(r => setTimeout(r, 10));
+    expect(getTick('l5')).toBe(pausedTick);
+
+    startSim('l5');
+    await new Promise(r => setTimeout(r, 10));
+    expect(getStatus('l5')).toBe('running');
+    expect(getTick('l5')).toBeGreaterThan(pausedTick);
+
+    stopSim('l5');
     expect(afterSimFired).toBe(1);
   });
 });

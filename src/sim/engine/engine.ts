@@ -11,8 +11,11 @@ function lsKey(simId: string, sourceId: string): string {
 
 type StateListener = (state: ModelState, tick: number) => void;
 type RunningListener = (running: boolean) => void;
+type StatusListener = (status: SimStatus) => void;
 type ErrorListener = (error: Error | null) => void;
 type InputsListener = (inputs: ModelState) => void;
+
+type SimStatus = 'stopped' | 'running' | 'paused';
 
 interface SimInstance {
   config: ModelConfig;
@@ -27,15 +30,22 @@ interface SimInstance {
   activeFns: Record<string, BlockFn>;
   pendingFns: Record<string, BlockFn>;
   hasPending: boolean;
-  running: boolean;
+  status: SimStatus;
   intervalId: ReturnType<typeof setInterval> | null;
   error: Error | null;
   liveInputs: ModelState;
   defaultInputs: ModelState;
   stateListeners: Set<StateListener>;
   runningListeners: Set<RunningListener>;
+  statusListeners: Set<StatusListener>;
   errorListeners: Set<ErrorListener>;
   inputsListeners: Set<InputsListener>;
+}
+
+function notifyStatus(inst: SimInstance): void {
+  const running = inst.status === 'running';
+  inst.runningListeners.forEach(cb => cb(running));
+  inst.statusListeners.forEach(cb => cb(inst.status));
 }
 
 function buildDefaultInputs(blocks: BlockConfig[]): ModelState {
@@ -135,13 +145,14 @@ export function initSim(simId: string, config: ModelConfig): void {
     activeFns,
     pendingFns: {},
     hasPending: false,
-    running: false,
+    status: 'stopped',
     intervalId: null,
     error: null,
     liveInputs,
     defaultInputs,
     stateListeners: new Set(),
     runningListeners: new Set(),
+    statusListeners: new Set(),
     errorListeners: new Set(),
     inputsListeners: new Set(),
   };
@@ -245,9 +256,9 @@ function doTick(simId: string): void {
 
 export function startSim(simId: string): void {
   const inst = getInstance(simId);
-  if (inst.running) return;
+  if (inst.status === 'running') return;
 
-  if (inst.hasPending) {
+  if (inst.hasPending && inst.status === 'stopped') {
     Object.assign(inst.activeFns, inst.pendingFns);
     inst.pendingFns = {};
     inst.hasPending = false;
@@ -265,15 +276,26 @@ export function startSim(simId: string): void {
     inst.errorListeners.forEach(cb => cb(null));
   }
 
-  inst.running = true;
+  inst.status = 'running';
   inst.intervalId = setInterval(() => doTick(simId), inst.config.tickIntervalMs);
-  inst.runningListeners.forEach(cb => cb(true));
+  notifyStatus(inst);
+}
+
+export function pauseSim(simId: string): void {
+  const inst = getInstance(simId);
+  if (inst.status !== 'running') return;
+  inst.status = 'paused';
+  if (inst.intervalId !== null) {
+    clearInterval(inst.intervalId);
+    inst.intervalId = null;
+  }
+  notifyStatus(inst);
 }
 
 export function stopSim(simId: string): void {
   const inst = getInstance(simId);
-  if (!inst.running) return;
-  inst.running = false;
+  if (inst.status === 'stopped') return;
+  inst.status = 'stopped';
   if (inst.intervalId !== null) {
     clearInterval(inst.intervalId);
     inst.intervalId = null;
@@ -281,7 +303,7 @@ export function stopSim(simId: string): void {
   // afterSim fires on any running→stopped transition: natural end (after()
   // returned false), manual Stop, or runtime error.
   runAfterSim(inst);
-  inst.runningListeners.forEach(cb => cb(false));
+  notifyStatus(inst);
 }
 
 export function resetSim(simId: string): void {
@@ -372,7 +394,15 @@ export function getTick(simId: string): number {
 }
 
 export function isRunning(simId: string): boolean {
-  return instances[simId]?.running ?? false;
+  return instances[simId]?.status === 'running';
+}
+
+export function getStatus(simId: string): SimStatus {
+  return instances[simId]?.status ?? 'stopped';
+}
+
+export function isPaused(simId: string): boolean {
+  return instances[simId]?.status === 'paused';
 }
 
 export function getError(simId: string): Error | null {
@@ -397,6 +427,12 @@ export function subscribeRunning(simId: string, cb: RunningListener): () => void
   const inst = getInstance(simId);
   inst.runningListeners.add(cb);
   return () => inst.runningListeners.delete(cb);
+}
+
+export function subscribeStatus(simId: string, cb: StatusListener): () => void {
+  const inst = getInstance(simId);
+  inst.statusListeners.add(cb);
+  return () => inst.statusListeners.delete(cb);
 }
 
 export function subscribeError(simId: string, cb: ErrorListener): () => void {

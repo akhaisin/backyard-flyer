@@ -3,10 +3,10 @@ import {
   useMemo, useRef, useState,
 } from 'react';
 import {
-  subscribe, subscribeRunning, subscribeError,
-  startSim, stopSim, resetSim,
+  subscribe, subscribeStatus, subscribeError,
+  startSim, pauseSim, stopSim, resetSim,
   getHistory,
-  isRunning, getError, hasPendingChanges,
+  getStatus, getError, hasPendingChanges,
 } from '../engine/engine';
 import { resolveSimContext } from '../useSim';
 import type { ModelConfig } from '../engine/types';
@@ -51,7 +51,7 @@ export default function SimVis({ simId: simIdProp, modelId: modelIdProp }: Props
 }
 
 function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) {
-  const [running, setRunning] = useState(() => isRunning(simId));
+  const [status, setStatus] = useState(() => getStatus(simId));
   const [error, setError] = useState<Error | null>(() => getError(simId));
   const [historyLen, setHistoryLen] = useState(0);
   const [rewindTick, setRewindTick] = useState<number | null>(null);
@@ -60,13 +60,13 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
   const rewindTickRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const savedHeightRef = useRef<number>(0);
-  const runningRef = useRef(running);
+  const statusRef = useRef(status);
 
   useEffect(() => {
     const unsubState = subscribe(simId, (_state, tick) => setHistoryLen(tick));
-    const unsubRunning = subscribeRunning(simId, setRunning);
+    const unsubStatus = subscribeStatus(simId, setStatus);
     const unsubError = subscribeError(simId, setError);
-    return () => { unsubState(); unsubRunning(); unsubError(); };
+    return () => { unsubState(); unsubStatus(); unsubError(); };
   }, [simId]);
 
   // Request keyboard focus for this frame on mount so Space works immediately
@@ -110,10 +110,11 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
     startSim(simId);
   }, [simId, exitRewind]);
 
+  const handlePause = useCallback(() => { pauseSim(simId); }, [simId]);
   const handleStop = useCallback(() => { stopSim(simId); }, [simId]);
 
-  // Keep ref in sync so the keydown handler never captures a stale `running`.
-  useEffect(() => { runningRef.current = running; }, [running]);
+  // Keep ref in sync so the keydown handler never captures a stale status.
+  useEffect(() => { statusRef.current = status; }, [status]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -124,11 +125,11 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       e.preventDefault();
-      if (runningRef.current) handleStop(); else handleStart();
+      if (statusRef.current === 'running') handlePause(); else handleStart();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [handleStart, handleStop]);
+  }, [handleStart, handlePause]);
 
   const handleReset = useCallback(() => {
     exitRewind();
@@ -148,6 +149,8 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
 
   const pending = hasPendingChanges(simId);
   const isRewinding = rewindTick !== null;
+  const running = status === 'running';
+  const paused = status === 'paused';
 
   const contextValue = useMemo(
     () => ({ simId, config, rewindTickRef, rewindTick, resetCount }),
@@ -172,10 +175,11 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
         )}
 
         <PlaybackControls
-          running={running}
+          status={status}
           pending={pending}
           isFullscreen={isFullscreen}
           onStart={handleStart}
+          onPause={handlePause}
           onStop={handleStop}
           onReset={handleReset}
           onFullscreen={handleFullscreen}
@@ -214,30 +218,37 @@ function RewindControl({ historyLen, rewindTick, isRewinding, onScrub, onExit }:
   );
 }
 
-function PlaybackControls({ running, pending, isFullscreen, onStart, onStop, onReset, onFullscreen }: {
-  running: boolean;
+function PlaybackControls({ status, pending, isFullscreen, onStart, onPause, onStop, onReset, onFullscreen }: {
+  status: 'stopped' | 'running' | 'paused';
   pending: boolean;
   isFullscreen: boolean;
   onStart: () => void;
+  onPause: () => void;
   onStop: () => void;
   onReset: () => void;
   onFullscreen: () => void;
 }) {
+  const running = status === 'running';
+  const paused = status === 'paused';
+
   return (
     <div className="sim-vis__controls">
       <div className="sim-vis__controls-left">
-        {!running && (
-          <button
-            className={`sim-vis__btn${pending ? ' sim-vis__btn--pending' : ''}`}
-            onClick={onStart}
-            title={pending ? 'Apply changes and start (Space)' : 'Start simulation (Space)'}
-          >
-            {pending ? 'Apply & Start' : 'Start'}
-          </button>
-        )}
-        {running && (
-          <button className="sim-vis__btn sim-vis__btn--stop" onClick={onStop} title="Stop simulation (Space)">Stop</button>
-        )}
+        <button
+          className={`sim-vis__btn${pending && !paused && !running ? ' sim-vis__btn--pending' : ''}`}
+          onClick={running ? onPause : onStart}
+          title={running ? 'Pause simulation (Space)' : pending ? 'Apply changes and start (Space)' : 'Start simulation (Space)'}
+        >
+          {running ? 'Pause' : pending && !paused ? 'Apply & Start' : 'Start'}
+        </button>
+        <button
+          className="sim-vis__btn sim-vis__btn--stop"
+          onClick={onStop}
+          title={paused ? 'Stop simulation' : 'Pause the simulation before stopping'}
+          disabled={!paused}
+        >
+          Stop
+        </button>
         <button className="sim-vis__btn sim-vis__btn--reset" onClick={onReset}>Reset</button>
       </div>
       <button

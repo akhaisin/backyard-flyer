@@ -9,7 +9,7 @@ import VisualizationTab from './VisualizationTab';
 import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
-import { stopSim } from '../sim/engine/engine';
+import { pauseSim } from '../sim/engine/engine';
 import { startTour } from './tour';
 import useLocalStorage from '../hooks/useLocalStorage';
 import './styles.css';
@@ -154,7 +154,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
   useEffect(() => {
     const prev = prevRouteRef.current;
     if (prev && prev.pageId !== pageId && prev.simId && prev.simId !== simId) {
-      stopSim(prev.simId);
+      pauseSim(prev.simId);
     }
     prevRouteRef.current = { pageId, simId };
   }, [pageId, simId]);
