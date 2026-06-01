@@ -89,18 +89,18 @@ export const QUAD_DEFAULTS: QuadConsts = {
   GROUND_DAMP: 0.7,
 
   MAX_RATE_ROLL_PITCH: Math.PI,
-  MAX_RATE_YAW: Math.PI / 2,
+  MAX_RATE_YAW: 2 * Math.PI,
 
-  KP_RATE: 0.05,
-  KP_RATE_YAW: 0.012,
+  KP_RATE: 0.2,
+  KP_RATE_YAW: 0.15,
 
   KP_POS: 2.0,
-  KI_POS: 0.3,
+  KI_POS: 0,
   KD_POS: 1.5,
   MAX_INT_POS: 15.0,
   KP_ATT_OUTER: 40.0,
   KP_YAW_OUTER: 10.0,
-  MAX_TILT: 0.6,
+  MAX_TILT: 0.3,
 
   THRUST_RATE_N_PER_S: 40,
 
@@ -114,7 +114,7 @@ export const QUAD_DEFAULTS: QuadConsts = {
   // ~2300 accErr. The run early-stops when REQUIRED_LAPS is reached, so the
   // final tick reflects how long the laps took.
   REQUIRED_LAPS: 5,
-  MAX_TICKS: 2200,       // duration pass-budget: 5 laps should finish under this
-  ACC_ERR_LIMIT: 3000,   // accumulated XTE (IAE) ceiling (clean run ~2300)
+  MAX_TICKS: 2000,       // duration pass-budget: 5 laps should finish under this
+  ACC_ERR_LIMIT: 1000,   // accumulated XTE (IAE) ceiling (clean run ~2300)
   simDuration: 4000,     // hard cap — only fires if the run never makes 5 laps
 };

@@ -78,10 +78,12 @@ function distPointToSegment(p, a, b) {
 // denominator follows automatically).
 function simTest(state) {
   const v = state.validator, K = state.K;
+  const judgedTick = v.completionTick >= 0 ? v.completionTick : state.tick;
+  const judgedAccErr = v.completionAccErr >= 0 ? v.completionAccErr : v.accErr;
   const checks = [
     v.lapsTotal >= K.REQUIRED_LAPS,   // completed enough laps
-    state.tick <= K.MAX_TICKS,        // finished within the tick budget
-    v.accErr < K.ACC_ERR_LIMIT,       // accumulated cross-track error (IAE)
+    judgedTick <= K.MAX_TICKS,        // finished within the tick budget
+    judgedAccErr < K.ACC_ERR_LIMIT,   // accumulated cross-track error (IAE)
   ];
   return { passed: checks.filter(Boolean).length, total: checks.length };
 }
@@ -115,15 +117,21 @@ export function after(state) {
 
   let lapsTotal = v.lapsTotal;
   if (prevPhase === NAVIGATE && phase !== NAVIGATE) lapsTotal += 1;
+  let completionTick = v.completionTick;
+  let completionAccErr = v.completionAccErr;
 
   const currentErr = phase === NAVIGATE
     ? distPointToSegment(state.pos, state.mission.segStart, state.mission.segEnd)
     : 0;
 
   const accErr = v.accErr + currentErr;
+  if (completionTick < 0 && lapsTotal >= state.K.REQUIRED_LAPS) {
+    completionTick = state.tick;
+    completionAccErr = accErr;
+  }
 
   state.validator = {
-    prevPhase: phase, lapsTotal, currentErr, accErr,
+    prevPhase: phase, lapsTotal, completionTick, completionAccErr, currentErr, accErr,
     passCount: v.passCount, passTotal: v.passTotal, pass: v.pass,
   };
 
@@ -133,10 +141,9 @@ export function after(state) {
   state.validator.passTotal = t.total;
 
   // ── Stop conditions ──
-  // Early stop the moment the required laps are done, so the final tick reflects
-  // HOW LONG that took — that is what the duration check (tick <= MAX_TICKS)
-  // judges. simDuration is the hard cap that bounds a run that never finishes.
-  if (lapsTotal >= state.K.REQUIRED_LAPS) return false;
+  // Let the simulation keep running after the lap target is reached so the run
+  // ends naturally. simDuration remains the hard cap that bounds a run that
+  // never settles or never stops on its own.
   if (state.tick >= state.K.simDuration) return false;
   return state;
 }

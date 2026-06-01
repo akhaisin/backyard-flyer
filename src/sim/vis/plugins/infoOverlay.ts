@@ -33,6 +33,8 @@ export type InfoOverlayRow =
       // Optional dynamic label color, evaluated each tick. Overrides the
       // default static color. Useful for pass/fail indicators.
       labelColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
+      // Optional dynamic value color, evaluated each tick.
+      valueColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
     }
   | {
       label: string;
@@ -44,6 +46,7 @@ export type InfoOverlayRow =
       // Used for both label color and plot stroke color.
       color: string;
       labelColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
+      valueColor?: (state: ModelState, tick: number, staticState: ModelState) => string;
     };
 
 export interface InfoOverlayOptions {
@@ -59,6 +62,7 @@ export interface InfoOverlayOptions {
 }
 
 const DEFAULT_LABEL_COLOR = 'rgba(255, 255, 255, 0.55)';
+const DEFAULT_VALUE_COLOR = 'rgba(255, 255, 255, 0.85)';
 
 function applyCorner(el: HTMLElement, corner: InfoOverlayCorner, margin: number) {
   const m = `${margin}px`;
@@ -211,6 +215,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
         labelEl.style.color = row.plot ? row.color : DEFAULT_LABEL_COLOR;
         labelEl.textContent = row.label;
         const valueEl = document.createElement('span');
+        valueEl.style.color = DEFAULT_VALUE_COLOR;
         valueEl.style.textAlign = 'right';
         valueEl.style.fontVariantNumeric = 'tabular-nums';
         grid.appendChild(labelEl);
@@ -249,6 +254,14 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
           if (labelCells[i].style.color !== color) {
             labelCells[i].style.color = color;
           }
+        }
+        if (row.valueColor) {
+          const color = row.valueColor(state, tick, staticState);
+          if (valueCells[i].style.color !== color) {
+            valueCells[i].style.color = color;
+          }
+        } else if (valueCells[i].style.color !== DEFAULT_VALUE_COLOR) {
+          valueCells[i].style.color = DEFAULT_VALUE_COLOR;
         }
       }
       if (canvas) drawPlot(history, tick);

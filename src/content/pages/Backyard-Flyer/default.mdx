@@ -74,7 +74,7 @@ Four things change at once, and they are the reason L4 is the recommended starti
 - **A lifecycle block.** `beforeSim`/`before`/`after`/`afterSim` hooks own setup and teardown. The cross-track validator moves out of its own block and into the `after` hook, and `afterSim` finalizes a verdict when the run ends.
 - **A multi-criteria pass/fail test.** Instead of one sticky flag, the model checks several conditions — laps completed, ran within the tick budget, lap error and average error under their limits — and the **infoOverlay reports the live score (e.g. `3/4`) and a final PASS/FAIL**.
 
-The flight itself is unchanged from L3. As before, mission is a pure phase/step sequencer, the `planner_wp + navigator_wp` pair owns everything waypoint-specific, and `fc_acro` is a rate-only controller driven by an AETR stick bus.
+The flight stack keeps the same overall architecture, but the waypoint path is simpler than L3: mission is a pure phase/step sequencer, `planner_wp` only reports step completion, `navigator_wp` flies directly at the active waypoint while yawing toward its horizontal direction, and `fc_acro` remains a rate-only controller driven by an AETR stick bus.
 
 **What it introduces:** the shared block library, the static `state.K` constants slice, the lifecycle block (setup/teardown + validation hooks), multi-criteria pass/fail testing surfaced in the overlay, and mission/planner separation by step type.
 

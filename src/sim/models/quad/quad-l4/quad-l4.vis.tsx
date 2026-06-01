@@ -17,7 +17,16 @@ interface QuadL4State {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   mission: { phase: number; stepIdx: number; target: Vec3 };
-  validator: { lapsTotal: number; currentErr: number; accErr: number; passCount: number; passTotal: number; pass: number };
+  validator: {
+    lapsTotal: number;
+    completionTick: number;
+    completionAccErr: number;
+    currentErr: number;
+    accErr: number;
+    passCount: number;
+    passTotal: number;
+    pass: number;
+  };
 }
 const view = (s: ModelState): QuadL4State => s as unknown as QuadL4State;
 
@@ -30,6 +39,7 @@ const num = (staticState: ModelState, key: string): number => {
 };
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
+const PASS_GREEN = '#44dd66';
 
 const sceneHandler = composeScene(() => [
   baseScene({ bg: 0x080810, camera: { pos: [14, 14, 20], lookAt: [4, 4, 4] } }),
@@ -57,16 +67,39 @@ const sceneHandler = composeScene(() => [
       // Each criterion row shows current / limit, with the limit pulled from the
       // static slice K so it stays in sync with the lifecycle's pass conditions.
       { label: 'Total laps',
-        display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}` },
+        display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}`,
+        valueColor: (s, _t, K) => Math.round(view(s).validator.lapsTotal) >= num(K, 'REQUIRED_LAPS')
+          ? PASS_GREEN
+          : 'rgba(255, 255, 255, 0.85)' },
       { label: 'Current err',
         display: s => `${view(s).validator.currentErr.toFixed(3)} m`,
         plot: true,
         value: s => view(s).validator.currentErr,
         color: '#ffaa44' },
       { label: 'Acc error',
-        display: (s, _t, K) => `${view(s).validator.accErr.toFixed(0)}/${num(K, 'ACC_ERR_LIMIT')}` },
+        display: (s, _t, K) => {
+          const v = view(s).validator;
+          const accErr = v.completionAccErr >= 0 ? v.completionAccErr : v.accErr;
+          return `${accErr.toFixed(0)}/${num(K, 'ACC_ERR_LIMIT')}`;
+        },
+        valueColor: (s, _t, K) => {
+          const v = view(s).validator;
+          return v.completionAccErr >= 0 && v.completionAccErr < num(K, 'ACC_ERR_LIMIT')
+            ? PASS_GREEN
+            : 'rgba(255, 255, 255, 0.85)';
+        } },
       { label: 'Duration',
-        display: (_s, tick, K) => `${tick}/${num(K, 'MAX_TICKS')}` },
+        display: (s, tick, K) => {
+          const v = view(s).validator;
+          const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
+          return `${judgedTick}/${num(K, 'MAX_TICKS')}`;
+        },
+        valueColor: (s, _t, K) => {
+          const v = view(s).validator;
+          return v.completionTick >= 0 && v.completionTick <= num(K, 'MAX_TICKS')
+            ? PASS_GREEN
+            : 'rgba(255, 255, 255, 0.85)';
+        } },
       { label: 'Pass',
         // While running (pass = -1) show live X/N; after afterSim's verdict
         // append PASS/FAIL.

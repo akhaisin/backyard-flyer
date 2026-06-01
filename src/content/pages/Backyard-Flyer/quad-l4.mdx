@@ -71,7 +71,7 @@ The flight stack is partitioned so that each block owns exactly one responsibili
 | Block | Owns | Knows nothing about |
 |---|---|---|
 | `mission` | phase machine + step cursor | waypoint geometry, completion checks |
-| `planner_wp` | completion check, carrot, yaw setpoint | attitude, motors |
+| `planner_wp` | completion check only | steering, attitude, motors |
 | `navigator_wp` | position → AETR sticks (the cascade) | motor mixing |
 | `fc_acro` | AETR sticks → motor rates | waypoints, missions |
 | `lifecycle` | constants, validation, pass/fail | how anything flies |
