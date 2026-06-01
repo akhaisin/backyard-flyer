@@ -7,7 +7,7 @@ import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
-import { PHASE_NAVIGATE } from './blocks/mission';
+import { PHASE_NAVIGATE } from '../../lib/quad/mission';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };

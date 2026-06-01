@@ -1,27 +1,40 @@
-import missionCode from './blocks/mission.ts?raw';
-import { mission } from './blocks/mission';
-import plannerWpCode from './blocks/planner_wp.ts?raw';
-import { planner_wp } from './blocks/planner_wp';
-import navigatorWpCode from './blocks/navigator_wp.ts?raw';
-import { navigator_wp } from './blocks/navigator_wp';
-import fcAcroCode from './blocks/fc_acro.ts?raw';
-import { fc_acro } from './blocks/fc_acro';
-import hwCode from './blocks/hw.ts?raw';
-import { hw } from './blocks/hw';
-import worldCode from './blocks/world.ts?raw';
-import { world } from './blocks/world';
-import validatorCode from './blocks/validator.ts?raw';
-import { validator } from './blocks/validator';
+import missionCode from '../../lib/quad/mission.ts?raw';
+import { mission } from '../../lib/quad/mission';
+import plannerWpCode from '../../lib/quad/planner_wp.ts?raw';
+import { planner_wp } from '../../lib/quad/planner_wp';
+import navigatorWpCode from '../../lib/quad/navigator_wp.ts?raw';
+import { navigator_wp } from '../../lib/quad/navigator_wp';
+import fcAcroCode from '../../lib/quad/fc_acro.ts?raw';
+import { fc_acro } from '../../lib/quad/fc_acro';
+import hwCode from '../../lib/quad/hw.ts?raw';
+import { hw } from '../../lib/quad/hw';
+import worldCode from '../../lib/quad/world.ts?raw';
+import { world } from '../../lib/quad/world';
+import validatorCode from '../../lib/quad/validator.ts?raw';
+import { validator } from '../../lib/quad/validator';
+import { makeParamsBlock } from '../../lib/quad/params';
+import { QUAD_DEFAULTS } from '../../lib/quad/consts';
+import type { QuadConsts, StepDef } from '../../lib/quad/consts';
 import QuadL4Vis from './quad-l4.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
-export const quadL4Config: ModelConfig = {
+export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
+  // The mission route — model-specific data, published into the params bag so
+  // it's config-driven and editable in the params block UI (state.K.steps).
+  const route: StepDef[] = [
+    { pos: { x: 8, y: 5, z: 0 }, threshold: 1.2 },
+    { pos: { x: 8, y: 5, z: 8 }, threshold: 1.2 },
+    { pos: { x: 0, y: 5, z: 8 }, threshold: 1.2 },
+    { pos: { x: 0, y: 5, z: 0 }, threshold: 1.2 },
+  ];
+  return {
   modelId: 'quad/quad-l4',
   tickIntervalMs: 50,
   initialState: {
+    K:          {},
     pos:        { ...vec0 },
     vel:        { ...vec0 },
     acc:        { ...vec0 },
@@ -60,6 +73,7 @@ export const quadL4Config: ModelConfig = {
     },
   },
   blocks: [
+    makeParamsBlock(QUAD_DEFAULTS, route, overrides),
     {
       sourceId: 'mission',
       exportName: 'mission',
@@ -72,6 +86,7 @@ export const quadL4Config: ModelConfig = {
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
         armed:        (s.mission as ModelState).armed,
         statusWp:     (s.planner_wp as ModelState).stepStatus,
+        K:            s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -101,6 +116,7 @@ export const quadL4Config: ModelConfig = {
         armed:       (s.mission as ModelState).armed,
         phase:       (s.mission as ModelState).phase,
         yawSetpoint: (s.planner_wp as ModelState).yawSetpoint,
+        K:           s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -122,6 +138,7 @@ export const quadL4Config: ModelConfig = {
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
         aetr:        s.aetr,
+        K:           s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -145,6 +162,7 @@ export const quadL4Config: ModelConfig = {
         aetrRoll:   (s.aetr as ModelState).roll,
         aetrPitch:  (s.aetr as ModelState).pitch,
         aetrYaw:    (s.aetr as ModelState).yaw,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -160,6 +178,7 @@ export const quadL4Config: ModelConfig = {
       mapStateIn: (s) => ({
         motors:     (s.motors as ModelState).desired,
         thrustPrev: (s.motors as ModelState).thrust,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -178,6 +197,7 @@ export const quadL4Config: ModelConfig = {
         attitude:   s.attitude,
         angularVel: s.angularVel,
         thrust:     (s.motors as ModelState).thrust,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -205,6 +225,7 @@ export const quadL4Config: ModelConfig = {
         lapErrTicks:    (s.validator as ModelState).lapErrTicks,
         totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
         pass:           (s.validator as ModelState).pass,
+        K:              s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -310,4 +331,5 @@ export const quadL4Config: ModelConfig = {
       ],
     },
   ],
-};
+  };
+}

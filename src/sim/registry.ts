@@ -16,7 +16,13 @@ import { quadLadderConfig } from './models/racing/quad-ladder/quad-ladder.config
 import { quadPoleConfig } from './models/racing/quad-pole/quad-pole.config';
 import type { ModelConfig } from './engine/types';
 
-export const modelRegistry: Record<string, ModelConfig> = {
+// A model is either a ready config (singleton) or a factory that builds a config
+// per simulation instance — used by models that accept per-instance const
+// overrides (e.g. quad-l4's createQuadL4Config). resolveSimContext calls the
+// factory; see useSim.ts.
+export type ModelEntry = ModelConfig | ((overrides?: Record<string, unknown>) => ModelConfig);
+
+export const modelRegistry: Record<string, ModelEntry> = {
   inc: incConfig,
   floater: floaterConfig,
   'floater-pid': floaterPidConfig,

@@ -2,6 +2,11 @@
 // segment as (segStart, segEnd); this block measures perpendicular distance
 // from drone position to that segment during NAVIGATE, then commits the lap
 // mean on NAVIGATE → other transition.
+//
+// PASS_AVG_ERR_LIMIT arrives via state.K. NAVIGATE is a protocol enum (the
+// mission phase contract) and stays in-block.
+
+import type { QuadConsts } from './consts';
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -16,6 +21,7 @@ type ValidatorIn = {
   lapErrTicks: number;
   totalLapErrSum: number;
   pass: number;
+  K: QuadConsts;
 };
 
 type ValidatorOut = {
@@ -31,9 +37,6 @@ type ValidatorOut = {
 };
 
 const NAVIGATE = 2;
-// Acceptance threshold for avgErr. Once exceeded the run is marked failed
-// (sticky) — a regression detector for tuning changes.
-const PASS_AVG_ERR_LIMIT = 2.0;
 
 function distPointToSegment(p: Vec3, a: Vec3, b: Vec3): number {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
@@ -75,7 +78,7 @@ export function validator(state: ValidatorIn): ValidatorOut {
   const avgErr = lapsTotal > 0 ? totalLapErrSum / lapsTotal : 0;
   // Sticky pass/fail: once avgErr breaches the limit the run is failed for
   // the rest of the session, even if later laps drag the average back down.
-  const pass = state.pass !== 0 && avgErr <= PASS_AVG_ERR_LIMIT ? 1 : 0;
+  const pass = state.pass !== 0 && avgErr <= state.K.PASS_AVG_ERR_LIMIT ? 1 : 0;
 
   return {
     prevPhase: phase,
