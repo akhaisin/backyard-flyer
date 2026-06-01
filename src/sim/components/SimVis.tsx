@@ -77,25 +77,6 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
     if (containerRef.current?.offsetParent !== null) window.focus();
   }, []);
 
-  // Stop the sim when this instance is hidden or unmounted so simulations don't
-  // run silently in the background after the user navigates away.
-  //   - IntersectionObserver handles article navigation: the DOM node is moved to
-  //     #page-store (display:none), making offsetParent null. The offsetParent guard
-  //     prevents mere scroll-out-of-viewport from stopping the sim.
-  //   - Cleanup handles Vis-tab close, where SimVisInner unmounts entirely.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting && !container.offsetParent) stopSim(simId);
-    });
-    observer.observe(container);
-    return () => {
-      observer.disconnect();
-      stopSim(simId);
-    };
-  }, [simId]);
-
   useEffect(() => {
     const onFsChange = () => {
       const isNowFullscreen = document.fullscreenElement === containerRef.current;

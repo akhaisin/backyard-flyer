@@ -9,6 +9,7 @@ import VisualizationTab from './VisualizationTab';
 import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
+import { stopSim } from '../sim/engine/engine';
 import { startTour } from './tour';
 import useLocalStorage from '../hooks/useLocalStorage';
 import './styles.css';
@@ -98,6 +99,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
     return { pageId: id || pageIds[0] || '', view };
   });
   const [helpSeen, setHelpSeen] = useLocalStorage(HELP_SEEN_KEY, false);
+  const prevRouteRef = useRef<{ pageId: string; simId?: string } | null>(null);
 
   useEffect(() => {
     function onHashChange() {
@@ -148,6 +150,14 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
 
   const simId = pageSimIds[pageId];
   const modelId = pageModelIds[pageId];
+
+  useEffect(() => {
+    const prev = prevRouteRef.current;
+    if (prev && prev.pageId !== pageId && prev.simId && prev.simId !== simId) {
+      stopSim(prev.simId);
+    }
+    prevRouteRef.current = { pageId, simId };
+  }, [pageId, simId]);
 
   return (
     <div className={`app-root${isEmbedded ? ' app-root--embedded' : ''}`}>
