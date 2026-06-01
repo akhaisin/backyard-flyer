@@ -15,11 +15,23 @@
 // reads K, while the folded-in attitude law intentionally mirrors quad-l3's
 // behavior so quad-l4 flies like L3 without changing the fc_acro contract.
 
-import type { QuadConsts } from './consts';
-
 type Vec3 = { x: number; y: number; z: number };
 type Aetr = { thrust: number; roll: number; pitch: number; yaw: number };
 type Step = { pos: Vec3; threshold: number };
+type NavigatorConsts = {
+  KP_POS: number;
+  KD_POS: number;
+  MASS: number;
+  GRAVITY: number;
+  MAX_TILT: number;
+  KP_RATE: number;
+  KP_RATE_YAW: number;
+  MAX_THRUST_N: number;
+  MAX_RATE_ROLL_PITCH: number;
+  MAX_RATE_YAW: number;
+  MAX_INT_POS: number;
+  DT: number;
+};
 
 type NavIn = {
   pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3;
@@ -27,7 +39,7 @@ type NavIn = {
   armed: number;
   integralPos: Vec3;
   aetr: Aetr;
-  K: QuadConsts;
+  K: NavigatorConsts;
 };
 
 type NavOut = {

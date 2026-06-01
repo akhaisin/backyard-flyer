@@ -1,28 +1,41 @@
-import missionCode from './blocks/mission.ts?raw';
-import { mission } from './blocks/mission';
-import plannerWpCode from './blocks/planner_wp.ts?raw';
-import { planner_wp } from './blocks/planner_wp';
-import navigatorWpCode from './blocks/navigator_wp.ts?raw';
-import { navigator_wp } from './blocks/navigator_wp';
-import fcAcroCode from './blocks/fc_acro.ts?raw';
-import { fc_acro } from './blocks/fc_acro';
-import hwCode from './blocks/hw.ts?raw';
-import { hw } from './blocks/hw';
-import worldCode from './blocks/world.ts?raw';
-import { world } from './blocks/world';
-import windCode from './blocks/wind.ts?raw';
-import { wind } from './blocks/wind';
-import noiseCode from './blocks/noise.ts?raw';
-import { noise } from './blocks/noise';
-import validatorCode from './blocks/validator.ts?raw';
-import { validator } from './blocks/validator';
+import missionCode from '../../lib/quad/mission.ts?raw';
+import { mission } from '../../lib/quad/mission';
+import plannerWpCode from '../../lib/quad/planner_wp.ts?raw';
+import { planner_wp } from '../../lib/quad/planner_wp';
+import navigatorWpCode from '../../lib/quad/navigator_wp.ts?raw';
+import { navigator_wp } from '../../lib/quad/navigator_wp';
+import fcAcroCode from '../../lib/quad/fc_acro.ts?raw';
+import { fc_acro } from '../../lib/quad/fc_acro';
+import hwCode from '../../lib/quad/hw.ts?raw';
+import { hw } from '../../lib/quad/hw';
+import noiseCode from '../../lib/quad/noise.ts?raw';
+import { noise } from '../../lib/quad/noise';
+import windCode from '../../lib/quad/wind.ts?raw';
+import { wind } from '../../lib/quad/wind';
+import worldCode from '../../lib/quad/world.ts?raw';
+import { world } from '../../lib/quad/world';
+import { makeLifecycleBlock } from '../../lib/quad/lifecycle';
+import { QUAD_DEFAULTS } from '../../lib/quad/consts';
+import type { QuadConsts, StepDef } from '../../lib/quad/consts';
 import QuadNoiseVis from './quad-noise.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
-export const quadNoiseConfig: ModelConfig = {
+export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
+  const route: StepDef[] = [
+    { pos: { x: 8, y: 5, z: 0 }, threshold: 1.2 },
+    { pos: { x: 8, y: 5, z: 8 }, threshold: 1.2 },
+    { pos: { x: 0, y: 5, z: 8 }, threshold: 1.2 },
+    { pos: { x: 0, y: 5, z: 0 }, threshold: 1.2 },
+  ];
+  const modelOverrides: Partial<QuadConsts> = {
+    ACC_ERR_LIMIT: 1500,
+    ...overrides,
+  };
+
+  return {
   modelId: 'quad/quad-noise',
   tickIntervalMs: 50,
   initialState: {
@@ -57,26 +70,28 @@ export const quadNoiseConfig: ModelConfig = {
       segStart:     { ...vec0 },
       segEnd:       { ...vec0 },
     },
-    planner_wp: { carrot: { ...vec0 }, yawSetpoint: 0, stepStatus: 0 },
+    planner_wp: { stepStatus: 0 },
     validator: {
-      prevPhase:      0,
-      lapsTotal:      0,
-      lapErrSum:      0,
-      lapErrTicks:    0,
-      totalLapErrSum: 0,
-      lapErr:         0,
-      avgErr:         0,
-      currentErr:     0,
+      prevPhase:        0,
+      lapsTotal:        0,
+      completionTick:   -1,
+      completionAccErr: -1,
+      currentErr:       0,
+      accErr:           0,
+      passCount:        0,
+      passTotal:        3,
+      pass:            -1,
     },
   },
   blocks: [
+    makeLifecycleBlock(QUAD_DEFAULTS, route, modelOverrides),
     // --- Environment ---
     {
       sourceId: 'wind',
       exportName: 'wind',
       defaultFn: (s) => wind(s as Parameters<typeof wind>[0]),
       defaultCode: windCode,
-      mapStateIn:  (s) => s.wind as ModelState,
+      mapStateIn:  (s) => ({ ...(s.wind as ModelState), K: s.K }),
       mapStateOut: (out, s) => ({ ...s, wind: out }),
       tickFrequency: 1,
     },
@@ -108,6 +123,7 @@ export const quadNoiseConfig: ModelConfig = {
         ticksInPhase: (s.mission as ModelState).ticksInPhase,
         armed:        (s.mission as ModelState).armed,
         statusWp:     (s.planner_wp as ModelState).stepStatus,
+        K:            s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -136,11 +152,10 @@ export const quadNoiseConfig: ModelConfig = {
         step:        (s.mission as ModelState).step,
         armed:       (s.mission as ModelState).armed,
         phase:       (s.mission as ModelState).phase,
-        yawSetpoint: (s.planner_wp as ModelState).yawSetpoint,
       }),
       mapStateOut: (out, s) => ({
         ...s,
-        planner_wp: { carrot: out.carrot, yawSetpoint: out.yawSetpoint, stepStatus: out.stepStatus },
+        planner_wp: { stepStatus: out.stepStatus },
       }),
       tickFrequency: 1,
     },
@@ -153,11 +168,12 @@ export const quadNoiseConfig: ModelConfig = {
         pos:         (s.sensors as ModelState).pos,
         vel:         (s.sensors as ModelState).vel,
         attitude:    (s.sensors as ModelState).attitude,
-        carrot:      (s.planner_wp as ModelState).carrot,
-        yawSetpoint: (s.planner_wp as ModelState).yawSetpoint,
+        angularVel:  (s.sensors as ModelState).angularVel,
+        step:        (s.mission as ModelState).step,
         armed:       (s.mission as ModelState).armed,
         integralPos: ((s.fc as ModelState).integral as ModelState).pos,
         aetr:        s.aetr,
+        K:           s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -181,6 +197,7 @@ export const quadNoiseConfig: ModelConfig = {
         aetrRoll:   (s.aetr as ModelState).roll,
         aetrPitch:  (s.aetr as ModelState).pitch,
         aetrYaw:    (s.aetr as ModelState).yaw,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -196,6 +213,7 @@ export const quadNoiseConfig: ModelConfig = {
       mapStateIn: (s) => ({
         motors:     (s.motors as ModelState).desired,
         thrustPrev: (s.motors as ModelState).thrust,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -216,6 +234,7 @@ export const quadNoiseConfig: ModelConfig = {
         thrust:     (s.motors as ModelState).thrust,
         windFx:     (s.wind as ModelState).fx,
         windFz:     (s.wind as ModelState).fz,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({
         ...s,
@@ -227,57 +246,33 @@ export const quadNoiseConfig: ModelConfig = {
       }),
       tickFrequency: 1,
     },
-    {
-      sourceId: 'validator',
-      exportName: 'validator',
-      defaultFn: (s) => validator(s as Parameters<typeof validator>[0]),
-      defaultCode: validatorCode,
-      mapStateIn: (s) => ({
-        pos:            s.pos,
-        phase:          (s.mission as ModelState).phase,
-        segStart:       (s.mission as ModelState).segStart,
-        segEnd:         (s.mission as ModelState).segEnd,
-        prevPhase:      (s.validator as ModelState).prevPhase,
-        lapsTotal:      (s.validator as ModelState).lapsTotal,
-        lapErrSum:      (s.validator as ModelState).lapErrSum,
-        lapErrTicks:    (s.validator as ModelState).lapErrTicks,
-        totalLapErrSum: (s.validator as ModelState).totalLapErrSum,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        validator: {
-          ...(s.validator as ModelState),
-          prevPhase:      out.prevPhase,
-          lapsTotal:      out.lapsTotal,
-          lapErrSum:      out.lapErrSum,
-          lapErrTicks:    out.lapErrTicks,
-          totalLapErrSum: out.totalLapErrSum,
-          lapErr:         out.lapErr,
-          avgErr:         out.avgErr,
-          currentErr:     out.currentErr,
-        },
-      }),
-      tickFrequency: 1,
-    },
+    // validator now lives in the lifecycle block's after() hook.
   ],
   vis: QuadNoiseVis,
   blocksDiagram: [
+    { from: 'lifecycle',    to: 'mission',      label: 'K'          },
     { from: 'wind',         to: 'world',        label: 'force'      },
     { from: 'noise',        to: 'mission',      label: 'pos'        },
     { from: 'noise',        to: 'planner_wp',   label: 'pos'        },
     { from: 'noise',        to: 'navigator_wp', label: 'sensors'    },
     { from: 'noise',        to: 'fc_acro',      label: 'rates'      },
     { from: 'mission',      to: 'planner_wp',   label: 'step'       },
-    { from: 'mission',      to: 'validator',    label: 'phase+seg'  },
     { from: 'planner_wp',   to: 'mission',      label: 'status'     },
-    { from: 'planner_wp',   to: 'navigator_wp', label: 'carrot+yaw' },
+    { from: 'mission',      to: 'navigator_wp', label: 'step'       },
     { from: 'navigator_wp', to: 'fc_acro',      label: 'aetr'       },
     { from: 'fc_acro',      to: 'hw',           label: 'motors'     },
     { from: 'hw',           to: 'world',        label: 'thrust'     },
     { from: 'world',        to: 'noise',        label: 'true state' },
-    { from: 'world',        to: 'validator',    label: 'pos'        },
   ],
   charts: [
+    {
+      label: 'Mission',
+      series: [
+        { var: 'mission.phase',   label: 'phase',   color: '#ffaa00' },
+        { var: 'mission.stepIdx', label: 'stepIdx', color: '#00ffaa' },
+        { var: 'mission.armed',   label: 'armed',   color: '#aaaaaa' },
+      ],
+    },
     {
       label: 'Speed (m/s)',
       series: [{
@@ -327,28 +322,27 @@ export const quadNoiseConfig: ModelConfig = {
       ],
     },
     {
-      label: 'Mission',
+      label: 'Angular rates (rad/s)',
       series: [
-        { var: 'mission.phase',   label: 'phase',   color: '#ffaa00' },
-        { var: 'mission.stepIdx', label: 'stepIdx', color: '#00ffaa' },
-        { var: 'mission.dist',    label: 'dist',    color: '#ff66ff' },
-        { var: 'mission.armed',   label: 'armed',   color: '#aaaaaa' },
+        { var: 'angularVel.x', label: 'roll rate',  color: '#ff8844' },
+        { var: 'angularVel.z', label: 'pitch rate', color: '#44ffaa' },
+        { var: 'angularVel.y', label: 'yaw rate',   color: '#cc88ff' },
       ],
     },
     {
       label: 'Wind force (N)',
       series: [
-        { var: 'wind.fx', label: 'wind fx', color: '#bbbbbb' },
-        { var: 'wind.fz', label: 'wind fz', color: '#888888' },
+        { var: 'wind.fx', label: 'fx', color: '#88ccff' },
+        { var: 'wind.fz', label: 'fz', color: '#4488ff' },
       ],
     },
     {
-      label: 'Track error (m)',
+      label: 'Track error',
       series: [
-        { var: 'validator.currentErr', label: 'current err', color: '#ffaa44' },
-        { var: 'validator.lapErr',     label: 'lap err',     color: '#ff8888' },
-        { var: 'validator.avgErr',     label: 'avg err',     color: '#44aaff' },
+        { var: 'validator.currentErr', label: 'current err (m)', color: '#ffaa44' },
+        { var: 'validator.accErr',     label: 'accumulated',     color: '#44aaff' },
       ],
     },
   ],
-};
+  };
+}

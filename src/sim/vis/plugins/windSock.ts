@@ -39,9 +39,13 @@ const NEG_Y = new THREE.Vector3(0, -1, 0);
 
 export function windSock(
   getWind: (state: ModelState) => VisWind,
-  opts: { position?: [number, number, number]; maxForceN?: number } = {},
+  opts: {
+    position?: [number, number, number];
+    maxForceN?: number;
+    getMaxForceN?: (staticState: ModelState) => number;
+  } = {},
 ): ScenePlugin {
-  const { position = [-3, 0, -3], maxForceN = 1.5 } = opts;
+  const { position = [-3, 0, -3], maxForceN = 1.5, getMaxForceN } = opts;
 
   let mountX = 0, mountY = 0, mountZ = 0;
   let pole: THREE.Mesh | null = null;
@@ -111,12 +115,13 @@ export function windSock(
       for (let i = UPPER_STRIPES; i < STRIPES; i++) lowerPivot.add(makeStripe(i, i - UPPER_STRIPES));
     },
 
-    update(state) {
+    update(state, _tick, _history, staticState) {
       if (!upperPivot || !lowerPivot) return;
       const { fx, fz } = getWind(state);
       const mag = Math.sqrt(fx * fx + fz * fz);
+      const displayMaxForceN = Math.max(getMaxForceN ? getMaxForceN(staticState) : maxForceN, 0.001);
 
-      const t = Math.max(MIN_DISPLAY, Math.min(mag / maxForceN, 1.0));
+      const t = Math.max(MIN_DISPLAY, Math.min(mag / displayMaxForceN, 1.0));
 
       // drop: angle below horizontal (π/2 = hanging at no wind, 0 = horizontal at max wind).
       const drop      = (1 - t) * (Math.PI / 2);

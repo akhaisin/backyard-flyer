@@ -18,10 +18,17 @@
 // the params block. navigator_wp inverts the MAX_RATE mapping using the SAME K,
 // so the two stay in sync by construction.
 
-import type { QuadConsts } from './consts';
-
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
 type Vec3    = { x: number; y: number; z: number };
+type FcConsts = {
+  MAX_RATE_ROLL_PITCH: number;
+  MAX_RATE_YAW: number;
+  KP_RATE: number;
+  KP_RATE_YAW: number;
+  MAX_THRUST_N: number;
+  ARM: number;
+  K_DRAG: number;
+};
 
 type FcIn = {
   angularVel: Vec3;
@@ -30,7 +37,7 @@ type FcIn = {
   aetrRoll:   number;
   aetrPitch:  number;
   aetrYaw:    number;
-  K: QuadConsts;
+  K: FcConsts;
 };
 type FcOut = { motors: Motors4 };
 

@@ -13,16 +13,32 @@
 //
 // Tunables (frame geometry, inertia, drag, ground damping) arrive via state.K.
 
-import type { QuadConsts } from './consts';
-
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
-type WorldIn = { pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3; thrust: Motors4; K: QuadConsts };
+type WorldConsts = {
+  ARM: number;
+  K_DRAG: number;
+  I_XX: number;
+  I_YY: number;
+  I_ZZ: number;
+  DT: number;
+  MASS: number;
+  GRAVITY: number;
+  GROUND_DAMP: number;
+};
+
+type WorldIn = {
+  pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3; thrust: Motors4;
+  windFx?: number; windFz?: number;
+  K: WorldConsts;
+};
 type WorldOut = { pos: Vec3; vel: Vec3; acc: Vec3; attitude: Vec3; angularVel: Vec3 };
 
 export function world(state: WorldIn): WorldOut {
   const K = state.K;
   const { m0, m1, m2, m3 } = state.thrust;
+  const windFx = state.windFx ?? 0;
+  const windFz = state.windFz ?? 0;
 
   const tau_roll  = K.ARM    * ( m0 - m1 - m2 + m3);
   const tau_pitch = K.ARM    * ( m0 + m1 - m2 - m3);
@@ -41,9 +57,9 @@ export function world(state: WorldIn): WorldOut {
   const ct = Math.cos(theta), st = Math.sin(theta);
   const cp = Math.cos(psi),   sp = Math.sin(psi);
 
-  const ax = F * (-cp * st * cr + sp * sr) / K.MASS;
+  const ax = F * (-cp * st * cr + sp * sr) / K.MASS + windFx / K.MASS;
   const ay = F * ( ct * cr             ) / K.MASS - K.GRAVITY;
-  const az = F * ( sp * st * cr + cp * sr) / K.MASS;
+  const az = F * ( sp * st * cr + cp * sr) / K.MASS + windFz / K.MASS;
 
   let vx = state.vel.x + ax * K.DT;
   let vy = state.vel.y + ay * K.DT;

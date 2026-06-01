@@ -10,28 +10,30 @@ import SimCharts from '../../../sim/components/SimCharts'
 
 # Quad noise — wind disturbance and sensor noise
 
-**Quad noise** extends [Quad L2](/Backyard-Flyer/quad-l2) with two new environment blocks that were absent in all previous models: random wind gusts and realistic sensor noise. The flight stack — navigator, stabilizer, hardware, mission — is unchanged structurally. What changes is what the controllers see and what they fly through.
+**Quad noise** is now the disturbance variant of [Quad L4](/Backyard-Flyer/quad-l4). It uses the same shared quad block library end to end: lifecycle, mission, planner, navigator, `fc_acro`, hardware, `world`, `wind`, and `noise` all come from the shared library. The model itself is now just shared blocks plus quad-noise-specific configuration and visualization.
 
 ```
-wind ──────────────────────────────────────► world
-noise → mission → fc_navigator → fc_stabilizer → hw → world
-  ▲                                                       │
-  └───────────────────────────────────────────────────────┘
+lifecycle (beforeSim → state.K)
+    │
+    ▼
+wind ──► world ──► noise ──► mission ──► planner_wp ──► navigator_wp ──► fc_acro ──► hw ──► world
+                               ▲            ▲               ▲                ▲
+                               └──────── noisy sensors ─────┴────────────────┘
 ```
 
 | Block | What it adds |
 |-------|-------------|
-| `wind` | Random horizontal gusts applied as external forces in `world` |
-| `noise` | Gaussian noise on every sensor channel; FC reads `state.sensors`, not raw state |
-| `mission` | Same seven-phase sequence as L2, but restarts automatically after landing |
+| Shared `wind` | Random horizontal gusts applied as external forces in shared `world` |
+| Shared `noise` | Gaussian noise on every sensor channel; FC reads `state.sensors`, not raw state |
+| Shared `mission` / `planner_wp` / `navigator_wp` / `fc_acro` / `hw` / `world` | The same quad-l4 contracts, but driven from noisy sensors and disturbed by wind |
 
-The quad must complete the same rectangular mission as L2. A well-tuned controller should converge despite never having access to the true state. Because the mission loops, the simulation runs indefinitely — each lap is a fresh trial against a different random wind.
+The quad must complete the same rectangular mission as L4. The controllers never see ground truth, only `state.sensors`, and the wind block perturbs the true physics continuously. Validation and pass/fail scoring now come from the shared lifecycle hook, just like L4.
 
 ---
 
 ## Wind
 
-The `wind` block follows the exact same pattern as in the [floater-pid](/Backyard-Flyer/floater-pid) model. It lives at the top level of state as `state.wind` and runs once per tick before everything else:
+The shared `wind` block lives at the top level of state as `state.wind` and runs once per tick before everything else:
 
 ```
 wind { fx, fz, ticksLeft }
@@ -39,17 +41,17 @@ wind { fx, fz, ticksLeft }
  └─ if ticksLeft = 0: sample new random gust
 ```
 
-Each new gust draws a uniformly random direction in the horizontal plane and a random magnitude up to `FORCE_MAX_PCT` of peak thrust, held for a random duration between `DURATION_MIN_TICKS` and `DURATION_MAX_TICKS`. The `world` block receives `windFx` and `windFz` and adds them to the aerodynamic force before integrating velocity.
+Each new gust draws a uniformly random direction in the horizontal plane and a random magnitude up to `WIND_FORCE_MAX_PCT` of `WIND_MAX_N`, held for a random duration between `WIND_DURATION_MIN_TICKS` and `WIND_DURATION_MAX_TICKS`. The shared `world` block receives `windFx` and `windFz` and adds them to the aerodynamic force before integrating velocity.
 
 Wind acts on the true physics but not on the sensor readings — the controllers don't know a gust just hit. They have to infer it from position drift and push back through feedback.
 
-> **Knobs in `wind.ts`:** `FORCE_MAX_PCT` (default 15%) scales the maximum gust strength. `DURATION_MIN_TICKS` / `DURATION_MAX_TICKS` control how long each gust persists. Set `FORCE_MAX_PCT = 0` to fly in calm air and observe the noise effects alone.
+> **Knobs in shared quad constants:** `WIND_FORCE_MAX_PCT`, `WIND_MAX_N`, `WIND_DURATION_MIN_TICKS`, and `WIND_DURATION_MAX_TICKS` set gust strength and duration. Set `WIND_FORCE_MAX_PCT = 0` to fly in calm air and observe the noise effects alone.
 
 ---
 
 ## Sensor noise
 
-The `noise` block runs immediately after `wind`, before any FC logic:
+The shared `noise` block runs immediately after `wind`, before any FC logic:
 
 ```
 true state (pos, vel, attitude, angularVel)
@@ -66,19 +68,24 @@ Every component of every sensor channel gets an independent zero-mean Gaussian s
 | `attitude` | 0.0001 rad (~0.006°) | IMU attitude |
 | `angularVel` | 0.005 rad/s | Gyroscope |
 
-All three FC blocks — `mission`, `fc_navigator`, `fc_stabilizer` — read exclusively from `state.sensors`. The true `pos`, `vel`, `attitude`, and `angularVel` fields are only consumed by `world`. The controller never has access to ground truth.
+The shared flight stack reads exclusively from `state.sensors`: mission, planner, navigator, and `fc_acro` all see noisy data. The true `pos`, `vel`, `attitude`, and `angularVel` fields are only consumed by `world` and by the lifecycle validator when it measures actual tracking error.
 
-> **Knobs in `noise.ts`:** Increase `POS_STD` to simulate a degraded GPS fix (try 0.5 m). Increase `ANG_VEL_STD` to simulate a noisy gyro — the inner attitude loop is the most sensitive to this because the derivative term amplifies high-frequency jitter.
+> **Knobs in shared `noise.ts`:** Increase `POS_STD` to simulate a degraded GPS fix (try 0.5 m). Increase `ANG_VEL_STD` to simulate a noisy gyro — the inner attitude loop is the most sensitive to this because the derivative term amplifies high-frequency jitter.
 
 ---
 
-## Why KI_POS is no longer zero
+## Shared architecture + explicit disturbances
 
-In Quad L2, `KI_POS = 0` was correct because there were no persistent disturbances: no wind, no drag. PD was sufficient.
+The point of this refactor is structural: `quad-noise` now inherits the same quad-l4 split of responsibilities, using only shared blocks.
 
-Here, a sustained wind gust applies a constant horizontal force. PD has no memory — it will push back against the offset, but a constant gust biases the position error in one direction and PD settles at a nonzero steady-state error (the gust force exactly cancels the proportional pull at some offset distance). The integral term accumulates that offset error over time and pre-loads a counter-force, driving steady-state error to zero.
+- `lifecycle` owns constants, validation, and pass/fail scoring.
+- `mission` remains a pure step/status sequencer.
+- `planner_wp` owns only waypoint completion.
+- `navigator_wp` converts noisy state into AETR sticks.
+- `fc_acro` still receives only AETR sticks and measured angular rates.
+- `wind`, `noise`, and `world` are shared blocks too; quad-noise enables the disturbance inputs while quad-l4 leaves wind at zero.
 
-`KI_POS = 0.3` is conservative: strong enough to reject typical gusts within a few seconds, small enough not to cause windup during fast maneuvers. When the wind changes direction suddenly, the accumulated integral briefly points the wrong way — you can see this as a momentary overshoot in the position chart.
+That makes the disturbance model an additive extension of L4 rather than a parallel copy of the older flight stack.
 
 ---
 
@@ -96,9 +103,9 @@ The **Position (true vs noisy)** chart overlays the true position (solid) agains
 
 ---
 
-## Attitude and navigator output
+## Attitude and AETR output
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des'],['fc.nav.thrust']]} client:only="react" />
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
 
 ---
 
@@ -116,7 +123,7 @@ The **Position (true vs noisy)** chart overlays the true position (solid) agains
 
 ## Edit the environment
 
-Adjust gust strength and noise levels here. Try setting `FORCE_MAX_PCT = 50` and `POS_STD = 0.2` to see how the navigator struggles to reject both a strong wind and a noisy GPS simultaneously.
+Adjust gust strength and noise levels here. Try setting `WIND_FORCE_MAX_PCT = 50` and `POS_STD = 0.2` to see how the navigator struggles to reject both a strong wind and a noisy GPS simultaneously.
 
 <SimSource sourceIds={['wind']} autoHeight client:only="react" />
 
@@ -124,35 +131,17 @@ Adjust gust strength and noise levels here. Try setting `FORCE_MAX_PCT = 50` and
 
 ---
 
-## Edit the navigator
+## Edit the shared flight stack
 
-The navigator is where wind rejection lives. Tune `KI_POS` — set it back to 0 and watch the quad drift downwind during a sustained gust.
+The disturbance rejection lives in the shared waypoint stack now. Open the same shared sources L4 uses, but watch them operate against wind and noisy sensors instead of clean state.
 
-<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
-
----
-
-## Mission restart
-
-The mission no longer stops at `DONE`. After landing and disarming, the sequencer waits 20 ticks (1 second) and then resets to `ARMING`, starting the whole sequence again:
-
-```
-ARMING → TAKEOFF → NAVIGATE → RTH → LAND → DISARMING → DONE ──(20 ticks)──► ARMING …
-```
-
-The 20-tick pause gives the physics a moment to settle at the pad before motors spin up again. The wind block keeps running through the restart, so consecutive laps may face entirely different gusts — a natural stress test for how quickly `KI_POS` adapts after each re-arm.
-
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission','planner_wp','navigator_wp','fc_acro']} autoHeight client:only="react" />
 
 ---
 
-## Edit the stabilizer, hardware, and physics
+## Edit the hardware and physics
 
-Unlike Quad L2 where `KI_ATT = 0`, the stabilizer here runs with `KI_ATT = 1`. With sensor noise on angular velocity, even a balanced quad accumulates small asymmetric attitude errors over time — the integral term cancels that slow drift so the quad doesn't gradually yaw or roll away from level.
-
-The navigator uses `MAX_TILT = 0.6 rad (~34°)` instead of the 0.3 rad (~17°) in L2, allowing more aggressive horizontal acceleration between waypoints.
-
-<SimSource sourceIds={['fc_stabilizer']} autoHeight client:only="react" />
+`hw` and `world` are shared too. The shared `world` block accepts optional wind-force inputs, so quad-noise uses the same physics implementation as L4 while enabling gust disturbance through the `wind` block.
 
 <SimSource sourceIds={['hw']} autoHeight client:only="react" />
 

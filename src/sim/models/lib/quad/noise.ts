@@ -1,8 +1,6 @@
 // Sensor noise model. Adds Gaussian noise to true state to produce noisy
 // sensor readings stored in state.sensors. FC blocks consume these instead of
 // true state, simulating real GPS, accelerometer, and gyro measurement errors.
-// Pattern mirrors floater-pid's wind block: a standalone generator block that
-// writes a sub-tree the downstream blocks read from.
 
 type Vec3 = { x: number; y: number; z: number };
 type NoiseIn = {
@@ -12,12 +10,11 @@ type NoiseOut = {
   pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3;
 };
 
-const POS_STD     = 0.01;   // m   — GPS horizontal / vertical noise
-const VEL_STD     = 0.01;   // m/s — velocity estimate noise
-const ATT_STD     = 0.0001;  // rad — IMU attitude noise (~0.3°)
-const ANG_VEL_STD = 0.005;   // rad/s — gyro noise
+const POS_STD = 0.01;
+const VEL_STD = 0.01;
+const ATT_STD = 0.0001;
+const ANG_VEL_STD = 0.005;
 
-// Box-Muller Gaussian sample (zero mean, unit variance).
 function randn(): number {
   const u = 1 - Math.random();
   const v = Math.random();
@@ -30,9 +27,9 @@ function addNoise(v: Vec3, std: number): Vec3 {
 
 export function noise(state: NoiseIn): NoiseOut {
   return {
-    pos:        addNoise(state.pos,        POS_STD),
-    vel:        addNoise(state.vel,        VEL_STD),
-    attitude:   addNoise(state.attitude,   ATT_STD),
+    pos: addNoise(state.pos, POS_STD),
+    vel: addNoise(state.vel, VEL_STD),
+    attitude: addNoise(state.attitude, ATT_STD),
     angularVel: addNoise(state.angularVel, ANG_VEL_STD),
   };
 }

@@ -5,10 +5,14 @@
 //
 // Tunables (MAX_THRUST_N, THRUST_RATE_N_PER_S, DT) arrive via state.K.
 
-import type { QuadConsts } from './consts';
-
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
-type HwIn = { motors: Motors4; thrustPrev: Motors4; K: QuadConsts };
+type HwConsts = {
+  MAX_THRUST_N: number;
+  THRUST_RATE_N_PER_S: number;
+  DT: number;
+};
+
+type HwIn = { motors: Motors4; thrustPrev: Motors4; K: HwConsts };
 type HwOut = { thrust: Motors4 };
 
 function slew(desired: number, current: number, maxDelta: number): number {

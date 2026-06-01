@@ -17,10 +17,15 @@
 // segStart/segEnd are emitted alongside the step bus so the cross-track
 // validator keeps working unchanged.
 
-import type { QuadParams } from './consts';
-
 type Vec3 = { x: number; y: number; z: number };
 type StepDef = { pos: Vec3; threshold: number; timeout?: number };
+type MissionConsts = {
+  steps: StepDef[];
+  CRUISE_ALT: number;
+  ARMING_TICKS: number;
+  RTH_THRESHOLD: number;
+  LAND_THRESHOLD: number;
+};
 
 type MissionIn = {
   pos: Vec3;
@@ -29,7 +34,7 @@ type MissionIn = {
   ticksInPhase: number;
   armed: number;
   statusWp: number;
-  K: QuadParams;
+  K: MissionConsts;
 };
 
 type StepBus = { pos: Vec3; threshold: number };

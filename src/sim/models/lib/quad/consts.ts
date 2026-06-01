@@ -54,6 +54,13 @@ export type QuadConsts = {
   // ── hw (motor spool-up) ──
   THRUST_RATE_N_PER_S: number;
 
+  // ── wind (gust generator) ──
+  WIND_FORCE_INITIAL_PCT: number;    // first gust season only; lets the quad stabilize
+  WIND_FORCE_MAX_PCT: number;        // max gust strength as % of WIND_MAX_N
+  WIND_MAX_N: number;                // 100% wind scale in Newtons
+  WIND_DURATION_MIN_TICKS: number;   // minimum gust duration
+  WIND_DURATION_MAX_TICKS: number;   // maximum gust duration
+
   // ── mission ──
   CRUISE_ALT: number;
   ARMING_TICKS: number;
@@ -103,6 +110,12 @@ export const QUAD_DEFAULTS: QuadConsts = {
   MAX_TILT: 0.3,
 
   THRUST_RATE_N_PER_S: 40,
+
+  WIND_FORCE_INITIAL_PCT: 5,
+  WIND_FORCE_MAX_PCT: 30,
+  WIND_MAX_N: 6,
+  WIND_DURATION_MIN_TICKS: 100,
+  WIND_DURATION_MAX_TICKS: 300,
 
   CRUISE_ALT: 5,
   ARMING_TICKS: 20,
