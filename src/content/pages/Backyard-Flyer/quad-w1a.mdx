@@ -8,40 +8,46 @@ import SimSource from '../../../sim/components/SimSource'
 import SimVis from '../../../sim/components/SimVis'
 import SimCharts from '../../../sim/components/SimCharts'
 
-# Quad W1 — window gates and carrot-and-stick navigation
+# Quad W1a — window gates and carrot-and-stick navigation
 
-**Quad W1** replaces point waypoints with rectangular window gates. Instead of flying to a coordinate and stopping, the drone must physically pass *through* each gate to advance the mission. The flight stack gains two new concepts: a plane-crossing detector in `mission`, and a dedicated `fc_path_planner` block that sits between the mission and the position PID.
+**Quad W1a** replaces point waypoints with rectangular **window gates**. Instead of flying to a coordinate and stopping, the drone must physically pass *through* each 5 × 5 m frame to advance the mission — hovering nearby is not enough.
+
+It keeps the same canonical architecture as [Quad L4](/Backyard-Flyer/quad-l4) and [Quad Noise](/Backyard-Flyer/quad-noise): the whole flight stack is shared `lib/quad` blocks, the `lifecycle` block owns the constants slice `state.K` and pass/fail scoring, and the model file is mostly wiring. Only two blocks are window-specific, and both are still shared library blocks:
 
 ```
-mission ──► fc_path_planner ──► fc_navigator ──► fc_stabilizer ──► hw ──► world
-   ▲                                                                         │
-   └─────────────────────────────────── noise ◄─────────────────────────────┘
+lifecycle (beforeSim → state.K)
+    │
+    ▼
+wind ──► world ──► noise ──► mission ──► planner_w1a ──► navigator_w1 ──► fc_acro ──► hw ──► world
+                               ▲    ▲         │ ▲
+                               │    └ planner_wp (recovery arrival)
+                               └──────── noisy sensors ───────┘
 ```
 
-| Block | What changed |
-|-------|-------------|
-| `mission` | Four rectangular gates replace point waypoints; crossing detected by plane sign change |
-| `fc_path_planner` | **New.** Carrot-and-stick: generates a moving sub-target ahead of the drone on the path to the gate |
-| `fc_navigator` | Now tracks the planner's *carrot*, not the raw gate center |
-| `fc_stabilizer` | Unchanged from Quad Noise |
-| `hw`, `world`, `wind`, `noise` | Unchanged |
+| Block | Role |
+|-------|------|
+| `mission` | Shared generic sequencer. The window route (`state.K.steps`) is a list of gates; mission only reads each step's `pos` and delegates completion to the planner |
+| `planner_w1a` | **New.** Owns window logic: a pure-pursuit carrot on the gate centerline **and** through-the-frame crossing detection |
+| `planner_wp` | Shared waypoint checker, reused to report arrival back at the recovery anchor during a restart |
+| `navigator_w1` | Shared w1-family navigator: turns the planner's carrot + yaw setpoint into AETR sticks |
+| `lifecycle`, `fc_acro`, `hw`, `world`, `wind`, `noise` | Shared, unchanged |
 
 ---
 
 ## Window gates
 
-A gate is a rectangular plane in 3D space:
+A gate is a rectangular plane in 3D space. In the shared `StepDef`, `pos` is the gate center and the window-specific fields ride the mission bus untouched:
 
 ```typescript
-type WindowDef = {
-  center: Vec3;    // center of the rectangle
-  normal: Vec3;    // unit vector — the direction of intended travel through the gate
-  width:  number;
-  height: number;
+type StepDef = {
+  pos: Vec3;       // gate center
+  normal?: Vec3;   // unit vector — intended travel direction through the gate
+  width?: number;
+  height?: number;
 };
 ```
 
-The four gates form a 20 × 20 m rectangle at cruise altitude, and the drone must fly *through* each frame rather than hover near a coordinate:
+The four gates form a 20 × 20 m rectangle at cruise altitude; the drone flies *through* each frame:
 
 | Gate | Center | Normal (travel direction) |
 |------|--------|--------------------------|
@@ -54,70 +60,80 @@ The four gates form a 20 × 20 m rectangle at cruise altitude, and the drone mus
 
 ## Crossing detection
 
-For each gate the mission computes a signed distance from the drone to the gate plane:
+For the active gate the planner computes a signed distance from the drone to the gate plane:
 
 ```
 sideScore = (pos − center) · normal
 ```
 
-`sideScore < 0` means the drone is on the approach side; `sideScore > 0` means it has exited. The crossing logic is directional: only an **approach → exit** transition (−1 → +1) is tested. A retreating drone backing through a gate is ignored.
+`sideScore < 0` is the approach side; `sideScore > 0` is the exit side. Detection is directional — only an **approach → exit** flip (−1 → +1) counts, so a drone drifting backward through a gate is ignored. A sentinel `windowSide = 0` marks the first tick on a new gate, preventing a false trigger before the side has been sampled.
 
-Given a directional plane crossing, two outcomes are possible:
+On a directional crossing the planner checks the in-plane (perpendicular) offset from the center:
 
 | Condition | Outcome |
 |-----------|---------|
-| Plane crossed **and** lateral offset < half gate dimension | Gate advanced — `windowIdx++` |
-| Plane crossed **and** lateral offset ≥ half gate dimension | **MISSED** — recovery sequence |
-
-The mission block stores `windowSide` in state (−1, 0, or +1). The sentinel value `0` marks the first tick after a new gate becomes active, preventing a false detection when `windowSide` is reset on gate entry.
+| Crossed **and** perpendicular offset < half the frame | `STATUS_COMPLETED` — mission advances to the next gate |
+| Crossed **and** perpendicular offset ≥ half the frame | `STATUS_RESTART` — the gate was missed; recover and retry |
 
 ---
 
-## Miss recovery
+## The carrot rides the centerline, not the center
 
-If the drone crosses the gate plane outside the frame, it enters the `MISSED` phase. The recovery target is the center of the **previously crossed gate** — or `HOME` if no gate has been crossed yet. Once the drone reaches that point, the mission resets to `NAVIGATE` for the same gate with a fresh `windowSide`, so the drone approaches again from the correct side.
+The obvious carrot — "aim at the gate center, `LOOKAHEAD` metres ahead" — has a fatal flaw. As the drone closes in, the position error collapses to zero **exactly at the gate**, so the controller unloads right when precision matters most. With no aerodynamic drag in this sim, whatever lateral velocity the drone carries then coasts it straight through *off-center*, and it misses.
 
-```
-NAVIGATE → [misses gate] → MISSED → [fly to prev gate center] → NAVIGATE (retry same gate)
-```
-
-This mirrors how a racing pilot flies: go back to the last checkpoint and retry the gate cleanly.
-
-The phase sequence with recovery:
+`planner_w1a` instead places the carrot on the gate's **centerline** — the line through the center along the normal — `LOOKAHEAD` ahead of the drone's projection onto that line:
 
 ```
-ARMING → TAKEOFF → NAVIGATE ──[crossed]──► NAVIGATE (next gate) → … → RTH → LAND → DISARMING → DONE
-                       │
-                    [missed]
-                       ▼
-                    MISSED ──[reached recovery point]──► NAVIGATE (retry)
+carrot = center + (sideScore + LOOKAHEAD) · normal
 ```
+
+```
+            approach          gate
+   drone ───────────────────►[   ]──► normal
+              ·····●·············|·····●  ← carrot sits LOOKAHEAD past the
+                   └ projection  |        drone's projection — beyond the
+                                 |        frame as the drone nears it
+```
+
+Two things fall out of this:
+
+- **The forward pull never collapses.** Near the gate the carrot sits *past* the frame, so the drone keeps driving forward through the center instead of decelerating at it.
+- **It self-centers.** The vector from the drone to the carrot also carries the off-axis offset, continuously steering the drone back onto the centerline. It flies *through the middle*, aligned with the normal.
+
+> **Knobs in `state.K`:** `LOOKAHEAD = 4 m` (carrot distance), `MAX_YAW_RATE` and `YAW_SLEW_LPF = 0.2` (yaw setpoint slew + smoothing). With no drag, cruise speed ≈ `KP_POS · LOOKAHEAD / KD_POS`, so `LOOKAHEAD` is also a speed knob.
 
 ---
 
-## Carrot-and-stick path planner
+## Miss recovery — PHASE_RESTART
 
-Flying directly at a gate center produces a sharp deceleration as the drone approaches — the position error collapses and the PID unloads just before the crossing, so the drone may not actually make it through.
-
-The `fc_path_planner` block solves this with a *carrot*: a virtual sub-target placed a fixed `LOOKAHEAD` distance ahead of the drone along the straight-line path to the gate:
+A missed gate is not a hard failure. The planner reports `STATUS_RESTART`, and **mission** takes over with a dedicated `PHASE_RESTART`: it points the target back at the step's **start anchor** (the previous gate, or `HOME` for the first), flies there as a plain waypoint, and re-runs the *same* gate. The fly-back is ordinary proximity navigation, so the shared `planner_wp` block is reused to report arrival (`statusReturn`); once back, mission resumes `NAVIGATE` with a fresh `windowSide`.
 
 ```
-    drone ──────────────────────────── gate center
-              ↑
-           carrot (LOOKAHEAD m ahead on the path)
+NAVIGATE ──[miss]──► PHASE_RESTART ──[back at anchor]──► NAVIGATE (retry same gate)
 ```
 
-When the drone is farther than `LOOKAHEAD` from the gate, the carrot leads it forward at full speed. When the drone closes to within `LOOKAHEAD`, the carrot collapses to the gate center — the drone drives straight through without slowing at an intermediate point.
+This mirrors a racing pilot returning to the last clean checkpoint. Restarts are **counted** — the lifecycle validator tracks them and pass/fail includes a restart budget (below).
 
-This produces a smooth, continuous velocity profile through the gate rather than a stop-and-go sequence of discrete waypoints.
+---
 
-> **Knob in `fc_path_planner.ts`:** `LOOKAHEAD = 4.0 m`. Increase it for faster, more committed approaches; decrease it if the drone overshoots and misses the gate.
+## Pass / fail
+
+Like L4 and Noise, the `lifecycle.after` hook scores the run live and `afterSim` finalizes a verdict. Window flight adds a fourth criterion to the usual three:
+
+| Check | Pass when |
+|-------|-----------|
+| Laps | `lapsTotal ≥ REQUIRED_LAPS` |
+| Duration | completion tick `≤ MAX_TICKS` |
+| Cross-track | accumulated error (IAE) `< ACC_ERR_LIMIT` |
+| **Restarts** | `restarts ≤ MAX_RESTARTS` |
+
+`MAX_RESTARTS` defaults to `-1` (not applicable) for waypoint courses, so it is skipped there; window models opt in with a real budget. The infoOverlay shows the live score (e.g. `3/4`) and a final PASS/FAIL.
 
 ---
 
 ## Watch it fly
 
-The 3D view renders each gate as a wireframe rectangle. The active gate is green; upcoming gates are orange; crossed gates fade to dark green. The yellow carrot sphere moves ahead of the drone during navigation and disappears when the drone is not in the NAVIGATE phase.
+Each gate renders as a wireframe rectangle: the active gate is green, upcoming gates orange, crossed gates fade. The yellow carrot sphere leads the drone along the centerline and through the frame.
 
 <SimVis client:only="react" />
 
@@ -125,60 +141,54 @@ The 3D view renders each gate as a wireframe rectangle. The active gate is green
 
 ## Carrot vs gate center
 
-The **Carrot vs window center** chart shows the gap between where the planner sends the drone (carrot) and where the gate actually is. During approach the carrot leads by up to `LOOKAHEAD` metres; as the drone enters the gate the two values converge.
+During the approach the carrot leads the drone along the gate centerline; the gate-center coordinate is shown for reference. Unlike a naive carrot, these do **not** fully converge at the crossing — the carrot stays ahead, on the normal, so the pull holds through the frame.
 
-<SimCharts varIds={[['planner.carrot.x','mission.windowCenter.x','planner.carrot.z','mission.windowCenter.z']]} client:only="react" />
-
----
-
-## Position and speed
-
-<SimCharts varIds={[['pos.x','sensors.pos.x','pos.y','sensors.pos.y','pos.z','sensors.pos.z']]} client:only="react" />
+<SimCharts varIds={[['planner_w1a.carrot.x','mission.step.pos.x','planner_w1a.carrot.z','mission.step.pos.z']]} client:only="react" />
 
 ---
 
-## Mission state
+## Mission state and restarts
 
-`windowIdx` increments each time a gate is crossed cleanly. `dist` is the 3D distance to the current target — the next gate center during NAVIGATE, the recovery point during MISSED. A spike in `phase` to 7 (MISSED) followed by a return to 2 (NAVIGATE) indicates the drone missed a gate and recovered.
+`stepIdx` increments on each clean crossing. `phase` spiking to 7 (`RESTART`) and returning to 2 (`NAVIGATE`) marks a missed gate and its recovery; the `restarts` counter steps up once per miss.
 
-<SimCharts varIds={[['mission.phase','mission.windowIdx','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} client:only="react" />
 
 ---
 
-## Edit the mission
+## Track error
 
-The gate positions, sizes, and travel normals live here. Try widening the gates (`width: 5`) or tightening the crossing threshold to require a more precise pass.
+`current err` is the instantaneous distance from the active mission segment; `accumulated` is its running sum (IAE) over NAVIGATE ticks — the value the pass test compares against `ACC_ERR_LIMIT`.
 
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimCharts varIds={[['validator.currentErr','validator.accErr']]} client:only="react" />
 
 ---
 
 ## Edit the path planner
 
-Tune the carrot lookahead distance or experiment with a different placement strategy — for example, putting the carrot slightly past the gate center so the drone fully exits before the mission advances.
+`planner_w1a` owns the centerline carrot and the crossing check. Try changing `LOOKAHEAD`, or experiment with the crossing tolerance (`max(width,height)/2`) to make the frame stricter.
 
-<SimSource sourceIds={['fc_path_planner']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_w1a']} autoHeight client:only="react" />
 
 ---
 
 ## Edit the navigator
 
-The navigator is identical to Quad Noise. Because it now tracks a moving carrot instead of a static target, the integral term (`KI_POS`) plays a smaller role — the carrot continuously nudges the drone forward, so steady-state error rarely accumulates. Try reducing `KI_POS` to 0 and observe the difference.
+`navigator_w1` is shared across the whole w1 family — only the planner differs between W1a and W1b. It is a cascaded position → attitude → rate controller that tracks the carrot. Because the yaw loop is a pure-P controller on a noisy heading measurement, it low-passes `attitude.y` (`YAW_MEAS_LPF`) and runs a softer `KP_YAW_OUTER` to stop the drone vibrating its heading left/right while it tracks the carrot.
 
-<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+<SimSource sourceIds={['navigator_w1']} autoHeight client:only="react" />
 
 ---
 
-## Attitude and thrust
+## Edit the mission and route
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['fc.nav.thrust']]} client:only="react" />
+The generic `mission` block sequences phases and owns `PHASE_RESTART`; the gate route lives in `state.K.steps`, edited through the `lifecycle` block. Try widening the gates or moving one off the rectangle to force oblique approaches.
+
+<SimSource sourceIds={['mission','lifecycle']} autoHeight client:only="react" />
 
 ---
 
 ## Edit the environment
 
-Wind and noise are inherited unchanged from Quad Noise. A strong crosswind makes it harder for the drone to line up with a narrow gate — increase `FORCE_MAX_PCT` to stress-test the gate crossing.
+Wind and noise are the shared blocks from Quad Noise. A strong crosswind makes it harder to line up with a narrow gate — raise `WIND_FORCE_MAX_PCT` to stress-test the crossing and watch the restart count climb.
 
-<SimSource sourceIds={['wind']} autoHeight client:only="react" />
-
-<SimSource sourceIds={['noise']} autoHeight client:only="react" />
+<SimSource sourceIds={['wind','noise']} autoHeight client:only="react" />

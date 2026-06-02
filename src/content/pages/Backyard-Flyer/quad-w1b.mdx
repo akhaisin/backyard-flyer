@@ -8,52 +8,60 @@ import SimSource from '../../../sim/components/SimSource'
 import SimVis from '../../../sim/components/SimVis'
 import SimCharts from '../../../sim/components/SimCharts'
 
-# Quad W1b — pre-gate staging approach
+# Quad W1b — pre-stage approach
 
-**Quad W1b** improves on W1a's carrot-and-stick navigation by adding a **pre-gate staging point** in front of each window. Instead of flying directly toward the gate center (which builds lateral momentum at oblique angles), the drone first aligns itself with the gate's approach axis before entering.
+**Quad W1b** is [Quad W1a](/Backyard-Flyer/quad-w1a) with one block swapped. It reuses the entire shared stack — `lifecycle`, `mission`, `navigator_w1`, `planner_wp`, `fc_acro`, `hw`, `world`, `wind`, `noise` — and only replaces the path planner:
 
-```
-mission ──► fc_path_planner (w1b) ──► fc_navigator ──► fc_stabilizer ──► hw ──► world
-```
+| Block | W1a | W1b |
+|-------|-----|-----|
+| planner | `planner_w1a` — centerline carrot | `planner_w1b` — centerline carrot **+ pre-stage leg** |
+| everything else | shared | identical |
 
-| Block | What changed |
-|-------|-------------|
-| `fc_path_planner` | Pre-gate staging: aligns drone with window normal before entering |
-| All others | Unchanged from W1a |
+The centerline carrot already flies the drone through the middle of each gate. W1b adds a **pre-stage waypoint** in front of each gate so the drone is settled on the approach axis *before* it commits — useful when the entry into a gate is oblique and would otherwise carry lateral momentum into the frame.
 
 ---
 
-## Pre-gate staging
+## Pre-stage waypoint
 
-For each gate a **pre-gate point** is placed `ENTRY_DIST` metres in front of the opening along the window normal (the approach side):
+Each gate's route entry carries a `preStageDist`. The planner places a pre-stage point that far behind the gate along the inverse normal, and flies there first (a plain point-seeking carrot) before switching to the centerline carrot for the final run:
 
 ```
-                preGate                gate
-    drone ──────────●──────────────────[  ]──►
-                    ↑
-              ENTRY_DIST = 5 m
+              preStage              gate
+   drone ───────●───────────────────[  ]──► normal
+                ↑
+          preStageDist = 5 m  (back along −normal)
 ```
 
-The planner targets the pre-gate until the drone is within `PREGATE_THRESHOLD` (1.5 m) of it, then switches to the gate center. The carrot lookahead is applied on the path to whichever target is active.
+A `preGateDone` **latch** flips to 1 the first tick the drone comes within `PREGATE_THRESHOLD` (1.5 m) of the pre-stage point, and stays latched for the rest of the gate. Without the latch the target would oscillate — the drone passes the pre-gate, its distance grows again, and the target snaps backward. On a restart (missed gate) the latch resets so the pre-stage repeats.
 
-This forces the drone to arrive at the gate from a direction parallel to the normal, eliminating the lateral overshoot that occurs when the approach angle is steep.
+`preStageDist ≤ 0` collapses the block back to exactly `planner_w1a`'s behaviour, so the same block serves a whole route of mixed gates.
+
+---
+
+## Watch it fly
 
 <SimVis client:only="react" />
 
 ---
 
-## Path planner
+## Pre-stage latch and carrot
 
-<SimSource sourceIds={['fc_path_planner']} autoHeight client:only="react" />
+`preGateDone` rises to 1 as the drone reaches each pre-stage point, then the carrot tracks the gate centerline. Watch it reset to 0 each time the mission advances to a new gate (or restarts one).
 
----
-
-## Carrot vs gate center
-
-<SimCharts varIds={[['planner.carrot.x','mission.windowCenter.x','planner.carrot.z','mission.windowCenter.z']]} client:only="react" />
+<SimCharts varIds={[['mission.stepIdx','planner_w1b.preGateDone'],['planner_w1b.carrot.x','mission.step.pos.x','planner_w1b.carrot.z','mission.step.pos.z']]} client:only="react" />
 
 ---
 
-## Mission state
+## Mission state and restarts
 
-<SimCharts varIds={[['mission.phase','mission.windowIdx','mission.dist','mission.armed']]} client:only="react" />
+As in W1a, `phase = 7` (`RESTART`) plus a step in `restarts` marks a missed gate. Staging should keep the restart count lower than W1a under the same wind — the side-by-side [Combined](/Backyard-Flyer/quad-w1-combined) model makes that comparison directly.
+
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} client:only="react" />
+
+---
+
+## Edit the path planner
+
+`planner_w1b` adds the pre-stage leg and `preGateDone` latch on top of W1a's centerline carrot and crossing detection. Try changing `PREGATE_THRESHOLD`, or set every gate's `preStageDist` to 0 (in the route, via `lifecycle`) to watch it degrade to W1a.
+
+<SimSource sourceIds={['planner_w1b','lifecycle']} autoHeight client:only="react" />

@@ -92,24 +92,24 @@ This makes Quad Noise a good second recommended read alongside L4: L4 shows the 
 
 ## [Quad W1a — window gates and carrot-and-stick navigation](#Backyard-Flyer/quad-w1a)
 
-Point waypoints are replaced with rectangular window gates. The drone must physically fly *through* each 3 × 3 m frame to advance the mission — hovering nearby is not enough. A new `fc_path_planner` block sits between the mission and the position PID and implements a carrot-and-stick: a virtual sub-target placed `LOOKAHEAD` metres ahead of the drone on the path to the gate, keeping the drone at full speed through the crossing instead of decelerating to a stop.
+Point waypoints are replaced with rectangular window gates. The drone must physically fly *through* each 5 × 5 m frame to advance the mission — hovering nearby is not enough. A new shared `planner_w1a` block owns the window logic: through-the-frame crossing detection plus a **pure-pursuit carrot on the gate centerline**. The carrot rides `LOOKAHEAD` metres ahead of the drone's projection onto the gate's approach axis, sitting *past* the frame as the drone nears it — so the forward pull never collapses at the gate (the failure mode of a naive "aim at the center" carrot), and the off-axis term steers the drone through the middle.
 
-Crossing detection is directional (approach → exit only) and checks whether the drone passed through the frame or missed it. A missed gate triggers a recovery phase: the drone returns to the center of the previously crossed gate and retries, mirroring how a racing pilot restarts from the last checkpoint.
+Crossing detection is directional (approach → exit only). A missed gate reports `STATUS_RESTART`, and the mission flies the drone back to the previous gate (its start anchor) and retries via a dedicated `PHASE_RESTART` — mirroring a racing pilot restarting from the last clean checkpoint. Restarts are counted and bounded by a pass/fail budget.
 
-**What it introduces:** plane-based crossing detection, MISSED recovery state, carrot-and-stick path planning, and the architectural split between mission planning and low-level navigation.
+**What it introduces:** plane-based crossing detection, the centerline pure-pursuit carrot, mission-owned `PHASE_RESTART` recovery with a restart-budget pass criterion, and the mission/planner split by step type.
 
 ---
 
-## [Quad W1b — pre-gate staging approach](#Backyard-Flyer/quad-w1b)
+## [Quad W1b — pre-stage approach](#Backyard-Flyer/quad-w1b)
 
-The same window-gate mission as W1a, but with an improved path planner. At oblique approach angles the W1a carrot builds lateral momentum that can overshoot the gate opening. W1b adds a **pre-gate staging point** placed 5 m in front of each gate along the window normal — the drone aligns with the approach axis first, then flies cleanly through.
+The same window-gate mission as W1a with one block swapped: `planner_w1b` adds a **pre-stage waypoint** in front of each gate. Before committing to the centerline run, the drone first flies to a point `preStageDist` behind the gate along the inverse normal, so it settles on the approach axis and oblique entries don't carry lateral momentum into the frame. A `preGateDone` latch prevents the target oscillating between the pre-gate and the gate.
 
-**What it introduces:** angle-aware approach correction, pre-gate staging as a path planning primitive.
+**What it introduces:** pre-stage staging as a path-planning primitive layered on the centerline carrot, and the latch pattern that keeps a two-phase approach stable.
 
 ---
 
 ## [Quad W1 Combined — W1a vs W1b side-by-side](#Backyard-Flyer/quad-w1-combined)
 
-Both approaches fly simultaneously in one simulation. W1a (blue) and W1b (orange) navigate identical window-gate circuits on parallel tracks separated by 25 m in Z. A shared wind block affects both equally, so any difference in gate miss rate is attributable to the planner alone.
+Two complete copies of the shared flight stack fly at once under `state.vehicles.a` / `.b` — W1a (blue, `planner_w1a`) and W1b (orange, `planner_w1b`) — on separate offset tracks, disturbed by one shared wind block. The lifecycle publishes both routes into a single `state.K` and runs the cross-track/restart validator once per vehicle, giving each its own multi-criteria PASS/FAIL. Any difference in laps completed or restart count is attributable to the planner alone.
 
-**What it introduces:** side-by-side comparison of path planning strategies, loops counter for lap-rate benchmarking.
+**What it introduces:** a dual-vehicle A/B comparison built from one shared stack wired twice, per-vehicle pass/fail, and the home-in-`K` generalization that lets the shared mission fly offset tracks.

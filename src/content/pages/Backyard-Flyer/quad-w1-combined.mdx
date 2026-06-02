@@ -10,52 +10,75 @@ import SimCharts from '../../../sim/components/SimCharts'
 
 # Quad W1 Combined — W1a vs W1b side-by-side
 
-Two quads fly simultaneously through identical window-gate circuits on parallel tracks 25 m apart. Both experience the same shared wind.
+Two complete drones fly at once, each a full copy of the shared flight stack, so the **carrot** ([W1a](/Backyard-Flyer/quad-w1a)) and **pre-stage** ([W1b](/Backyard-Flyer/quad-w1b)) planners can be compared under identical conditions.
 
-- **Blue (A)** — W1a: carrot-and-stick, direct approach to gate center
-- **Orange (B)** — W1b: pre-gate staging, aligns with window normal before entering
+- **Blue (A)** — `planner_w1a`: centerline carrot only
+- **Orange (B)** — `planner_w1b`: centerline carrot + pre-stage leg
+
+Both stacks live in one state tree under `state.vehicles.a` and `state.vehicles.b`, and a single shared `wind` block disturbs both equally — any difference in miss rate is the planner alone.
 
 ```
-Track A (z = 0):   gates at x = ±10, z = ±10
-Track B (z = 25):  gates at x = ±10, z = 15 / 35
+                        ┌─ vehicles.a:  mission ─► planner_w1a ─► navigator_w1 ─► … ─► world
+lifecycle ─► state.K ───┤
+            wind ───────┴─ vehicles.b:  mission ─► planner_w1b ─► navigator_w1 ─► … ─► world
 ```
 
-The **Loops completed** chart is the key metric: it accumulates every time a drone completes all four gates and returns home. Over many laps the difference in gate miss rate becomes visible as a gap between the two curves.
+---
+
+## Two offset tracks, one K
+
+The drones race on **separate** rectangles — track A centered at `(−15, 15)`, track B at `(15, −15)` — so they don't overlap in the 3D view. That meant generalizing the shared `mission`: home and the land pad now come from `state.K` (`HOME_X` / `HOME_Z`, default the origin), so each vehicle can take off and return to its own corner.
+
+Both tracks share one frozen `state.K`. The lifecycle publishes both routes (`stepsA`, `stepsB`); each vehicle's `mission` is handed a small **K view** that swaps in its own `steps` + home. The planner, navigator, and physics blocks just read the shared scalars (gains, `LOOKAHEAD`, gust limits) — those are identical for both.
+
+---
+
+## Dual-vehicle validation
+
+The combined `lifecycle.after` hook runs the same cross-track / restart validator as W1a, **once per vehicle**, writing `vehicles.a.validator` and `vehicles.b.validator`. Each vehicle gets its own multi-criteria pass/fail (laps, duration, accumulated error, restart budget), surfaced in its own corner overlay — blue bottom-left, orange bottom-right — with a live `n/4` score and a final PASS/FAIL.
+
+---
+
+## Watch them fly
 
 <SimVis client:only="react" />
 
 ---
 
-## Loops completed
+## Laps completed
 
-A lap increments when the drone completes all four gates, lands, and restarts. Under consistent wind conditions W1b should accumulate laps more reliably since it misses fewer gates.
+The headline comparison: completed laps over time. Under the same wind, the pre-stage drone (orange) should pull ahead as it wastes fewer laps on missed-gate restarts.
 
-<SimCharts varIds={[['vehicles.a.mission.loops','vehicles.b.mission.loops']]} client:only="react" />
-
----
-
-## Mission phase and distance
-
-`phase = 7` is MISSED — a spike here means the drone crossed the gate plane outside the frame and entered recovery. Count the spikes to compare miss rates.
-
-<SimCharts varIds={[['vehicles.a.mission.phase','vehicles.b.mission.phase'],['vehicles.a.mission.dist','vehicles.b.mission.dist']]} client:only="react" />
+<SimCharts varIds={[['vehicles.a.validator.lapsTotal','vehicles.b.validator.lapsTotal']]} client:only="react" />
 
 ---
 
-## Speed
+## Restarts (missed gates)
 
-<SimCharts varIds={[['vehicles.a.mission.loops']]} client:only="react" />
+Every missed gate steps a vehicle's restart counter. The gap between the two curves is the pre-stage payoff — and each vehicle fails its run if it exceeds `MAX_RESTARTS`.
 
----
-
-## Path planners
-
-<SimSource sourceIds={['fc_path_planner_a']} autoHeight client:only="react" />
-
-<SimSource sourceIds={['fc_path_planner_b']} autoHeight client:only="react" />
+<SimCharts varIds={[['vehicles.a.validator.restarts','vehicles.b.validator.restarts']]} client:only="react" />
 
 ---
 
-## Wind
+## Mission phase and track error
+
+A spike to phase 7 (`RESTART`) is a miss-and-recover on that track. The accumulated cross-track error (IAE) is the other half of the comparison — staging should also fly a tidier line.
+
+<SimCharts varIds={[['vehicles.a.mission.phase','vehicles.b.mission.phase'],['vehicles.a.validator.accErr','vehicles.b.validator.accErr']]} client:only="react" />
+
+---
+
+## Edit the two planners
+
+The only blocks that differ between the tracks. Everything downstream — `navigator_w1`, `fc_acro`, `hw`, `world` — is the same shared code running twice.
+
+<SimSource sourceIds={['planner_w1a','planner_w1b']} autoHeight client:only="react" />
+
+---
+
+## Edit the shared wind
+
+One gust generator drives both tracks, so the comparison stays fair.
 
 <SimSource sourceIds={['wind']} autoHeight client:only="react" />
