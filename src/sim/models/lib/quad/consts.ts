@@ -95,6 +95,8 @@ export type QuadConsts = {
   ARMING_TICKS: number;
   RTH_THRESHOLD: number;
   LAND_THRESHOLD: number;
+  HOME_X: number;        // home/land-pad XZ (default 0,0 = origin); offset-track models override
+  HOME_Z: number;
 
   // ── simulation lifecycle + pass/fail criteria (lifecycle.after → simTest) ──
   // Run length in ticks: lifecycle.after stops the sim once tick >= simDuration.
@@ -150,8 +152,8 @@ export const QUAD_DEFAULTS: QuadConsts = {
   // Sensor noise std-devs (halved from the original inline noise-block values).
   POS_STD:     0.005,
   VEL_STD:     0.005,
-  ATT_STD:     0.00005,
-  ANG_VEL_STD: 0.0025,
+  ATT_STD:     0.0,
+  ANG_VEL_STD: 0.0,
 
   WIND_FORCE_INITIAL_PCT: 0,
   WIND_FORCE_MAX_PCT: 20,
@@ -163,6 +165,8 @@ export const QUAD_DEFAULTS: QuadConsts = {
   ARMING_TICKS: 20,
   RTH_THRESHOLD: 1.2,
   LAND_THRESHOLD: 0.3,
+  HOME_X: 0,
+  HOME_Z: 0,
 
   // Calibrated headless against the simplified planner: ~370 ticks/lap and
   // ~570 accumulated XTE/lap. A clean 5-lap run finishes near ~1800 ticks /

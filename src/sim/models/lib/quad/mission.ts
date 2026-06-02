@@ -41,6 +41,8 @@ type MissionConsts = {
   ARMING_TICKS: number;
   RTH_THRESHOLD: number;
   LAND_THRESHOLD: number;
+  HOME_X: number;
+  HOME_Z: number;
 };
 
 type MissionIn = {
@@ -126,8 +128,8 @@ export function mission(state: MissionIn): MissionOut {
   const K = state.K;
   const steps = state.K.steps;
 
-  const HOME: Vec3     = { x: 0, y: K.CRUISE_ALT, z: 0 };
-  const LAND_PAD: Vec3 = { x: 0, y: 0,            z: 0 };
+  const HOME: Vec3     = { x: K.HOME_X, y: K.CRUISE_ALT, z: K.HOME_Z };
+  const LAND_PAD: Vec3 = { x: K.HOME_X, y: 0,            z: K.HOME_Z };
   const HOME_STEP: StepDef = { pos: HOME,     threshold: K.RTH_THRESHOLD };
   const LAND_STEP: StepDef = { pos: LAND_PAD, threshold: K.LAND_THRESHOLD };
 
