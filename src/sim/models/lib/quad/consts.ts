@@ -13,10 +13,26 @@
 
 export type Vec3 = { x: number; y: number; z: number };
 
-// A navigate waypoint. The mission route is an ordered list of these; it lives
-// in the same params bag as the scalars (config-driven, UI-editable) and reaches
+// A navigate step. The mission route is an ordered list of these; it lives in
+// the same params bag as the scalars (config-driven, UI-editable) and reaches
 // mission via state.K.steps.
-export type StepDef = { pos: Vec3; threshold: number; timeout?: number };
+//
+// `pos` is the universal anchor every step type carries — the target for a
+// waypoint step, the gate center for a window step. The remaining fields are
+// step-type specific and ride the mission bus untouched so the matching planner
+// can read them:
+//   • waypoint steps use `threshold` (completion radius).
+//   • window steps use `normal` (travel direction through the gate) + `width` /
+//     `height` (frame size); they need no threshold.
+// Mission itself only ever reads `pos`; completion is delegated to the planner.
+export type StepDef = {
+  pos: Vec3;
+  threshold?: number;   // waypoint: completion radius
+  normal?: Vec3;        // window: unit travel direction through the gate
+  width?: number;       // window: frame width
+  height?: number;      // window: frame height
+  timeout?: number;     // optional NAVIGATE tick budget (any step type)
+};
 
 // A type alias (not interface) so it carries an implicit string index
 // signature — required for the bag to be assignable to the engine's ModelState
@@ -49,10 +65,22 @@ export type QuadConsts = {
   MAX_INT_POS: number;
   KP_ATT_OUTER: number;
   KP_YAW_OUTER: number;
+  YAW_MEAS_LPF: number;        // EMA factor (0..1) low-passing the yaw measurement; 1 = off
   MAX_TILT: number;
+
+  // ── planner_w1a (gate path planner) ──
+  LOOKAHEAD: number;           // pure-pursuit carrot distance ahead along the gate centerline
+  MAX_YAW_RATE: number;        // yaw setpoint slew cap (rad/s)
+  YAW_SLEW_LPF: number;        // first-order smoothing on the yaw setpoint (0..1; 1 = off)
 
   // ── hw (motor spool-up) ──
   THRUST_RATE_N_PER_S: number;
+
+  // ── noise (sensor noise model: Gaussian std-dev per channel) ──
+  POS_STD: number;
+  VEL_STD: number;
+  ATT_STD: number;
+  ANG_VEL_STD: number;
 
   // ── wind (gust generator) ──
   WIND_FORCE_INITIAL_PCT: number;    // first gust season only; lets the quad stabilize
@@ -76,6 +104,7 @@ export type QuadConsts = {
   MAX_TICKS: number;
   REQUIRED_LAPS: number;   // completed laps needed to pass (lapsTotal >= this)
   ACC_ERR_LIMIT: number;   // accumulated cross-track error (IAE) must be < this
+  MAX_RESTARTS: number;    // window-gate restarts allowed; -1 = N/A (check skipped)
 };
 
 // The full per-instance params bag published to state.K: shared scalar tunables
@@ -107,13 +136,25 @@ export const QUAD_DEFAULTS: QuadConsts = {
   MAX_INT_POS: 15.0,
   KP_ATT_OUTER: 40.0,
   KP_YAW_OUTER: 10.0,
+  YAW_MEAS_LPF: 1.0,     // no yaw-measurement filtering by default; window models opt in
   MAX_TILT: 0.3,
+
+  // planner_w1a (gate path planner; only the window models read these)
+  LOOKAHEAD: 4.0,
+  MAX_YAW_RATE: Math.PI / 2,
+  YAW_SLEW_LPF: 0.2,
 
   THRUST_RATE_N_PER_S: 40,
 
-  WIND_FORCE_INITIAL_PCT: 5,
-  WIND_FORCE_MAX_PCT: 30,
-  WIND_MAX_N: 6,
+  // Sensor noise std-devs (halved from the original inline noise-block values).
+  POS_STD:     0.005,
+  VEL_STD:     0.005,
+  ATT_STD:     0.00005,
+  ANG_VEL_STD: 0.0025,
+
+  WIND_FORCE_INITIAL_PCT: 0,
+  WIND_FORCE_MAX_PCT: 20,
+  WIND_MAX_N: 4,
   WIND_DURATION_MIN_TICKS: 100,
   WIND_DURATION_MAX_TICKS: 300,
 
@@ -129,5 +170,6 @@ export const QUAD_DEFAULTS: QuadConsts = {
   REQUIRED_LAPS: 5,
   MAX_TICKS: 2000,       // duration pass-budget: 5 laps should finish under this
   ACC_ERR_LIMIT: 1000,   // accumulated XTE (IAE) ceiling (clean run ~2300)
+  MAX_RESTARTS: -1,      // N/A for waypoint courses; window models override with a real budget
   simDuration: 4000,     // hard cap — only fires if the run never makes 5 laps
 };

@@ -5,7 +5,12 @@
 //   STATUS_RUNNING   → tick++
 //   STATUS_COMPLETED → advance stepIdx (or PHASE_RTH if last)
 //   STATUS_FAILED    → abort to PHASE_RTH
-//   STATUS_RESTART   → reset ticksInPhase, stay on current stepIdx
+//   STATUS_RESTART   → enter PHASE_RESTART: fly back to the step's start anchor
+//                      (previous gate / HOME) and re-run the SAME step. The
+//                      window planner reports a missed gate via STATUS_RESTART;
+//                      the fly-back is a plain waypoint, so a second planner_wp
+//                      reports arrival (statusReturn). Waypoint models never emit
+//                      STATUS_RESTART, so PHASE_RESTART stays dormant for them.
 // If step.timeout is set and ticksInPhase reaches it, mission overrides the
 // reported status to FAILED. Timeouts only apply in PHASE_NAVIGATE.
 //
@@ -18,7 +23,17 @@
 // validator keeps working unchanged.
 
 type Vec3 = { x: number; y: number; z: number };
-type StepDef = { pos: Vec3; threshold: number; timeout?: number };
+// `pos` is the universal anchor; the rest are step-type specific and ride the
+// bus untouched (waypoint: threshold; window: normal/width/height). Mission only
+// reads `pos` — completion is delegated to the planner, which reads its fields.
+type StepDef = {
+  pos: Vec3;
+  threshold?: number;
+  normal?: Vec3;
+  width?: number;
+  height?: number;
+  timeout?: number;
+};
 type MissionConsts = {
   steps: StepDef[];
   CRUISE_ALT: number;
@@ -33,11 +48,21 @@ type MissionIn = {
   stepIdx: number;
   ticksInPhase: number;
   armed: number;
-  statusWp: number;
+  statusWp: number;      // primary step planner (window crossing / waypoint reach)
+  statusReturn?: number; // recovery-waypoint planner: arrival at the start anchor
   K: MissionConsts;
 };
 
-type StepBus = { pos: Vec3; threshold: number };
+// What rides the bus to the planner. Carries `pos` plus whatever type-specific
+// fields the active step defined (waypoint: threshold; window: normal/width/
+// height). Mission passes them through untouched.
+type StepBus = {
+  pos: Vec3;
+  threshold?: number;
+  normal?: Vec3;
+  width?: number;
+  height?: number;
+};
 
 type MissionOut = {
   phase: number;
@@ -61,6 +86,7 @@ export const PHASE_RTH       = 3;
 export const PHASE_LAND      = 4;
 export const PHASE_DISARMING = 5;
 export const PHASE_DONE      = 6;
+export const PHASE_RESTART   = 7;
 
 const STATUS_COMPLETED = 1;
 const STATUS_FAILED    = 2;
@@ -72,7 +98,13 @@ function dist3(a: Vec3, b: Vec3): number {
 }
 
 function stepToBus(step: StepDef): StepBus {
-  return { pos: step.pos, threshold: step.threshold };
+  return {
+    pos:       step.pos,
+    threshold: step.threshold,
+    normal:    step.normal,
+    width:     step.width,
+    height:    step.height,
+  };
 }
 
 function makeOut(
@@ -105,6 +137,20 @@ export function mission(state: MissionIn): MissionOut {
       PHASE_NAVIGATE, stepIdx, ticks, 1,
       step, step.pos, dist3(pos, step.pos),
       segStartFor(stepIdx), step.pos,
+    );
+  };
+
+  // Recovery: fly back to the step's start anchor and re-run the same gate. The
+  // anchor is a plain proximity waypoint (threshold), so planner_wp reports
+  // arrival via statusReturn. segEnd is the anchor so cross-track error, which
+  // only accrues in PHASE_NAVIGATE, ignores the fly-back entirely.
+  const restartStep = (stepIdx: number, ticks: number, pos: Vec3): MissionOut => {
+    const anchor: Vec3 = segStartFor(stepIdx);
+    const step: StepDef = { pos: anchor, threshold: K.RTH_THRESHOLD };
+    return makeOut(
+      PHASE_RESTART, stepIdx, ticks, 1,
+      step, anchor, dist3(pos, anchor),
+      steps[stepIdx].pos, anchor,
     );
   };
 
@@ -152,10 +198,18 @@ export function mission(state: MissionIn): MissionOut {
     }
 
     if (status === STATUS_RESTART) {
-      return navigateStep(stepIdx, 0, state.pos);
+      return restartStep(stepIdx, 0, state.pos);
     }
 
     return navigateStep(stepIdx, ticks + 1, state.pos);
+  }
+
+  if (phase === PHASE_RESTART) {
+    // Back at the start anchor (planner_wp reports COMPLETED) → re-run the gate.
+    if (Math.round(state.statusReturn ?? 0) === STATUS_COMPLETED) {
+      return navigateStep(stepIdx, 0, state.pos);
+    }
+    return restartStep(stepIdx, ticks + 1, state.pos);
   }
 
   if (phase === PHASE_RTH) {

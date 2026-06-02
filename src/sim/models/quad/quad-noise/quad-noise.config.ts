@@ -74,6 +74,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     validator: {
       prevPhase:        0,
       lapsTotal:        0,
+      restarts:         0,
       completionTick:   -1,
       completionAccErr: -1,
       currentErr:       0,
@@ -105,6 +106,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
         vel:        s.vel,
         attitude:   s.attitude,
         angularVel: s.angularVel,
+        K:          s.K,
       }),
       mapStateOut: (out, s) => ({ ...s, sensors: out }),
       tickFrequency: 1,

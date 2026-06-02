@@ -4,7 +4,13 @@
 // step.threshold, it reports COMPLETED so mission advances. The actual steering
 // toward the waypoint lives in navigator_wp.
 //
-// NAVIGATE / STATUS_* are protocol enums (the mission contract) and stay here.
+// It is active in PHASE_NAVIGATE (waypoint models) and PHASE_RESTART (window
+// models, where it watches the fly-back to a missed gate's start anchor — the
+// anchor mission emits during recovery is a plain proximity waypoint). Window
+// steps carry no threshold, so a NAVIGATE-phase window step never trips this.
+//
+// NAVIGATE / RESTART / STATUS_* are protocol enums (the mission contract) and
+// stay here.
 
 type Vec3 = { x: number; y: number; z: number };
 type Step = { pos: Vec3; threshold: number };
@@ -21,6 +27,7 @@ type PlannerOut = {
 };
 
 const NAVIGATE  = 2;
+const RESTART   = 7;
 
 const STATUS_RUNNING   = 0;
 const STATUS_COMPLETED = 1;
@@ -32,7 +39,8 @@ function dist3(a: Vec3, b: Vec3): number {
 
 export function planner_wp(state: PlannerIn): PlannerOut {
   const reached = dist3(state.pos, state.step.pos) < state.step.threshold;
-  const navigating = !!state.armed && Math.round(state.phase) === NAVIGATE;
+  const phase = Math.round(state.phase);
+  const navigating = !!state.armed && (phase === NAVIGATE || phase === RESTART);
   const stepStatus = navigating && reached ? STATUS_COMPLETED : STATUS_RUNNING;
 
   return { stepStatus };

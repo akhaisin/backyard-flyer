@@ -62,6 +62,7 @@ export function quadL4Config(overrides?: Partial<QuadConsts>): ModelConfig {
     validator: {
       prevPhase:      0,
       lapsTotal:      0,
+      restarts:       0,
       completionTick: -1,
       completionAccErr: -1,
       currentErr:     0,

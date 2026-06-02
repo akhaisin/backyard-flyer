@@ -34,12 +34,25 @@ function fmtCoord(v: number, cruiseAlt: number, isY: boolean): string {
   return isY && v === cruiseAlt ? 'CRUISE_ALT' : String(v);
 }
 
+function fmtVec(v: { x: number; y: number; z: number }): string {
+  return `{ x: ${v.x}, y: ${v.y}, z: ${v.z} }`;
+}
+
+// Render a step literal. `pos` is the universal anchor; the remaining fields are
+// only emitted when the step defines them, so a waypoint renders `pos + threshold`
+// and a window renders `pos + normal + width + height` — round-tripping whatever
+// step type the route uses through the editable lifecycle source.
 function fmtStep(s: StepDef, cruiseAlt: number): string {
-  const t = s.timeout !== undefined ? `, timeout: ${s.timeout}` : '';
   const x = fmtCoord(s.pos.x, cruiseAlt, false);
   const y = fmtCoord(s.pos.y, cruiseAlt, true);
   const z = fmtCoord(s.pos.z, cruiseAlt, false);
-  return `      { pos: { x: ${x}, y: ${y}, z: ${z} }, threshold: ${s.threshold}${t} },`;
+  const parts = [`pos: { x: ${x}, y: ${y}, z: ${z} }`];
+  if (s.threshold !== undefined) parts.push(`threshold: ${s.threshold}`);
+  if (s.normal    !== undefined) parts.push(`normal: ${fmtVec(s.normal)}`);
+  if (s.width     !== undefined) parts.push(`width: ${s.width}`);
+  if (s.height    !== undefined) parts.push(`height: ${s.height}`);
+  if (s.timeout   !== undefined) parts.push(`timeout: ${s.timeout}`);
+  return `      { ${parts.join(', ')} },`;
 }
 
 // The full editable lifecycle source. The default fns are compiled FROM this
@@ -95,6 +108,10 @@ function simTest(state) {
     judgedTick <= K.MAX_TICKS,        // finished within the tick budget
     judgedAccErr < K.ACC_ERR_LIMIT,   // accumulated cross-track error (IAE)
   ];
+  // A pass-criterion knob set to -1 means "not applicable" — the check is dropped
+  // and the denominator shrinks. Waypoint courses have no gates to miss, so they
+  // leave MAX_RESTARTS at -1; window models set a real budget to opt in.
+  if (K.MAX_RESTARTS >= 0) checks.push(v.restarts <= K.MAX_RESTARTS);
   return { passed: checks.filter(Boolean).length, total: checks.length };
 }
 
@@ -103,20 +120,26 @@ export function before(state) {
 }
 
 export function after(state) {
-  // Mission contract: mission.phase === 2 is the NAVIGATE phase. Declared here
-  // (not imported) because edited block source is compiled with imports stripped.
+  // Mission contract: mission.phase 2 = NAVIGATE, 7 = RESTART (fly back to a
+  // missed gate's anchor). Declared here (not imported) because edited block
+  // source is compiled with imports stripped.
   const NAVIGATE = 2;
+  const RESTART  = 7;
 
   // ── Cross-track validator ──
   // currentErr: instantaneous distance from the active mission segment.
   // accErr:     running sum of currentErr over every NAVIGATE tick (IAE).
-  // lapsTotal:  incremented each time we leave NAVIGATE (one mission lap).
+  // lapsTotal:  incremented when we leave NAVIGATE to finish a lap (NAVIGATE →
+  //             RESTART is a missed-gate retry, not a lap, so it is excluded).
+  // restarts:   incremented each time mission enters PHASE_RESTART.
   const v = state.validator;
   const phase = Math.round(state.mission.phase);
   const prevPhase = Math.round(v.prevPhase);
 
   let lapsTotal = v.lapsTotal;
-  if (prevPhase === NAVIGATE && phase !== NAVIGATE) lapsTotal += 1;
+  if (prevPhase === NAVIGATE && phase !== NAVIGATE && phase !== RESTART) lapsTotal += 1;
+  let restarts = v.restarts;
+  if (prevPhase !== RESTART && phase === RESTART) restarts += 1;
   let completionTick = v.completionTick;
   let completionAccErr = v.completionAccErr;
 
@@ -131,7 +154,7 @@ export function after(state) {
   }
 
   state.validator = {
-    prevPhase: phase, lapsTotal, completionTick, completionAccErr, currentErr, accErr,
+    prevPhase: phase, lapsTotal, restarts, completionTick, completionAccErr, currentErr, accErr,
     passCount: v.passCount, passTotal: v.passTotal, pass: v.pass,
   };
 
