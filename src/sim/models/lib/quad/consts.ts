@@ -27,11 +27,12 @@ export type Vec3 = { x: number; y: number; z: number };
 // Mission itself only ever reads `pos`; completion is delegated to the planner.
 export type StepDef = {
   pos: Vec3;
-  threshold?: number;   // waypoint: completion radius
-  normal?: Vec3;        // window: unit travel direction through the gate
-  width?: number;       // window: frame width
-  height?: number;      // window: frame height
-  timeout?: number;     // optional NAVIGATE tick budget (any step type)
+  threshold?: number;     // waypoint: completion radius
+  normal?: Vec3;          // window: unit travel direction through the gate
+  width?: number;         // window: frame width
+  height?: number;        // window: frame height
+  timeout?: number;       // optional NAVIGATE tick budget (any step type)
+  preStageDist?: number;  // window: pre-stage waypoint distance back along -normal (planner_w1b)
 };
 
 // A type alias (not interface) so it carries an implicit string index

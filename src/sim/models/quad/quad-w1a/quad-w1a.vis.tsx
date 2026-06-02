@@ -83,7 +83,7 @@ const sceneHandler = composeScene(() => [
   ),
   windSock(s => view(s).wind, { getMaxForceN: maxWindForce }),
   textLabel({
-    text: 'Quad W1a\nWindow gates + carrot-and-stick planner\nshared lib + planner_w1a / navigator_w1a',
+    text: 'Quad W1a\nWindow gates + carrot-and-stick planner\nshared lib + planner_w1a / navigator_w1',
     position: [-18, 0, 0],
     fontSize: 36,
   }),

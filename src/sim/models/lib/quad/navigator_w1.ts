@@ -1,7 +1,10 @@
-// navigator_w1a — the "RC pilot" for gate-flight navigation.
+// navigator_w1 — the "RC pilot" for gate-flight navigation, shared across the
+// whole w1 window-gate family (w1a, w1b, …). The planners differ per variant
+// (planner_w1a / planner_w1b), but execution is identical, so it lives in one
+// family-level navigator.
 //
-// Reads the carrot + yawSetpoint from planner_w1a and the sensed world state,
-// then emits Mode-2 AETR sticks for fc_acro. Same cascade shape as the shared
+// Reads the carrot + yawSetpoint from the active w1 planner and the sensed world
+// state, then emits Mode-2 AETR sticks for fc_acro. Same cascade shape as the shared
 // navigator_wp, but steered by the planner's carrot/yaw instead of the raw
 // waypoint, with a plain outer-P attitude loop (no folded-in L3 stabilizer):
 //
@@ -60,7 +63,7 @@ function wrapAngle(a: number): number {
   return r;
 }
 
-export function navigator_w1a(state: NavIn): NavOut {
+export function navigator_w1(state: NavIn): NavOut {
   const zero3: Vec3 = { x: 0, y: 0, z: 0 };
 
   if (!state.armed) {

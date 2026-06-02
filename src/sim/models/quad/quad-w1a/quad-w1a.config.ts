@@ -2,8 +2,8 @@ import missionCode from '../../lib/quad/mission.ts?raw';
 import { mission } from '../../lib/quad/mission';
 import plannerW1aCode from '../../lib/quad/planner_w1a.ts?raw';
 import { planner_w1a } from '../../lib/quad/planner_w1a';
-import navigatorW1aCode from '../../lib/quad/navigator_w1a.ts?raw';
-import { navigator_w1a } from '../../lib/quad/navigator_w1a';
+import navigatorW1Code from '../../lib/quad/navigator_w1.ts?raw';
+import { navigator_w1 } from '../../lib/quad/navigator_w1';
 import plannerWpCode from '../../lib/quad/planner_wp.ts?raw';
 import { planner_wp } from '../../lib/quad/planner_wp';
 import fcAcroCode from '../../lib/quad/fc_acro.ts?raw';
@@ -221,10 +221,10 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
       tickFrequency: 1,
     },
     {
-      sourceId: 'navigator_w1a',
-      exportName: 'navigator_w1a',
-      defaultFn: (s) => navigator_w1a(s as Parameters<typeof navigator_w1a>[0]),
-      defaultCode: navigatorW1aCode,
+      sourceId: 'navigator_w1',
+      exportName: 'navigator_w1',
+      defaultFn: (s) => navigator_w1(s as Parameters<typeof navigator_w1>[0]),
+      defaultCode: navigatorW1Code,
       mapStateIn: (s) => ({
         pos:         (s.sensors as ModelState).pos,
         vel:         (s.sensors as ModelState).vel,
@@ -317,14 +317,14 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     { from: 'wind',          to: 'world',         label: 'force'      },
     { from: 'noise',         to: 'mission',       label: 'pos'        },
     { from: 'noise',         to: 'planner_w1a',   label: 'pos'        },
-    { from: 'noise',         to: 'navigator_w1a', label: 'sensors'    },
+    { from: 'noise',         to: 'navigator_w1',  label: 'sensors'    },
     { from: 'noise',         to: 'fc_acro',       label: 'rates'      },
     { from: 'mission',       to: 'planner_w1a',   label: 'step'       },
     { from: 'planner_w1a',   to: 'mission',       label: 'status'     },
     { from: 'mission',       to: 'planner_wp',    label: 'anchor'     },
     { from: 'planner_wp',    to: 'mission',       label: 'return'     },
-    { from: 'planner_w1a',   to: 'navigator_w1a', label: 'carrot+yaw' },
-    { from: 'navigator_w1a', to: 'fc_acro',       label: 'aetr'       },
+    { from: 'planner_w1a',   to: 'navigator_w1',  label: 'carrot+yaw' },
+    { from: 'navigator_w1',  to: 'fc_acro',       label: 'aetr'       },
     { from: 'fc_acro',       to: 'hw',            label: 'motors'     },
     { from: 'hw',            to: 'world',         label: 'thrust'     },
     { from: 'world',         to: 'noise',         label: 'true state' },

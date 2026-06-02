@@ -47,11 +47,12 @@ function fmtStep(s: StepDef, cruiseAlt: number): string {
   const y = fmtCoord(s.pos.y, cruiseAlt, true);
   const z = fmtCoord(s.pos.z, cruiseAlt, false);
   const parts = [`pos: { x: ${x}, y: ${y}, z: ${z} }`];
-  if (s.threshold !== undefined) parts.push(`threshold: ${s.threshold}`);
-  if (s.normal    !== undefined) parts.push(`normal: ${fmtVec(s.normal)}`);
-  if (s.width     !== undefined) parts.push(`width: ${s.width}`);
-  if (s.height    !== undefined) parts.push(`height: ${s.height}`);
-  if (s.timeout   !== undefined) parts.push(`timeout: ${s.timeout}`);
+  if (s.threshold    !== undefined) parts.push(`threshold: ${s.threshold}`);
+  if (s.normal       !== undefined) parts.push(`normal: ${fmtVec(s.normal)}`);
+  if (s.width        !== undefined) parts.push(`width: ${s.width}`);
+  if (s.height       !== undefined) parts.push(`height: ${s.height}`);
+  if (s.timeout      !== undefined) parts.push(`timeout: ${s.timeout}`);
+  if (s.preStageDist !== undefined) parts.push(`preStageDist: ${s.preStageDist}`);
   return `      { ${parts.join(', ')} },`;
 }
 

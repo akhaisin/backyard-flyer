@@ -33,6 +33,7 @@ type StepDef = {
   width?: number;
   height?: number;
   timeout?: number;
+  preStageDist?: number;
 };
 type MissionConsts = {
   steps: StepDef[];
@@ -62,6 +63,7 @@ type StepBus = {
   normal?: Vec3;
   width?: number;
   height?: number;
+  preStageDist?: number;
 };
 
 type MissionOut = {
@@ -99,11 +101,12 @@ function dist3(a: Vec3, b: Vec3): number {
 
 function stepToBus(step: StepDef): StepBus {
   return {
-    pos:       step.pos,
-    threshold: step.threshold,
-    normal:    step.normal,
-    width:     step.width,
-    height:    step.height,
+    pos:          step.pos,
+    threshold:    step.threshold,
+    normal:       step.normal,
+    width:        step.width,
+    height:       step.height,
+    preStageDist: step.preStageDist,
   };
 }
 
