@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import SimVis from './SimVis';
 import { modelRegistry } from '../registry';
+import { setCatalogModel } from '../catalogStore';
 import './sim.css';
 
 const modelIds = Object.keys(modelRegistry);
@@ -26,12 +27,22 @@ const { ungrouped, groups } = modelIds.reduce<{
 
 interface Props {
   height?: string | number;
+  defaultModel?: string;
 }
 
-export default function SimCatalog({ height }: Props) {
-  const [modelId, setModelId] = useState(modelIds[0]);
+export default function SimCatalog({ height, defaultModel }: Props) {
+  const [modelId, setModelId] = useState(
+    defaultModel && modelIds.includes(defaultModel) ? defaultModel : modelIds[0],
+  );
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const pageId = containerRef.current?.closest('[data-page-id]')?.getAttribute('data-page-id') ?? '';
+    if (pageId) setCatalogModel(pageId, modelId);
+  }, [modelId]);
+
   return (
-    <div className="sim-catalog">
+    <div className="sim-catalog" ref={containerRef}>
       <div className="sim-catalog__header">
         <label className="sim-catalog__label" htmlFor="sim-catalog-select">Model</label>
         <select

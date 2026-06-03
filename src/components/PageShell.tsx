@@ -10,6 +10,7 @@ import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
 import { pauseSim } from '../sim/engine/engine';
+import { subscribeCatalogModel, type CatalogSelection } from '../sim/catalogStore';
 import { startTour } from './tour';
 import useLocalStorage from '../hooks/useLocalStorage';
 import './styles.css';
@@ -108,8 +109,11 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
     return { pageId: id || pageIds[0] || '', view };
   });
   const [helpSeen, setHelpSeen] = useLocalStorage(HELP_SEEN_KEY, false);
+  const [catalogSel, setCatalogSel] = useState<CatalogSelection | null>(null);
   const prevRouteRef = useRef<{ pageId: string; simId?: string } | null>(null);
   const canonicalBaseRef = useRef<string>('');
+
+  useEffect(() => subscribeCatalogModel(setCatalogSel), []);
 
   useEffect(() => {
     function onHashChange() {
@@ -213,8 +217,9 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
     startTour();
   }, [setHelpSeen]);
 
-  const simId = pageSimIds[pageId];
-  const modelId = pageModelIds[pageId];
+  const catalogModelId = catalogSel?.forPageId === pageId ? catalogSel.modelId : undefined;
+  const simId = pageSimIds[pageId] ?? catalogModelId;
+  const modelId = pageModelIds[pageId] ?? catalogModelId;
 
   useEffect(() => {
     const prev = prevRouteRef.current;
