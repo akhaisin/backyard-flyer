@@ -10,6 +10,7 @@ import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
+import type { WindowStep } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -53,7 +54,7 @@ function maxWindForce(staticState: ModelState): number {
   return (num(staticState, 'WIND_MAX_N') * num(staticState, 'WIND_FORCE_MAX_PCT')) / 100;
 }
 
-const toWindows = (route: typeof W1COMB_A_ROUTE, p: string): WindowDef[] =>
+const toWindows = (route: WindowStep[], p: string): WindowDef[] =>
   route.map((s, i) => ({
     center: s.pos,
     normal: s.normal ?? { x: 1, y: 0, z: 0 },

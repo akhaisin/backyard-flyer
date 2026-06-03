@@ -16,7 +16,8 @@ import worldCode from '../../lib/quad/world.ts?raw';
 import { world } from '../../lib/quad/world';
 import { makeLifecycleBlock } from '../../lib/quad/lifecycle';
 import { QUAD_DEFAULTS } from '../../lib/quad/consts';
-import type { QuadConsts, StepDef } from '../../lib/quad/consts';
+import { STEP_TYPE_WP } from '../../lib/quad/consts';
+import type { QuadConsts, WpStep } from '../../lib/quad/consts';
 import QuadNoiseVis from './quad-noise.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
@@ -24,11 +25,11 @@ const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
 export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
-  const route: StepDef[] = [
-    { pos: { x: 8, y: 5, z: 0 }, threshold: 1.2 },
-    { pos: { x: 8, y: 5, z: 8 }, threshold: 1.2 },
-    { pos: { x: 0, y: 5, z: 8 }, threshold: 1.2 },
-    { pos: { x: 0, y: 5, z: 0 }, threshold: 1.2 },
+  const route: WpStep[] = [
+    { type: STEP_TYPE_WP, pos: { x: 8, y: 5, z: 0 }, threshold: 1.2 },
+    { type: STEP_TYPE_WP, pos: { x: 8, y: 5, z: 8 }, threshold: 1.2 },
+    { type: STEP_TYPE_WP, pos: { x: 0, y: 5, z: 8 }, threshold: 1.2 },
+    { type: STEP_TYPE_WP, pos: { x: 0, y: 5, z: 0 }, threshold: 1.2 },
   ];
   const modelOverrides: Partial<QuadConsts> = {
     ACC_ERR_LIMIT: 1500,
@@ -54,7 +55,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     fc: {
       integral: { pos: { ...vec0 } },
     },
-    aetr:           { thrust: 0, roll: 0, pitch: 0, yaw: 0 },
+    aetr:           { throttle: 0, roll: 0, pitch: 0, yaw: 0 },
     motors: {
       desired: { ...motors0 },
       thrust:  { ...motors0 },
@@ -195,7 +196,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
       mapStateIn: (s) => ({
         angularVel: (s.sensors as ModelState).angularVel,
         armed:      (s.mission as ModelState).armed,
-        aetrThrust: (s.aetr as ModelState).thrust,
+        aetrThrottle: (s.aetr as ModelState).throttle,
         aetrRoll:   (s.aetr as ModelState).roll,
         aetrPitch:  (s.aetr as ModelState).pitch,
         aetrYaw:    (s.aetr as ModelState).yaw,
@@ -263,7 +264,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     { from: 'mission',      to: 'navigator_wp', label: 'step'       },
     { from: 'navigator_wp', to: 'fc_acro',      label: 'aetr'       },
     { from: 'fc_acro',      to: 'hw',           label: 'motors'     },
-    { from: 'hw',           to: 'world',        label: 'thrust'     },
+    { from: 'hw',           to: 'world',        label: 'throttle'     },
     { from: 'world',        to: 'noise',        label: 'true state' },
   ],
   charts: [
@@ -308,7 +309,7 @@ export function quadNoiseConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     {
       label: 'AETR sticks',
       series: [
-        { var: 'aetr.thrust', label: 'thrust', color: '#ffee44' },
+        { var: 'aetr.throttle', label: 'throttle', color: '#ffee44' },
         { var: 'aetr.roll',   label: 'roll',   color: '#ff8844' },
         { var: 'aetr.pitch',  label: 'pitch',  color: '#44ffaa' },
         { var: 'aetr.yaw',    label: 'yaw',    color: '#cc88ff' },

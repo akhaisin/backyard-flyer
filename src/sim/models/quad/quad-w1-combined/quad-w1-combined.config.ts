@@ -19,8 +19,8 @@ import { wind } from '../../lib/quad/wind';
 import worldCode from '../../lib/quad/world.ts?raw';
 import { world } from '../../lib/quad/world';
 import { makeCombinedLifecycleBlock } from './lifecycle';
-import { QUAD_DEFAULTS } from '../../lib/quad/consts';
-import type { QuadConsts, StepDef } from '../../lib/quad/consts';
+import { QUAD_DEFAULTS, STEP_TYPE_W1B } from '../../lib/quad/consts';
+import type { QuadConsts, WindowStep } from '../../lib/quad/consts';
 import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
 import QuadW1CombinedVis from './quad-w1-combined.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
@@ -41,7 +41,7 @@ const missionK = (s: ModelState, route: 'stepsA' | 'stepsB', home: { x: number; 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
-const vehicleInit = (home: { x: number; z: number }, first: StepDef, preStage: boolean): ModelState => ({
+const vehicleInit = (home: { x: number; z: number }, first: WindowStep, preStage: boolean): ModelState => ({
   pos:        { x: home.x, y: 0, z: home.z },
   vel:        { ...vec0 },
   acc:        { ...vec0 },
@@ -57,7 +57,7 @@ const vehicleInit = (home: { x: number; z: number }, first: StepDef, preStage: b
     integral: { pos: { ...vec0 } },
     yawMeas:  0,
   },
-  aetr: { thrust: 0, roll: 0, pitch: 0, yaw: 0 },
+  aetr: { throttle: 0, roll: 0, pitch: 0, yaw: 0 },
   motors: {
     desired: { ...motors0 },
     thrust:  { ...motors0 },
@@ -69,10 +69,10 @@ const vehicleInit = (home: { x: number; z: number }, first: StepDef, preStage: b
     armed:        0,
     step: {
       pos:          { ...first.pos },
-      normal:       first.normal ?? { x: 1, y: 0, z: 0 },
-      width:        first.width  ?? 4,
-      height:       first.height ?? 4,
-      preStageDist: first.preStageDist ?? 0,
+      normal:       first.normal,
+      width:        first.width,
+      height:       first.height,
+      preStageDist: first.type === STEP_TYPE_W1B ? first.preStageDist : 0,
     },
     target:   { ...vec0 },
     dist:     0,
@@ -218,7 +218,7 @@ function vehicleBlocks(
       mapStateIn: (s: ModelState) => ({
         angularVel: (v(s).sensors as ModelState).angularVel,
         armed:      (v(s).mission as ModelState).armed,
-        aetrThrust: (v(s).aetr as ModelState).thrust,
+        aetrThrottle: (v(s).aetr as ModelState).throttle,
         aetrRoll:   (v(s).aetr as ModelState).roll,
         aetrPitch:  (v(s).aetr as ModelState).pitch,
         aetrYaw:    (v(s).aetr as ModelState).yaw,
@@ -320,7 +320,7 @@ export function quadW1CombinedConfig(overrides?: Partial<QuadConsts>): ModelConf
       { from: 'planner_w1a',  to: 'navigator_a',  label: 'carrot+yaw' },
       { from: 'navigator_a',  to: 'fc_acro_a',    label: 'aetr'       },
       { from: 'fc_acro_a',    to: 'hw_a',         label: 'motors'     },
-      { from: 'hw_a',         to: 'world_a',      label: 'thrust'     },
+      { from: 'hw_a',         to: 'world_a',      label: 'throttle'     },
       { from: 'world_a',      to: 'noise_a',      label: 'true state' },
       // vehicle B (pre-stage)
       { from: 'noise_b',      to: 'mission_b',    label: 'pos'        },
@@ -334,7 +334,7 @@ export function quadW1CombinedConfig(overrides?: Partial<QuadConsts>): ModelConf
       { from: 'planner_w1b',  to: 'navigator_b',  label: 'carrot+yaw' },
       { from: 'navigator_b',  to: 'fc_acro_b',    label: 'aetr'       },
       { from: 'fc_acro_b',    to: 'hw_b',         label: 'motors'     },
-      { from: 'hw_b',         to: 'world_b',      label: 'thrust'     },
+      { from: 'hw_b',         to: 'world_b',      label: 'throttle'     },
       { from: 'world_b',      to: 'noise_b',      label: 'true state' },
     ],
     charts: [

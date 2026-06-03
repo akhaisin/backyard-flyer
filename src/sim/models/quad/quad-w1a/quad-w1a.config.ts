@@ -71,7 +71,7 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
       integral: { pos: { ...vec0 } },
       yawMeas:  0,
     },
-    aetr:           { thrust: 0, roll: 0, pitch: 0, yaw: 0 },
+    aetr:           { throttle: 0, roll: 0, pitch: 0, yaw: 0 },
     motors: {
       desired: { ...motors0 },
       thrust:  { ...motors0 },
@@ -256,7 +256,7 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
       mapStateIn: (s) => ({
         angularVel: (s.sensors as ModelState).angularVel,
         armed:      (s.mission as ModelState).armed,
-        aetrThrust: (s.aetr as ModelState).thrust,
+        aetrThrottle: (s.aetr as ModelState).throttle,
         aetrRoll:   (s.aetr as ModelState).roll,
         aetrPitch:  (s.aetr as ModelState).pitch,
         aetrYaw:    (s.aetr as ModelState).yaw,
@@ -326,7 +326,7 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     { from: 'planner_w1a',   to: 'navigator_w1',  label: 'carrot+yaw' },
     { from: 'navigator_w1',  to: 'fc_acro',       label: 'aetr'       },
     { from: 'fc_acro',       to: 'hw',            label: 'motors'     },
-    { from: 'hw',            to: 'world',         label: 'thrust'     },
+    { from: 'hw',            to: 'world',         label: 'throttle'     },
     { from: 'world',         to: 'noise',         label: 'true state' },
   ],
   charts: [
@@ -381,7 +381,7 @@ export function quadW1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     {
       label: 'AETR sticks',
       series: [
-        { var: 'aetr.thrust', label: 'thrust', color: '#ffee44' },
+        { var: 'aetr.throttle', label: 'throttle', color: '#ffee44' },
         { var: 'aetr.roll',   label: 'roll',   color: '#ff8844' },
         { var: 'aetr.pitch',  label: 'pitch',  color: '#44ffaa' },
         { var: 'aetr.yaw',    label: 'yaw',    color: '#cc88ff' },

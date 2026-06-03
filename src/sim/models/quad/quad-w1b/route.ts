@@ -6,15 +6,16 @@
 // Shared between the config (published into state.K.steps via the lifecycle
 // block) and the vis (rendered as window frames by the windowGate plugin).
 
-import type { StepDef } from '../../lib/quad/consts';
+import { STEP_TYPE_W1B } from '../../lib/quad/consts';
+import type { W1bStep } from '../../lib/quad/consts';
 
 const CRUISE_ALT  = 5;
 const WINDOW_SIZE = 5;
 const PRE_STAGE   = 5;   // metres in front of each gate (along -normal) to stage at
 
-export const W1B_ROUTE: StepDef[] = [
-  { pos: { x:  10, y: CRUISE_ALT, z: -10 }, normal: { x:  1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
-  { pos: { x:  10, y: CRUISE_ALT, z:  10 }, normal: { x:  0, y: 0, z:  1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
-  { pos: { x: -10, y: CRUISE_ALT, z:  10 }, normal: { x: -1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
-  { pos: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x:  0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
+export const W1B_ROUTE: W1bStep[] = [
+  { type: STEP_TYPE_W1B, pos: { x:  10, y: CRUISE_ALT, z: -10 }, normal: { x:  1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
+  { type: STEP_TYPE_W1B, pos: { x:  10, y: CRUISE_ALT, z:  10 }, normal: { x:  0, y: 0, z:  1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
+  { type: STEP_TYPE_W1B, pos: { x: -10, y: CRUISE_ALT, z:  10 }, normal: { x: -1, y: 0, z:  0 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
+  { type: STEP_TYPE_W1B, pos: { x: -10, y: CRUISE_ALT, z: -10 }, normal: { x:  0, y: 0, z: -1 }, width: WINDOW_SIZE, height: WINDOW_SIZE, preStageDist: PRE_STAGE },
 ];

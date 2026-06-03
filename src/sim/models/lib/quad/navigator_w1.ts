@@ -19,7 +19,7 @@
 // SAME K.MAX_RATE_*, the stick normalisation and inversion stay in sync.
 
 type Vec3 = { x: number; y: number; z: number };
-type Aetr = { thrust: number; roll: number; pitch: number; yaw: number };
+type Aetr = { throttle: number; roll: number; pitch: number; yaw: number };
 type NavigatorConsts = {
   KP_POS: number;
   KI_POS: number;
@@ -108,10 +108,10 @@ export function navigator_w1(state: NavIn): NavOut {
   const rate_yaw   = K.KP_YAW_OUTER * err_yaw;
 
   const aetr: Aetr = {
-    thrust: clamp(thrust_N / (4 * K.MAX_THRUST_N), 0, 1),
+    throttle: clamp(thrust_N / (4 * K.MAX_THRUST_N), 0, 1),
     roll:   clamp(rate_roll  / K.MAX_RATE_ROLL_PITCH, -1, 1),
     pitch:  clamp(rate_pitch / K.MAX_RATE_ROLL_PITCH, -1, 1),
-    yaw:    clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
+    yaw:   -clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
   };
 
   return {

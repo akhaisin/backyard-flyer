@@ -110,6 +110,15 @@ The same window-gate mission as W1a with one block swapped: `planner_w1b` adds a
 
 ## [Quad W1 Combined — W1a vs W1b side-by-side](#Backyard-Flyer/quad-w1-combined)
 
+
 Two complete copies of the shared flight stack fly at once under `state.vehicles.a` / `.b` — W1a (blue, `planner_w1a`) and W1b (orange, `planner_w1b`) — on separate offset tracks, disturbed by one shared wind block. The lifecycle publishes both routes into a single `state.K` and runs the cross-track/restart validator once per vehicle, giving each its own multi-criteria PASS/FAIL. Any difference in laps completed or restart count is attributable to the planner alone.
 
 **What it introduces:** a dual-vehicle A/B comparison built from one shared stack wired twice, per-vehicle pass/fail, and the home-in-`K` generalization that lets the shared mission fly offset tracks.
+
+---
+
+## What's next: [Racing](#Racing)
+
+The Racing section takes the same shared block library in a different direction — instead of autonomous position control, it explores open-loop rates control and FPV racing maneuvers.
+
+**[Quad Rates](#Racing/quad-rates)** is the entry point: the route encodes AETR stick values directly (throttle, pitch, yaw, roll) rather than position targets. The drone hovers, flies forward, brakes, spins 180°, returns, and lands — all driven by timed stick commands the way an acro pilot would script a repeatable sequence.

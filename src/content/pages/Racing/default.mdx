@@ -31,6 +31,16 @@ Two new ideas: the mission separates step sequencing from step execution into pe
 
 ---
 
+## [Quad Rates — direct RC stick commands over time](#Racing/quad-rates)
+
+A rates-mode maneuver encoded as a sequence of timed AETR stick inputs: hover, fly forward, brake, spin 180°, return, hover, RTH. No position controller is active during the maneuver — the route encodes the stick values directly, the way an acro pilot would script a repeatable sequence by feel.
+
+Two new blocks: `planner_rates` completes steps by elapsed ticks rather than proximity, and `navigator_rates` linearly interpolates the four stick channels from `start` to `end` over the step's duration. `navigator_wp` still owns TAKEOFF, RTH, and LAND autonomously.
+
+**What it introduces:** time-based step completion, scripted AETR interpolation, dual-navigator pipeline (position control for structured phases, open-loop rates for NAVIGATE).
+
+---
+
 ## Coming soon
 
 Placeholders for upcoming racing maneuver models. Articles and simulations are not yet written.

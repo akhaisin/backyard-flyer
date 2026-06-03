@@ -9,14 +9,14 @@
 //   4. Desired torques → desired body rates → AETR sticks for fc_acro
 //
 // Throttle is a direct value, not a rate — matches real RC throttle stick:
-//   aetr.thrust = total_thrust_N / (4 * MAX_THRUST_N), clamped to [0, 1].
+//   aetr.throttle = total_thrust_N / (4 * MAX_THRUST_N), clamped to [0, 1].
 //
 // Tunables arrive via state.K from the params block. The position loop still
 // reads K, while the folded-in attitude law intentionally mirrors quad-l3's
 // behavior so quad-l4 flies like L3 without changing the fc_acro contract.
 
 type Vec3 = { x: number; y: number; z: number };
-type Aetr = { thrust: number; roll: number; pitch: number; yaw: number };
+type Aetr = { throttle: number; roll: number; pitch: number; yaw: number };
 type Step = { pos: Vec3; threshold: number };
 type NavigatorConsts = {
   KP_POS: number;
@@ -118,10 +118,10 @@ export function navigator_wp(state: NavIn): NavOut {
   const rate_yaw   = rateCommandFromTorque(tau_yaw,   state.angularVel.y, K.KP_RATE_YAW);
 
   const aetr: Aetr = {
-    thrust: clamp(thrust_N / (4 * K.MAX_THRUST_N), 0, 1),
+    throttle: clamp(thrust_N / (4 * K.MAX_THRUST_N), 0, 1),
     roll:   clamp(rate_roll  / K.MAX_RATE_ROLL_PITCH, -1, 1),
     pitch:  clamp(rate_pitch / K.MAX_RATE_ROLL_PITCH, -1, 1),
-    yaw:    clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
+    yaw:   -clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
   };
 
   return {

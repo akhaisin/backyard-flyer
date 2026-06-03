@@ -33,7 +33,7 @@ type FcConsts = {
 type FcIn = {
   angularVel: Vec3;
   armed: number;
-  aetrThrust: number;
+  aetrThrottle: number;
   aetrRoll:   number;
   aetrPitch:  number;
   aetrYaw:    number;
@@ -50,13 +50,13 @@ export function fc_acro(state: FcIn): FcOut {
 
   const rate_roll_des  = state.aetrRoll  * K.MAX_RATE_ROLL_PITCH;
   const rate_pitch_des = state.aetrPitch * K.MAX_RATE_ROLL_PITCH;
-  const rate_yaw_des   = state.aetrYaw   * K.MAX_RATE_YAW;
+  const rate_yaw_des   = -state.aetrYaw  * K.MAX_RATE_YAW;
 
   const tau_roll  = K.KP_RATE     * (rate_roll_des  - state.angularVel.x);
   const tau_pitch = K.KP_RATE     * (rate_pitch_des - state.angularVel.z);
   const tau_yaw   = K.KP_RATE_YAW * (rate_yaw_des   - state.angularVel.y);
 
-  const base = state.aetrThrust * K.MAX_THRUST_N;
+  const base = state.aetrThrottle * K.MAX_THRUST_N;
   const dr = tau_roll  / (4 * K.ARM);
   const dp = tau_pitch / (4 * K.ARM);
   const dy = tau_yaw   / (4 * K.K_DRAG);

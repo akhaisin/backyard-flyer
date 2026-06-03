@@ -1,0 +1,99 @@
+---
+order: 3
+simId: Racing/quad-rates
+modelId: racing/quad-rates
+---
+
+import SimVis from '../../../sim/components/SimVis'
+import SimCharts from '../../../sim/components/SimCharts'
+
+# Quad Rates — direct RC stick commands over time
+
+**Quad Rates** replaces position-targeting with scripted stick input. Instead of a navigator computing AETR sticks from a position error, the route encodes the stick values directly — each step says "hold these throttle/pitch/yaw/roll rates for this many ticks" — and the drone executes them open-loop during PHASE_NAVIGATE.
+
+This is how acro pilots actually fly: the pilot knows from repetition what input sequence produces a given maneuver. The model makes the encoding explicit and simulates it at the block level.
+
+```
+lifecycle (beforeSim → state.K)
+    │
+    ▼
+noise ──► mission ──► planner_rates ──► mission (status)
+              │
+              ├──► navigator_wp     ─┐  (TAKEOFF / RTH / LAND)
+              └──► navigator_rates  ─┴─► fc_acro ──► hw ──► world
+                   (overwrites aetr        ▲                    │
+                    in PHASE_NAVIGATE)     └──── noise ─────────┘
+```
+
+| Block | Role |
+|-------|------|
+| `planner_rates` | Step completion: done when `ticksInPhase ≥ step.duration`. No proximity check. |
+| `navigator_rates` | Writes AETR during PHASE_NAVIGATE by linearly interpolating `step.throttle/pitch/yaw/roll` from `start` to `end` over `duration` ticks. Passes the upstream AETR through unchanged in all other phases. |
+| `navigator_wp` | Runs first in the pipeline. Owns AETR during TAKEOFF, RTH, and LAND — the structured phases where autonomous position control is needed. |
+| `fc_acro` | Unchanged: single-mode rate PID. Doesn't know whether its inputs came from a position cascade or a scripted table. |
+
+---
+
+## The maneuver
+
+Seven steps: hover in place, fly forward, brake, spin 180°, fly back, brake, hover — then auto-RTH.
+
+| Step | Duration | Pitch | Yaw | What happens |
+|------|----------|-------|-----|--------------|
+| 0 | 40 ticks | 0 | 0 | hover — stabilize at cruise altitude |
+| 1 | 20 ticks | −0.1 | 0 | accelerate forward (nose down) |
+| 2 | 20 ticks | +0.1 | 0 | brake (nose up) |
+| 3 | 40 ticks | 0 | +0.25 | yaw 180° right in place |
+| 4 | 20 ticks | −0.05 | 0 | accelerate back toward origin |
+| 5 | 20 ticks | −0.05 | 0 | coast to a stop |
+| 6 | 40 ticks | 0 | 0 | hover — hold before RTH |
+
+Step completion is purely time-based: `planner_rates` reports `STATUS_COMPLETED` as soon as the tick count reaches `duration`, regardless of position. There is no position feedback closing the maneuver loop — the hover throttle value determines whether the drone holds altitude or drifts.
+
+The yaw in step 3: `0.25 × 2π × 40 ticks × 0.05 s/tick = π rad = 180°` exactly.
+
+---
+
+## Watch it fly
+
+<SimVis client:only="react" />
+
+---
+
+## Mission state
+
+`stepIdx` walks 0 → 6 as each step's tick budget expires, then the mission transitions to RTH. `phase` shows the full lifecycle: ARMING → TAKEOFF → NAVIGATE (steps 0–6) → RTH → LAND → DONE.
+
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} client:only="react" />
+
+---
+
+## AETR sticks
+
+The four channels written by `navigator_rates` during PHASE_NAVIGATE. The throttle flatlines at the hover value throughout. Pitch dips negative to accelerate, spikes positive to brake, then repeats with smaller amplitude for the return leg. Yaw spikes during the 180° turn step and returns to zero.
+
+<SimCharts varIds={[['aetr.throttle','aetr.pitch','aetr.yaw','aetr.roll']]} client:only="react" />
+
+---
+
+## Attitude
+
+Pitch (`attitude.z`) tilts nose-down during acceleration and nose-up during braking. Yaw (`attitude.y`) sweeps through π rad during step 3 and stays near that heading for the return. Roll stays near zero throughout.
+
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+
+---
+
+## Position
+
+X builds during the forward run, peaks near the brake, then decays as the drone returns. Y drifts slightly around cruise altitude — there is no active altitude hold during NAVIGATE. Z stays near zero (no lateral motion is commanded).
+
+<SimCharts varIds={[['pos.x','pos.y','pos.z']]} client:only="react" />
+
+---
+
+## Angular rates
+
+The inner rate loop feedback. Pitch rate (`angularVel.z`) tracks the commanded pitch steps. Yaw rate (`angularVel.y`) spikes during the 180° turn and settles when the step ends. Deviations from the commanded rate show how fast `fc_acro`'s PID corrects.
+
+<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} client:only="react" />

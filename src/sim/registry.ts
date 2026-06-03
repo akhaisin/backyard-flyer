@@ -14,6 +14,7 @@ import { quadW1bConfig } from './models/quad/quad-w1b/quad-w1b.config';
 import { quadW1CombinedConfig } from './models/quad/quad-w1-combined/quad-w1-combined.config';
 import { quadLadderConfig } from './models/racing/quad-ladder/quad-ladder.config';
 import { quadPoleConfig } from './models/racing/quad-pole/quad-pole.config';
+import { quadRatesConfig } from './models/racing/quad-rates/quad-rates.config';
 import type { ModelConfig } from './engine/types';
 
 // A model is either a ready config (singleton) or a factory that builds a config
@@ -39,4 +40,5 @@ export const modelRegistry: Record<string, ModelEntry> = {
   'quad/quad-w1-combined': quadW1CombinedConfig,
   'racing/quad-ladder':    quadLadderConfig,
   'racing/quad-pole':      quadPoleConfig,
+  'racing/quad-rates':     quadRatesConfig,
 };

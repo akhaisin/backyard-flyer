@@ -17,23 +17,68 @@ export type Vec3 = { x: number; y: number; z: number };
 // the same params bag as the scalars (config-driven, UI-editable) and reaches
 // mission via state.K.steps.
 //
-// `pos` is the universal anchor every step type carries — the target for a
-// waypoint step, the gate center for a window step. The remaining fields are
-// step-type specific and ride the mission bus untouched so the matching planner
-// can read them:
-//   • waypoint steps use `threshold` (completion radius).
-//   • window steps use `normal` (travel direction through the gate) + `width` /
-//     `height` (frame size); they need no threshold.
-// Mission itself only ever reads `pos`; completion is delegated to the planner.
-export type StepDef = {
+// Four variants, discriminated by numeric `type` (numeric so steps remain
+// compatible with ModelState, which restricts values to number|object|null):
+//   • STEP_TYPE_WP    (0) — proximity completion (planner_wp). `threshold` is
+//     the completion radius; mission reads `pos` for steering.
+//   • STEP_TYPE_W1A   (1) — carrot gate crossing (planner_w1a / navigator_w1).
+//     `normal` is the unit travel direction, `width`/`height` the frame size.
+//   • STEP_TYPE_W1B   (2) — pre-stage gate crossing (planner_w1b / navigator_w1).
+//     Same geometry as W1A plus `preStageDist`: planner_w1b stages a waypoint
+//     that far behind the gate before committing to the frame.
+//   • STEP_TYPE_RATES (3) — time-based completion (planner_rates). `duration` is
+//     the tick budget; throttle/yaw/pitch/roll are interpolated by navigator_rates.
+//
+// `timeout` is an optional NAVIGATE tick budget any variant can carry; mission
+// treats it as a FAILED override when ticksInPhase reaches it.
+export type RateRange = { start: number; end: number };
+
+export const STEP_TYPE_WP    = 0 as const;
+export const STEP_TYPE_W1A   = 1 as const;
+export const STEP_TYPE_W1B   = 2 as const;
+export const STEP_TYPE_RATES = 3 as const;
+
+export type WpStep = {
+  type: typeof STEP_TYPE_WP;
   pos: Vec3;
-  threshold?: number;     // waypoint: completion radius
-  normal?: Vec3;          // window: unit travel direction through the gate
-  width?: number;         // window: frame width
-  height?: number;        // window: frame height
-  timeout?: number;       // optional NAVIGATE tick budget (any step type)
-  preStageDist?: number;  // window: pre-stage waypoint distance back along -normal (planner_w1b)
+  threshold: number;
+  timeout?: number;
 };
+
+export type W1aStep = {
+  type: typeof STEP_TYPE_W1A;
+  pos: Vec3;
+  normal: Vec3;
+  width: number;
+  height: number;
+  timeout?: number;
+};
+
+export type W1bStep = {
+  type: typeof STEP_TYPE_W1B;
+  pos: Vec3;
+  normal: Vec3;
+  width: number;
+  height: number;
+  preStageDist: number;
+  timeout?: number;
+};
+
+export type RatesStep = {
+  type: typeof STEP_TYPE_RATES;
+  pos: Vec3;
+  duration: number;
+  throttle: RateRange;
+  yaw: RateRange;
+  pitch: RateRange;
+  roll: RateRange;
+  timeout?: number;
+};
+
+// Convenience alias for code that handles either gate style.
+export type WindowStep = W1aStep | W1bStep;
+
+export type StepDef = WpStep | W1aStep | W1bStep | RatesStep;
 
 // A type alias (not interface) so it carries an implicit string index
 // signature — required for the bag to be assignable to the engine's ModelState

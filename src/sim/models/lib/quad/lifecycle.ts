@@ -17,6 +17,7 @@
 
 import type { BlockConfig, LifecycleConfig, ModelState, HookFn } from '../../../engine/types';
 import { compileSource } from '../../../engine/compile';
+import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES } from './consts';
 import type { QuadConsts, StepDef } from './consts';
 
 // ── Source rendering (editable UI text + the default fns are compiled from it) ──
@@ -38,21 +39,42 @@ function fmtVec(v: { x: number; y: number; z: number }): string {
   return `{ x: ${v.x}, y: ${v.y}, z: ${v.z} }`;
 }
 
-// Render a step literal. `pos` is the universal anchor; the remaining fields are
-// only emitted when the step defines them, so a waypoint renders `pos + threshold`
-// and a window renders `pos + normal + width + height` — round-tripping whatever
-// step type the route uses through the editable lifecycle source.
+function fmtRange(r: { start: number; end: number }): string {
+  return `{ start: ${r.start}, end: ${r.end} }`;
+}
+
 function fmtStep(s: StepDef, cruiseAlt: number): string {
   const x = fmtCoord(s.pos.x, cruiseAlt, false);
   const y = fmtCoord(s.pos.y, cruiseAlt, true);
   const z = fmtCoord(s.pos.z, cruiseAlt, false);
-  const parts = [`pos: { x: ${x}, y: ${y}, z: ${z} }`];
-  if (s.threshold    !== undefined) parts.push(`threshold: ${s.threshold}`);
-  if (s.normal       !== undefined) parts.push(`normal: ${fmtVec(s.normal)}`);
-  if (s.width        !== undefined) parts.push(`width: ${s.width}`);
-  if (s.height       !== undefined) parts.push(`height: ${s.height}`);
-  if (s.timeout      !== undefined) parts.push(`timeout: ${s.timeout}`);
-  if (s.preStageDist !== undefined) parts.push(`preStageDist: ${s.preStageDist}`);
+  const parts = [`type: ${s.type}`, `pos: { x: ${x}, y: ${y}, z: ${z} }`];
+  switch (s.type) {
+    case STEP_TYPE_WP:
+      parts.push(`threshold: ${s.threshold}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    case STEP_TYPE_W1A:
+      parts.push(`normal: ${fmtVec(s.normal)}`);
+      parts.push(`width: ${s.width}`);
+      parts.push(`height: ${s.height}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    case STEP_TYPE_W1B:
+      parts.push(`normal: ${fmtVec(s.normal)}`);
+      parts.push(`width: ${s.width}`);
+      parts.push(`height: ${s.height}`);
+      parts.push(`preStageDist: ${s.preStageDist}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    case STEP_TYPE_RATES:
+      parts.push(`duration: ${s.duration}`);
+      parts.push(`throttle: ${fmtRange(s.throttle)}`);
+      parts.push(`yaw: ${fmtRange(s.yaw)}`);
+      parts.push(`pitch: ${fmtRange(s.pitch)}`);
+      parts.push(`roll: ${fmtRange(s.roll)}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+  }
   return `      { ${parts.join(', ')} },`;
 }
 

@@ -23,18 +23,18 @@
 // validator keeps working unchanged.
 
 type Vec3 = { x: number; y: number; z: number };
-// `pos` is the universal anchor; the rest are step-type specific and ride the
-// bus untouched (waypoint: threshold; window: normal/width/height). Mission only
-// reads `pos` — completion is delegated to the planner, which reads its fields.
-type StepDef = {
-  pos: Vec3;
-  threshold?: number;
-  normal?: Vec3;
-  width?: number;
-  height?: number;
-  timeout?: number;
-  preStageDist?: number;
-};
+type RateRange = { start: number; end: number };
+// Discriminated union mirroring consts.ts StepDef. Mission only reads `pos`
+// and (optionally) `timeout`; all other variant fields ride the bus untouched
+// so the matching planner can read them.
+// Numeric type constants (mirror consts.ts STEP_* — kept inline because
+// block source is compiled with imports stripped).
+const STEP_TYPE_WP = 0, STEP_TYPE_W1A = 1, STEP_TYPE_W1B = 2, STEP_TYPE_RATES = 3;
+type WpStep    = { type: 0; pos: Vec3; threshold: number; timeout?: number };
+type W1aStep   = { type: 1; pos: Vec3; normal: Vec3; width: number; height: number; timeout?: number };
+type W1bStep   = { type: 2; pos: Vec3; normal: Vec3; width: number; height: number; preStageDist: number; timeout?: number };
+type RatesStep = { type: 3; pos: Vec3; duration: number; throttle: RateRange; yaw: RateRange; pitch: RateRange; roll: RateRange; timeout?: number };
+type StepDef = WpStep | W1aStep | W1bStep | RatesStep;
 type MissionConsts = {
   steps: StepDef[];
   CRUISE_ALT: number;
@@ -56,9 +56,10 @@ type MissionIn = {
   K: MissionConsts;
 };
 
-// What rides the bus to the planner. Carries `pos` plus whatever type-specific
-// fields the active step defined (waypoint: threshold; window: normal/width/
-// height). Mission passes them through untouched.
+// What rides the bus to the planner. `type` is NOT included — ModelState
+// only permits number/Vec3/RateRange values, not string literals. Planners
+// discriminate by the fields they read, not by type; mission itself never
+// needs to know the variant.
 type StepBus = {
   pos: Vec3;
   threshold?: number;
@@ -66,6 +67,12 @@ type StepBus = {
   width?: number;
   height?: number;
   preStageDist?: number;
+  duration?: number;
+  throttle?: RateRange;
+  yaw?: RateRange;
+  pitch?: RateRange;
+  roll?: RateRange;
+  timeout?: number;
 };
 
 type MissionOut = {
@@ -102,14 +109,12 @@ function dist3(a: Vec3, b: Vec3): number {
 }
 
 function stepToBus(step: StepDef): StepBus {
-  return {
-    pos:          step.pos,
-    threshold:    step.threshold,
-    normal:       step.normal,
-    width:        step.width,
-    height:       step.height,
-    preStageDist: step.preStageDist,
-  };
+  switch (step.type) {
+    case STEP_TYPE_WP:    return { pos: step.pos, threshold: step.threshold, timeout: step.timeout };
+    case STEP_TYPE_W1A:   return { pos: step.pos, normal: step.normal, width: step.width, height: step.height, timeout: step.timeout };
+    case STEP_TYPE_W1B:   return { pos: step.pos, normal: step.normal, width: step.width, height: step.height, preStageDist: step.preStageDist, timeout: step.timeout };
+    case STEP_TYPE_RATES: return { pos: step.pos, duration: step.duration, throttle: step.throttle, yaw: step.yaw, pitch: step.pitch, roll: step.roll, timeout: step.timeout };
+  }
 }
 
 function makeOut(
@@ -130,8 +135,8 @@ export function mission(state: MissionIn): MissionOut {
 
   const HOME: Vec3     = { x: K.HOME_X, y: K.CRUISE_ALT, z: K.HOME_Z };
   const LAND_PAD: Vec3 = { x: K.HOME_X, y: 0,            z: K.HOME_Z };
-  const HOME_STEP: StepDef = { pos: HOME,     threshold: K.RTH_THRESHOLD };
-  const LAND_STEP: StepDef = { pos: LAND_PAD, threshold: K.LAND_THRESHOLD };
+  const HOME_STEP: StepDef = { type: STEP_TYPE_WP, pos: HOME,     threshold: K.RTH_THRESHOLD };
+  const LAND_STEP: StepDef = { type: STEP_TYPE_WP, pos: LAND_PAD, threshold: K.LAND_THRESHOLD };
 
   const segStartFor = (stepIdx: number): Vec3 =>
     stepIdx === 0 ? HOME : steps[stepIdx - 1].pos;
@@ -151,7 +156,7 @@ export function mission(state: MissionIn): MissionOut {
   // only accrues in PHASE_NAVIGATE, ignores the fly-back entirely.
   const restartStep = (stepIdx: number, ticks: number, pos: Vec3): MissionOut => {
     const anchor: Vec3 = segStartFor(stepIdx);
-    const step: StepDef = { pos: anchor, threshold: K.RTH_THRESHOLD };
+    const step: StepDef = { type: STEP_TYPE_WP, pos: anchor, threshold: K.RTH_THRESHOLD };
     return makeOut(
       PHASE_RESTART, stepIdx, ticks, 1,
       step, anchor, dist3(pos, anchor),
