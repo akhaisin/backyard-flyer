@@ -23,12 +23,12 @@ import type { ModelConfig } from './engine/types';
 export type ModelEntry = ModelConfig | ((overrides?: Record<string, unknown>) => ModelConfig);
 
 export const modelRegistry: Record<string, ModelEntry> = {
-  inc: incConfig,
-  floater: floaterConfig,
-  'floater-pid': floaterPidConfig,
-  'pid-tutorial': pidTutorialConfig,
-  'pid-tune-str': pidTuneStrConfig,
-  'pid-tune-relay': pidTuneRelayConfig,
+  'demo/inc': incConfig,
+  'quad/floater': floaterConfig,
+  'quad/floater-pid': floaterPidConfig,
+  'control/pid-tutorial': pidTutorialConfig,
+  'control/pid-tune-str': pidTuneStrConfig,
+  'control/pid-tune-relay': pidTuneRelayConfig,
   'quad/quad-l1': quadL1Config,
   'quad/quad-l2': quadL2Config,
   'quad/quad-l3': quadL3Config,

@@ -94,7 +94,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 400px;
+  min-height: 600px;
 }
 .sim-vis:fullscreen {
   background: #0a0a14;
@@ -336,6 +336,30 @@
 .sim-blocks__tooltip-var {
   color: var(--color-text-muted);
   padding: 1px 0;
+}
+
+/* ── SimCatalog ─────────────────────────────────────────────── */
+.sim-catalog__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sim-catalog__label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.sim-catalog__select {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 /* ── Vis tab layout ────────────────────────────────────────── */

@@ -18,6 +18,7 @@ export { useSimVis } from './SimVisContext';
 interface Props {
   simId?: string;
   modelId?: string;
+  height?: string | number;
 }
 
 // TODO: refactor outer shell to useResolvedSimContext (src/sim/useResolvedSimContext.ts).
@@ -27,7 +28,7 @@ interface Props {
 // the ids and leave resolveSimContext to the caller.
 type Resolved = { simId: string; modelId?: string };
 
-export default function SimVis({ simId: simIdProp, modelId: modelIdProp }: Props) {
+export default function SimVis({ simId: simIdProp, modelId: modelIdProp, height }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [resolved, setResolved] = useState<Resolved | null>(
     simIdProp ? { simId: simIdProp, modelId: modelIdProp } : null,
@@ -47,10 +48,10 @@ export default function SimVis({ simId: simIdProp, modelId: modelIdProp }: Props
 
   const ctx = resolveSimContext(resolved.simId, resolved.modelId);
   if (!ctx) return <div className="panel-placeholder">No simulation for this page.</div>;
-  return <SimVisInner simId={resolved.simId} config={ctx.config} />;
+  return <SimVisInner simId={resolved.simId} config={ctx.config} height={height} />;
 }
 
-function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) {
+function SimVisInner({ simId, config, height }: { simId: string; config: ModelConfig; height?: string | number }) {
   const [status, setStatus] = useState(() => getStatus(simId));
   const [error, setError] = useState<Error | null>(() => getError(simId));
   const [historyLen, setHistoryLen] = useState(0);
@@ -161,7 +162,7 @@ function SimVisInner({ simId, config }: { simId: string; config: ModelConfig }) 
 
   return (
     <SimVisContext.Provider value={contextValue}>
-      <div className="sim-vis" ref={containerRef}>
+      <div className="sim-vis" ref={containerRef} style={height !== undefined ? { height } : undefined}>
         <VisComponent />
 
         {historyLen > 0 && (
