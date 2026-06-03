@@ -10,6 +10,7 @@ import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
+import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
 import type { WindowStep } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
@@ -159,10 +160,14 @@ const sceneHandler = composeScene(() => [
     position: [-20, 0, -20],
     fontSize: 48,
   }),
-  infoOverlay({ corner: 'bottom-left',  marginY: 132, title: 'W1a — carrot',   titleColor: '#4488ff', rows: vehicleRows(s => view(s).vehicles.a, '#4488ff') }),
-  infoOverlay({ corner: 'bottom-right', marginY: 132, title: 'W1b — pre-stage', titleColor: '#ff8800', rows: vehicleRows(s => view(s).vehicles.b, '#ff8800') }),
-  sticksOverlay(s => view(s).vehicles.a.aetr, { corner: 'bottom-left' }),
-  sticksOverlay(s => view(s).vehicles.b.aetr, { corner: 'bottom-right' }),
+  cornerGroup('bottom-left', [
+    infoOverlay({ title: 'W1a — carrot',    titleColor: '#4488ff', rows: vehicleRows(s => view(s).vehicles.a, '#4488ff') }),
+    sticksOverlay(s => view(s).vehicles.a.aetr),
+  ]),
+  cornerGroup('bottom-right', [
+    infoOverlay({ title: 'W1b — pre-stage', titleColor: '#ff8800', rows: vehicleRows(s => view(s).vehicles.b, '#ff8800') }),
+    sticksOverlay(s => view(s).vehicles.b.aetr),
+  ]),
 ]);
 
 export default function QuadW1CombinedVis() {
