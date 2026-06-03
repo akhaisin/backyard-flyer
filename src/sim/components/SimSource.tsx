@@ -5,6 +5,7 @@ import {
 } from '../engine/engine';
 import type { SimContext } from '../useSim';
 import { useResolvedSimContext } from '../useResolvedSimContext';
+import { subscribeSourceSelection, clearSourceSelection } from '../sourceSelectStore';
 import OverflowTabs from './OverflowTabs';
 import './sim.css';
 
@@ -56,6 +57,15 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
   });
   const [hasPending, setHasPending] = useState(() => hasPendingChanges(simId));
   const [status, setStatus] = useState(() => getStatus(simId));
+
+  useEffect(() => {
+    return subscribeSourceSelection(sel => {
+      if (sel?.simId === simId && visibleBlocks.some(b => b.sourceId === sel.sourceId)) {
+        setActiveSourceId(sel.sourceId);
+        clearSourceSelection();
+      }
+    });
+  }, [simId, visibleBlocks]);
 
   useEffect(() => {
     return subscribeStatus(simId, (next) => {

@@ -15,7 +15,18 @@ import {
   analyzeConnections, buildLayout, buildEdges, nodeCenter, borderPoint,
   type Waypoint, type EdgeData, type SetWaypoint,
 } from './SimBlocksDiagram';
+import { selectSource } from '../sourceSelectStore';
 import './sim.css';
+
+function BlocksHints() {
+  return (
+    <div className="sim-blocks__hints">
+      <div className="sim-blocks__hint">Click block to reveal all its connections</div>
+      <div className="sim-blocks__hint">Hover edge to inspect shared variables</div>
+      <div className="sim-blocks__hint">Double-click block to open in Source</div>
+    </div>
+  );
+}
 
 interface Props {
   ctx?: SimContext;
@@ -181,6 +192,14 @@ function SimBlocksInner({ ctx }: { ctx: SimContext }) {
     setTooltip(null);
   }, []);
 
+  const onNodeDoubleClick = useCallback((_e: React.MouseEvent, node: Node) => {
+    const hash = window.location.hash;
+    const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+    const pageId = raw.split('?')[0];
+    selectSource(ctx.simId, node.id);
+    window.location.hash = `#${pageId}?view=src`;
+  }, [ctx.simId]);
+
   return (
     <WaypointCtx.Provider value={setWaypoint}>
       <div className="sim-blocks">
@@ -195,6 +214,7 @@ function SimBlocksInner({ ctx }: { ctx: SimContext }) {
           onEdgeMouseEnter={onEdgeMouseEnter}
           onEdgeMouseMove={onEdgeMouseMove}
           onEdgeMouseLeave={onEdgeMouseLeave}
+          onNodeDoubleClick={onNodeDoubleClick}
           fitView
           fitViewOptions={{ padding: 0.3 }}
           nodesConnectable={false}
@@ -203,6 +223,7 @@ function SimBlocksInner({ ctx }: { ctx: SimContext }) {
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1e2e3e" />
         </ReactFlow>
+        <BlocksHints />
 
         {tooltip && (
           <div
