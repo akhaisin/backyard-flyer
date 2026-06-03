@@ -417,6 +417,20 @@ export function getConfig(simId: string): ModelConfig | null {
   return instances[simId]?.config ?? null;
 }
 
+// Sims the user has explicitly navigated to — a subset of `instances`.
+// `instances` includes page-store-hydrated sims that were never visited;
+// `trackedSimIds` is populated only via `trackSim` (called by PageShell on
+// navigation), so the simulations list shows only visited sims.
+const trackedSimIds: string[] = [];
+
+export function trackSim(simId: string): void {
+  if (!trackedSimIds.includes(simId)) trackedSimIds.push(simId);
+}
+
+export function getSimIds(): string[] {
+  return [...trackedSimIds];
+}
+
 export function subscribe(simId: string, cb: StateListener): () => void {
   const inst = getInstance(simId);
   inst.stateListeners.add(cb);

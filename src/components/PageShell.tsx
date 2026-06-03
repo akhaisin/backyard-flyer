@@ -9,7 +9,7 @@ import VisualizationTab from './VisualizationTab';
 import SimCharts from '../sim/components/SimCharts';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
-import { pauseSim } from '../sim/engine/engine';
+import { pauseSim, trackSim } from '../sim/engine/engine';
 import { subscribeCatalogModel, type CatalogSelection } from '../sim/catalogStore';
 import { startTour } from './tour';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -227,6 +227,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
       pauseSim(prev.simId);
     }
     prevRouteRef.current = { pageId, simId };
+    if (simId) trackSim(simId);
   }, [pageId, simId]);
 
   return (

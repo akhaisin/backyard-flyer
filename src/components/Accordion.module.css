@@ -1,0 +1,54 @@
+.accordion {
+  display: flex;
+  flex-direction: column;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 28px;
+  flex-shrink: 0;
+  background: var(--color-bg-elevated);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  color: var(--color-text-muted);
+}
+
+.header:hover {
+  background: var(--color-bg-active);
+  color: var(--color-text);
+}
+
+.chevron {
+  font-size: 13px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  user-select: none;
+}
+
+.body {
+  overflow: hidden;
+}
