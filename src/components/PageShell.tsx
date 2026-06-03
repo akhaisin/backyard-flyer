@@ -33,6 +33,15 @@ export interface PageShellProps {
 
 type View = 'chapter' | 'src' | 'blocks' | 'vis';
 
+function rewriteHashLink(anchor: Element, base: string) {
+  const href = anchor.getAttribute('href');
+  if (href?.startsWith('#')) anchor.setAttribute('href', base + href);
+}
+
+function rewriteAllHashLinks(base: string) {
+  document.querySelectorAll('a[href^="#"]').forEach(a => rewriteHashLink(a, base));
+}
+
 function parseHash(hash: string): { pageId: string; view: View } {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
   const qIdx = raw.indexOf('?');
@@ -100,6 +109,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
   });
   const [helpSeen, setHelpSeen] = useLocalStorage(HELP_SEEN_KEY, false);
   const prevRouteRef = useRef<{ pageId: string; simId?: string } | null>(null);
+  const canonicalBaseRef = useRef<string>('');
 
   useEffect(() => {
     function onHashChange() {
@@ -130,6 +140,61 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
     if (!isEmbedded) return;
     window.parent.postMessage({ type: 'HASH_CHANGED', hash: window.location.hash }, '*');
   }, [isEmbedded, pageId, view]);
+
+  // Request canonical base URL from host, then rewrite all hash hrefs so the
+  // browser status bar shows the mefly.dev URL instead of the github.io one.
+  // Listener is registered first, request sent second — no race with useEffect.
+  useEffect(() => {
+    if (!isEmbedded) return;
+    function onMessage(e: MessageEvent) {
+      if (!isTrustedHost(e.origin)) return;
+      if (e.data?.type !== 'SET_CANONICAL_URL') return;
+      const url: string = e.data.url ?? '';
+      if (!url) return;
+      canonicalBaseRef.current = url.replace(/#.*$/, '');
+      rewriteAllHashLinks(canonicalBaseRef.current);
+    }
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage({ type: 'REQUEST_CANONICAL_URL' }, '*');
+    return () => window.removeEventListener('message', onMessage);
+  }, [isEmbedded]);
+
+  // Rewrite hash hrefs on any newly added DOM nodes (MDX content is injected dynamically).
+  useEffect(() => {
+    if (!isEmbedded) return;
+    const observer = new MutationObserver(mutations => {
+      const base = canonicalBaseRef.current;
+      if (!base) return;
+      for (const { addedNodes } of mutations) {
+        for (const node of addedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          const el = node as Element;
+          if (el.matches('a[href^="#"]')) rewriteHashLink(el, base);
+          el.querySelectorAll('a[href^="#"]').forEach(a => rewriteHashLink(a, base));
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [isEmbedded]);
+
+  // Left-clicks on rewritten links must stay within the iframe (prevent cross-origin navigation).
+  useEffect(() => {
+    if (!isEmbedded) return;
+    function onClick(e: MouseEvent) {
+      if (e.button !== 0) return;
+      const base = canonicalBaseRef.current;
+      if (!base) return;
+      const anchor = (e.target as Element).closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') ?? '';
+      if (!href.startsWith(base + '#')) return;
+      e.preventDefault();
+      window.location.hash = href.slice(base.length);
+    }
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [isEmbedded]);
 
   const navigate = useCallback((id: string) => {
     window.location.hash = `#${id}`;
