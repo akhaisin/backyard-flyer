@@ -9,16 +9,19 @@ import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
+import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
 import type { WindowStep } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
+type Aetr = { throttle: number; yaw: number; pitch: number; roll: number };
 interface VehicleState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
+  aetr: Aetr;
   mission: { phase: number; stepIdx: number };
   planner: { carrot: Vec3 };
   validator: {
@@ -156,8 +159,10 @@ const sceneHandler = composeScene(() => [
     position: [-20, 0, -20],
     fontSize: 48,
   }),
-  infoOverlay({ corner: 'bottom-left',  title: 'W1a — carrot',   titleColor: '#4488ff', rows: vehicleRows(s => view(s).vehicles.a, '#4488ff') }),
-  infoOverlay({ corner: 'bottom-right', title: 'W1b — pre-stage', titleColor: '#ff8800', rows: vehicleRows(s => view(s).vehicles.b, '#ff8800') }),
+  infoOverlay({ corner: 'bottom-left',  marginY: 132, title: 'W1a — carrot',   titleColor: '#4488ff', rows: vehicleRows(s => view(s).vehicles.a, '#4488ff') }),
+  infoOverlay({ corner: 'bottom-right', marginY: 132, title: 'W1b — pre-stage', titleColor: '#ff8800', rows: vehicleRows(s => view(s).vehicles.b, '#ff8800') }),
+  sticksOverlay(s => view(s).vehicles.a.aetr, { corner: 'bottom-left' }),
+  sticksOverlay(s => view(s).vehicles.b.aetr, { corner: 'bottom-right' }),
 ]);
 
 export default function QuadW1CombinedVis() {

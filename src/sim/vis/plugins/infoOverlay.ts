@@ -52,7 +52,8 @@ export type InfoOverlayRow =
 export interface InfoOverlayOptions {
   rows: InfoOverlayRow[];
   corner?: InfoOverlayCorner;     // default 'bottom-left'
-  margin?: number;                // px from corner, default 12
+  margin?: number;                // px from corner (both axes), default 12
+  marginY?: number;               // overrides vertical component of margin
   plotTicks?: number;             // history window for the plot strip, default 500
   plotHeight?: number;            // css px height of the plot strip, default 28
   // Static header rendered above the rows — useful when multiple overlays
@@ -64,13 +65,14 @@ export interface InfoOverlayOptions {
 const DEFAULT_LABEL_COLOR = 'rgba(255, 255, 255, 0.55)';
 const DEFAULT_VALUE_COLOR = 'rgba(255, 255, 255, 0.85)';
 
-function applyCorner(el: HTMLElement, corner: InfoOverlayCorner, margin: number) {
-  const m = `${margin}px`;
+function applyCorner(el: HTMLElement, corner: InfoOverlayCorner, margin: number, marginY?: number) {
+  const mx = `${margin}px`;
+  const my = `${marginY ?? margin}px`;
   el.style.top = el.style.right = el.style.bottom = el.style.left = '';
-  if (corner === 'bottom-left')  { el.style.bottom = m; el.style.left = m; }
-  if (corner === 'bottom-right') { el.style.bottom = m; el.style.right = m; }
-  if (corner === 'top-left')     { el.style.top = m;    el.style.left = m; }
-  if (corner === 'top-right')    { el.style.top = m;    el.style.right = m; }
+  if (corner === 'bottom-left')  { el.style.bottom = my; el.style.left = mx; }
+  if (corner === 'bottom-right') { el.style.bottom = my; el.style.right = mx; }
+  if (corner === 'top-left')     { el.style.top = my;    el.style.left = mx; }
+  if (corner === 'top-right')    { el.style.top = my;    el.style.right = mx; }
 }
 
 export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
@@ -78,6 +80,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
     rows,
     corner = 'bottom-left',
     margin = 12,
+    marginY,
     plotTicks = 500,
     plotHeight = 28,
     title,
@@ -188,7 +191,7 @@ export function infoOverlay(opts: InfoOverlayOptions): ScenePlugin {
         gap:           '6px',
         zIndex:        '5',
       } as Partial<CSSStyleDeclaration>);
-      applyCorner(root, corner, margin);
+      applyCorner(root, corner, margin, marginY);
 
       if (title) {
         const titleEl = document.createElement('div');

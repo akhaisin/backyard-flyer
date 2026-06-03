@@ -9,15 +9,18 @@ import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
+import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { W1B_ROUTE } from './route';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
+type Aetr = { throttle: number; yaw: number; pitch: number; roll: number };
 interface QuadW1bState {
   pos: Vec3;
   attitude: Vec3;
   motors: { thrust: Motors4 };
+  aetr: Aetr;
   mission: { phase: number; stepIdx: number };
   planner_w1b: { carrot: Vec3; preGateDone: number };
   wind: { fx: number; fz: number };
@@ -145,6 +148,7 @@ const sceneHandler = composeScene(() => [
         } },
     ],
   }),
+  sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
 ]);
 
 export default function QuadW1bVis() {
