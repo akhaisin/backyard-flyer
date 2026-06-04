@@ -17,7 +17,7 @@ interface Props {
   autoHeight?: boolean;
 }
 
-export default function SimSource({ ctx, simId: simIdProp, modelId: modelIdProp, sourceIds, autoHeight }: Props) {
+export default function SimSourceComponent({ ctx, simId: simIdProp, modelId: modelIdProp, sourceIds, autoHeight }: Props) {
   const { resolved, sentinelRef } = useResolvedSimContext(ctx, simIdProp, modelIdProp);
 
   if (!resolved) return <div ref={sentinelRef} />;

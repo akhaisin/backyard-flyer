@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-l2
 modelId: quad/quad-l2
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad L2 — cascaded controllers: navigator + stabilizer
 
@@ -120,13 +120,13 @@ Gains above that value flip the sign of angular velocity every tick and cause in
 
 ## Watch it fly
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
 ## Position and attitude
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} />
 
 ---
 
@@ -134,15 +134,15 @@ Gains above that value flip the sign of angular velocity every tick and cause in
 
 These signals are produced by `fc_navigator` and consumed by `fc_stabilizer`. Watching them while the simulation runs shows exactly what the navigator is asking of the stabilizer at every moment.
 
-<SimCharts varIds={[['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des']]} client:only="react" />
+<SimCharts varIds={[['fc.nav.roll_des','fc.nav.pitch_des','fc.nav.yaw_des']]} />
 
-<SimCharts varIds={[['fc.nav.thrust']]} client:only="react" />
+<SimCharts varIds={[['fc.nav.thrust']]} />
 
 ---
 
 ## Motor power and mission
 
-<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} />
 
 ---
 
@@ -150,7 +150,7 @@ These signals are produced by `fc_navigator` and consumed by `fc_stabilizer`. Wa
 
 The navigator owns the position-to-attitude conversion. Try increasing `KP_POS` to make the quad chase waypoints more aggressively — you will see larger transients in the navigator output chart above. Reduce `MAX_TILT` to slow down horizontal moves.
 
-<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc_navigator']} autoHeight />
 
 ---
 
@@ -158,17 +158,17 @@ The navigator owns the position-to-attitude conversion. Try increasing `KP_POS` 
 
 The stabilizer owns attitude tracking and motor mixing. Try increasing `KP_ATT` for faster attitude response — but keep `KD_ATT` below `0.4` or the angular velocity will diverge. The stabilizer's gains are independent of anything in the navigator; you can retune one without touching the other.
 
-<SimSource sourceIds={['fc_stabilizer']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc_stabilizer']} autoHeight />
 
 ---
 
 ## Edit the mission, hardware, and physics
 
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission']} autoHeight />
 
-<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+<SimSource sourceIds={['hw']} autoHeight />
 
-<SimSource sourceIds={['world']} autoHeight client:only="react" />
+<SimSource sourceIds={['world']} autoHeight />
 
 ---
 

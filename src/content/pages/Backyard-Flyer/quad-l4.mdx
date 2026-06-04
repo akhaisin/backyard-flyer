@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-l4
 modelId: quad/quad-l4
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad L4 — the reference architecture ⭐
 
@@ -45,7 +45,7 @@ This is where the **separation of concerns** sharpens. In L3 the validator was i
 
 Because the lifecycle source is editable like any block, the constants, the success criteria, and the validator math are all in one place you can open and change.
 
-<SimSource sourceIds={['lifecycle']} autoHeight client:only="react" />
+<SimSource sourceIds={['lifecycle']} autoHeight />
 
 ---
 
@@ -100,20 +100,20 @@ While the run is in progress the **Pass** row shows the live score — `2/3` —
 
 Because the criteria and their thresholds live in the lifecycle source, this is a tunable acceptance envelope, not a hard-coded one. Open the editor, raise a gain or tighten a limit, restart, and watch whether the run still clears the bar. Every value shown against a limit reads its denominator straight from `state.K`, so the overlay always reflects the current criteria.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
 ## Charts
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} />
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} />
 
-<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
+<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} />
 
-<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} client:only="react" />
+<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} />
 
-<SimCharts varIds={[['validator.currentErr','validator.accErr']]} client:only="react" />
+<SimCharts varIds={[['validator.currentErr','validator.accErr']]} />
 
-<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3']]} client:only="react" />
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3']]} />

@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-l1
 modelId: quad/quad-l1
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad Demo — full mission sequence
 
@@ -94,19 +94,19 @@ attitude error → desired torques
 
 Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown. The drone body rotates with the actual simulated attitude.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
 ## Position and attitude
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z'],['attitude.x','attitude.z','attitude.y']]} />
 
 ---
 
 ## Motor power and mission
 
-<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} />
 
 ---
 
@@ -114,19 +114,19 @@ Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands.
 
 Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
 
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission']} autoHeight />
 
 ---
 
 ## Edit the flight controller
 
-<SimSource sourceIds={['fc']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc']} autoHeight />
 
 ---
 
 ## Edit the hardware model
 
-<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+<SimSource sourceIds={['hw']} autoHeight />
 
 ---
 
@@ -139,4 +139,4 @@ Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
 
 At 20 Hz that bleeds off nearly all lateral inertia in about half a second, standing in for ground friction without needing a full contact-dynamics model. Increase the factor toward 1.0 for an icy surface; drop it toward 0 for an instant stop.
 
-<SimSource sourceIds={['world']} autoHeight client:only="react" />
+<SimSource sourceIds={['world']} autoHeight />

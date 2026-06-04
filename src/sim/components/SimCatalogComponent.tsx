@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import SimVis from './SimVis';
+import SimVis from './SimVisComponent';
 import { modelRegistry } from '../registry';
 import { setCatalogModel } from '../catalogStore';
 import './sim.css';
@@ -30,7 +30,7 @@ interface Props {
   defaultModel?: string;
 }
 
-export default function SimCatalog({ height, defaultModel }: Props) {
+export default function SimCatalogComponent({ height, defaultModel }: Props) {
   const [modelId, setModelId] = useState(
     defaultModel && modelIds.includes(defaultModel) ? defaultModel : modelIds[0],
   );

@@ -4,9 +4,9 @@ simId: Racing/quad-ladder
 modelId: racing/quad-ladder
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad Ladder — yaw-aware navigation through a vertical gate stack
 
@@ -106,7 +106,7 @@ All three gates are visible as wireframe rectangles stacked along Y. The active 
 
 Watch the drone weave through the ladder: front-left to M1, then arc right to approach M2 from the back, then arc left to approach M3 from the front again — a switchback spiral rather than a simple ascending loop.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -114,7 +114,7 @@ Watch the drone weave through the ladder: front-left to M1, then arc right to ap
 
 The yaw setpoint from the planner (yellow) and the drone's actual yaw (purple). During the arcs the setpoint rotates continuously as the carrot direction changes. The actual yaw lags by the stabilizer's tracking bandwidth. The gap between them drives the yaw torque term in `fc_stabilizer`.
 
-<SimCharts varIds={[['planner.yawSetpoint','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['planner.yawSetpoint','attitude.y']]} />
 
 ---
 
@@ -122,7 +122,7 @@ The yaw setpoint from the planner (yellow) and the drone's actual yaw (purple). 
 
 `stepIdx` advances 0 → 1 → … → 8 as waypoints and gates are completed. Pattern repeats every three steps: `[0, 3, 6]` are staging waypoints, `[1, 4, 7]` are main gate crossings, `[2, 5, 8]` are exit guide crossings. `dist` shows the distance to the current target.
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.dist','mission.armed']]} />
 
 ---
 
@@ -130,7 +130,7 @@ The yaw setpoint from the planner (yellow) and the drone's actual yaw (purple). 
 
 X alternates between 5 (front staging) and 19 (back staging) as the drone weaves through the ladder. Y staircase-climbs 3 → 7 → 11 m. Z alternates between +7 and −7 as the drone swings left and right between gates.
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z']]} />
 
 ---
 
@@ -138,7 +138,7 @@ X alternates between 5 (front staging) and 19 (back staging) as the drone weaves
 
 Roll and pitch reflect the banked arcs. Yaw is no longer zero — it tracks the flight direction throughout. Compare to W1b where `attitude.y` flatlines at 0.
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} />
 
 ---
 
@@ -146,7 +146,7 @@ Roll and pitch reflect the banked arcs. Yaw is no longer zero — it tracks the 
 
 The `STEPS` array in `mission.ts` fully defines the ladder. Try adjusting `APPROACH_Z` (lateral staging distance) or the gate Y positions, and restart to see the effect.
 
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission']} autoHeight />
 
 ---
 
@@ -154,7 +154,7 @@ The `STEPS` array in `mission.ts` fully defines the ladder. Try adjusting `APPRO
 
 The planner uses pre-staging for gate steps (same as W1b) and simple carrot for waypoint steps. The yaw setpoint is computed from the carrot direction and persisted when the carrot is directly overhead.
 
-<SimSource sourceIds={['fc_path_planner']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc_path_planner']} autoHeight />
 
 ---
 
@@ -162,4 +162,4 @@ The planner uses pre-staging for gate steps (same as W1b) and simple carrot for 
 
 The key change from W1b: the roll/pitch commands are rotated into the body frame using the current yaw angle. Try reverting to the W1b version (replace `cp`/`sp` rotation with `pitch_des = -ax_des/g_eff`, `roll_des = az_des/g_eff`) and observe the drone losing lateral control authority when it yaws away from +X.
 
-<SimSource sourceIds={['fc_navigator']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc_navigator']} autoHeight />

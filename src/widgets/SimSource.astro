@@ -1,0 +1,7 @@
+---
+import SimSourceComponent from '../sim/components/SimSourceComponent';
+import type { ComponentProps } from 'react';
+
+type Props = ComponentProps<typeof SimSourceComponent>;
+---
+<SimSourceComponent {...Astro.props} client:only="react" />

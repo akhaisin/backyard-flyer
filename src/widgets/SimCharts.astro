@@ -1,0 +1,7 @@
+---
+import SimChartsComponent from '../sim/components/SimChartsComponent';
+import type { ComponentProps } from 'react';
+
+type Props = ComponentProps<typeof SimChartsComponent>;
+---
+<SimChartsComponent {...Astro.props} client:only="react" />

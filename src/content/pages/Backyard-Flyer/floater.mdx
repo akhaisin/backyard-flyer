@@ -4,9 +4,9 @@ simId: Backyard-Flyer/floater
 modelId: quad/floater
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Floater — multi-block model with simulated hardware
 
@@ -36,7 +36,7 @@ Press **Start** to run. The orange markers are waypoints; the green one is the c
 
 Drag the **rewind slider** to scrub back through history.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -46,7 +46,7 @@ Each chart shows the floater's actual position (solid) alongside the current tar
 
 When a waypoint is reached, the target line steps to the next value.
 
-<SimCharts varIds={[['pos.x','mission.target.x'],['pos.y','mission.target.y'],['pos.z','mission.target.z']]} client:only="react" />
+<SimCharts varIds={[['pos.x','mission.target.x'],['pos.y','mission.target.y'],['pos.z','mission.target.z']]} />
 
 ---
 
@@ -56,7 +56,7 @@ The `mission` block is the simplest place to start editing. It just picks the ne
 
 Try changing a waypoint coordinate, or tightening `THRESHOLD`. Stage with **Ctrl+Enter**, then press **Start** in the visualization above to apply the change.
 
-<SimSource sourceIds={['mission']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission']} autoHeight />
 
 ---
 

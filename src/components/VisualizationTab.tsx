@@ -1,4 +1,4 @@
-import SimVis from '../sim/components/SimVis';
+import SimVisComponent from '../sim/components/SimVisComponent';
 
 interface Props {
   pageName: string;
@@ -8,5 +8,5 @@ interface Props {
 
 export default function VisualizationTab({ simId, modelId }: Props) {
   if (!simId) return <div className="panel-placeholder">No simulation for this page.</div>;
-  return <SimVis simId={simId} modelId={modelId} />;
+  return <SimVisComponent simId={simId} modelId={modelId} />;
 }

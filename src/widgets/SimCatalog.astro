@@ -1,0 +1,7 @@
+---
+import SimCatalogComponent from '../sim/components/SimCatalogComponent';
+import type { ComponentProps } from 'react';
+
+type Props = ComponentProps<typeof SimCatalogComponent>;
+---
+<SimCatalogComponent {...Astro.props} client:only="react" />

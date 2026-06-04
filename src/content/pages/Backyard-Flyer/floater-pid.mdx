@@ -5,8 +5,8 @@ modelId: quad/floater-pid
 toc-name: floater-PID
 ---
 
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # PD vs PID — two controllers, side by side
 
@@ -44,7 +44,7 @@ Press **Start** and watch the two trajectories develop in parallel.
 
 That cycle — *settle, perturbation, recover* — is exactly the loop real autopilots run continuously. The lap counter chart is the cleanest summary of the net effect.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -56,7 +56,7 @@ The second chart shows distance to the active waypoint — a controller-independ
 
 The third chart is the most direct measure of "who's faster": each line is the number of full laps that controller has completed. Both floaters are racing the same circuit on opposite sides of the mirror, so a steeper slope means more laps per tick — that's PID winning by virtue of not wasting time oscillating.
 
-<SimCharts client:only="react" />
+<SimCharts />
 
 ---
 

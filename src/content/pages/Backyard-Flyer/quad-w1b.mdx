@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-w1b
 modelId: quad/quad-w1b
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad W1b — pre-stage approach
 
@@ -40,7 +40,7 @@ A `preGateDone` **latch** flips to 1 the first tick the drone comes within `PREG
 
 ## Watch it fly
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -48,7 +48,7 @@ A `preGateDone` **latch** flips to 1 the first tick the drone comes within `PREG
 
 `preGateDone` rises to 1 as the drone reaches each pre-stage point, then the carrot tracks the gate centerline. Watch it reset to 0 each time the mission advances to a new gate (or restarts one).
 
-<SimCharts varIds={[['mission.stepIdx','planner_w1b.preGateDone'],['planner_w1b.carrot.x','mission.step.pos.x','planner_w1b.carrot.z','mission.step.pos.z']]} client:only="react" />
+<SimCharts varIds={[['mission.stepIdx','planner_w1b.preGateDone'],['planner_w1b.carrot.x','mission.step.pos.x','planner_w1b.carrot.z','mission.step.pos.z']]} />
 
 ---
 
@@ -56,7 +56,7 @@ A `preGateDone` **latch** flips to 1 the first tick the drone comes within `PREG
 
 As in W1a, `phase = 7` (`RESTART`) plus a step in `restarts` marks a missed gate. Staging should keep the restart count lower than W1a under the same wind — the side-by-side [Combined](/Backyard-Flyer/quad-w1-combined) model makes that comparison directly.
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} />
 
 ---
 
@@ -64,4 +64,4 @@ As in W1a, `phase = 7` (`RESTART`) plus a step in `restarts` marks a missed gate
 
 `planner_w1b` adds the pre-stage leg and `preGateDone` latch on top of W1a's centerline carrot and crossing detection. Try changing `PREGATE_THRESHOLD`, or set every gate's `preStageDist` to 0 (in the route, via `lifecycle`) to watch it degrade to W1a.
 
-<SimSource sourceIds={['planner_w1b','lifecycle']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_w1b','lifecycle']} autoHeight />

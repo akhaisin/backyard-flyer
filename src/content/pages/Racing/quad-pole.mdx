@@ -4,9 +4,9 @@ simId: Racing/quad-pole
 modelId: racing/quad-pole
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad Pole — acro-mode coordinated turn around a flagpole
 
@@ -26,7 +26,7 @@ mission ──► planner_wp     ──► navigator_wp     ─┐
 
 The active stack is selected by `mission.missionType` (0 = WP, 1 = CTURN). Inactive blocks see the type, see it's not theirs, and pass `aetr` through unchanged.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -39,7 +39,7 @@ The STEPS array has two entries; `missionType` flips when the active step change
 | 0 | waypoint | WP (0) | (8, 3, +3) — staging east of pole |
 | 1 | maneuver | CTURN (1) | sweep-left, 5 s (100 ticks) |
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.missionType','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.missionType','mission.armed']]} />
 
 ---
 
@@ -47,7 +47,7 @@ The STEPS array has two entries; `missionType` flips when the active step change
 
 The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the CTURN segment navigator_cturn writes here from the sampled maneuver plan. fc_acro doesn't know or care which one wrote.
 
-<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
+<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} />
 
 ---
 
@@ -55,7 +55,7 @@ The single bus between navigators and fc_acro. During the WP segments navigator_
 
 Owns the maneuver library and the keyframe sampler. When `missionType !== CTURN` it emits zeros with `active = 0`. Edit the keyframe values here to change the maneuver shape.
 
-<SimSource sourceIds={['planner_cturn']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_cturn']} autoHeight />
 
 ---
 
@@ -63,4 +63,4 @@ Owns the maneuver library and the keyframe sampler. When `missionType !== CTURN`
 
 Single-mode, always rate-PID. No attitude memory. The `MAX_RATE_*` constants here define what "stick = 1" means; navigator_wp uses the matching constants in its outer attitude loop to invert the mapping.
 
-<SimSource sourceIds={['fc_acro']} autoHeight client:only="react" />
+<SimSource sourceIds={['fc_acro']} autoHeight />

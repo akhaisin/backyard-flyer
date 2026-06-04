@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-w1-combined
 modelId: quad/quad-w1-combined
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad W1 Combined — W1a vs W1b side-by-side
 
@@ -41,7 +41,7 @@ The combined `lifecycle.after` hook runs the same cross-track / restart validato
 
 ## Watch them fly
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -49,7 +49,7 @@ The combined `lifecycle.after` hook runs the same cross-track / restart validato
 
 The headline comparison: completed laps over time. Under the same wind, the pre-stage drone (orange) should pull ahead as it wastes fewer laps on missed-gate restarts.
 
-<SimCharts varIds={[['vehicles.a.validator.lapsTotal','vehicles.b.validator.lapsTotal']]} client:only="react" />
+<SimCharts varIds={[['vehicles.a.validator.lapsTotal','vehicles.b.validator.lapsTotal']]} />
 
 ---
 
@@ -57,7 +57,7 @@ The headline comparison: completed laps over time. Under the same wind, the pre-
 
 Every missed gate steps a vehicle's restart counter. The gap between the two curves is the pre-stage payoff — and each vehicle fails its run if it exceeds `MAX_RESTARTS`.
 
-<SimCharts varIds={[['vehicles.a.validator.restarts','vehicles.b.validator.restarts']]} client:only="react" />
+<SimCharts varIds={[['vehicles.a.validator.restarts','vehicles.b.validator.restarts']]} />
 
 ---
 
@@ -65,7 +65,7 @@ Every missed gate steps a vehicle's restart counter. The gap between the two cur
 
 A spike to phase 7 (`RESTART`) is a miss-and-recover on that track. The accumulated cross-track error (IAE) is the other half of the comparison — staging should also fly a tidier line.
 
-<SimCharts varIds={[['vehicles.a.mission.phase','vehicles.b.mission.phase'],['vehicles.a.validator.accErr','vehicles.b.validator.accErr']]} client:only="react" />
+<SimCharts varIds={[['vehicles.a.mission.phase','vehicles.b.mission.phase'],['vehicles.a.validator.accErr','vehicles.b.validator.accErr']]} />
 
 ---
 
@@ -73,7 +73,7 @@ A spike to phase 7 (`RESTART`) is a miss-and-recover on that track. The accumula
 
 The only blocks that differ between the tracks. Everything downstream — `navigator_w1`, `fc_acro`, `hw`, `world` — is the same shared code running twice.
 
-<SimSource sourceIds={['planner_w1a','planner_w1b']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_w1a','planner_w1b']} autoHeight />
 
 ---
 
@@ -81,4 +81,4 @@ The only blocks that differ between the tracks. Everything downstream — `navig
 
 One gust generator drives both tracks, so the comparison stays fair.
 
-<SimSource sourceIds={['wind']} autoHeight client:only="react" />
+<SimSource sourceIds={['wind']} autoHeight />

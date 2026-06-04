@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-noise
 modelId: quad/quad-noise
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad noise — wind disturbance and sensor noise
 
@@ -91,7 +91,7 @@ That makes the disturbance model an additive extension of L4 rather than a paral
 
 ## Watch it fly
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -99,25 +99,25 @@ That makes the disturbance model an additive extension of L4 rather than a paral
 
 The **Position (true vs noisy)** chart overlays the true position (solid) against what the FC actually reads (faded). At default noise levels the gap is small — barely visible except on zoomed axes. Increasing `POS_STD` to 0.5 m makes the controller visibly react to phantom position errors.
 
-<SimCharts varIds={[['pos.x','sensors.pos.x','pos.y','sensors.pos.y','pos.z','sensors.pos.z']]} client:only="react" />
+<SimCharts varIds={[['pos.x','sensors.pos.x','pos.y','sensors.pos.y','pos.z','sensors.pos.z']]} />
 
 ---
 
 ## Attitude and AETR output
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} client:only="react" />
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y'],['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} />
 
 ---
 
 ## Motor power and mission
 
-<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['motors.desired.m0','motors.desired.m1','motors.desired.m2','motors.desired.m3'],['mission.phase','mission.dist','mission.armed']]} />
 
 ---
 
 ## Wind force
 
-<SimCharts varIds={[['wind.fx','wind.fz']]} client:only="react" />
+<SimCharts varIds={[['wind.fx','wind.fz']]} />
 
 ---
 
@@ -125,9 +125,9 @@ The **Position (true vs noisy)** chart overlays the true position (solid) agains
 
 Adjust gust strength and noise levels here. Try setting `WIND_FORCE_MAX_PCT = 50` and `POS_STD = 0.2` to see how the navigator struggles to reject both a strong wind and a noisy GPS simultaneously.
 
-<SimSource sourceIds={['wind']} autoHeight client:only="react" />
+<SimSource sourceIds={['wind']} autoHeight />
 
-<SimSource sourceIds={['noise']} autoHeight client:only="react" />
+<SimSource sourceIds={['noise']} autoHeight />
 
 ---
 
@@ -135,7 +135,7 @@ Adjust gust strength and noise levels here. Try setting `WIND_FORCE_MAX_PCT = 50
 
 The disturbance rejection lives in the shared waypoint stack now. Open the same shared sources L4 uses, but watch them operate against wind and noisy sensors instead of clean state.
 
-<SimSource sourceIds={['mission','planner_wp','navigator_wp','fc_acro']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission','planner_wp','navigator_wp','fc_acro']} autoHeight />
 
 ---
 
@@ -143,6 +143,6 @@ The disturbance rejection lives in the shared waypoint stack now. Open the same 
 
 `hw` and `world` are shared too. The shared `world` block accepts optional wind-force inputs, so quad-noise uses the same physics implementation as L4 while enabling gust disturbance through the `wind` block.
 
-<SimSource sourceIds={['hw']} autoHeight client:only="react" />
+<SimSource sourceIds={['hw']} autoHeight />
 
-<SimSource sourceIds={['world']} autoHeight client:only="react" />
+<SimSource sourceIds={['world']} autoHeight />

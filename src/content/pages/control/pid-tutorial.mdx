@@ -4,8 +4,8 @@ simId: control/pid-tutorial
 modelId: control/pid-tutorial
 ---
 
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # PID control fundamentals
 
@@ -21,11 +21,11 @@ Drag the sliders to change the **target**, the **PID gains** (Kp, Ki, Kd), or th
 
 Sliders apply live — you can adjust them while the simulation is running and watch the response change. **Reset** restores the slider defaults; **rewind** scrubs back through history (sliders are read-only and follow the historical values while you rewind).
 
-<SimVis client:only="react" />
+<SimVis />
 
 ## Charts
 
-<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['setpoint.signal_error','controller.control']]} client:only="react" />
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['setpoint.signal_error','controller.control']]} />
 
 ## Behaviour to try
 

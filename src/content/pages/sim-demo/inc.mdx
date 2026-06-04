@@ -4,9 +4,9 @@ simId: sim-demo/inc
 modelId: demo/inc
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Inc — minimal simulation
 
@@ -16,7 +16,7 @@ Its purpose is to verify the full engine workflow with the smallest possible mod
 
 Press **Start** to run. Watch the value increment in the 3D view.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -24,7 +24,7 @@ Press **Start** to run. Watch the value increment in the 3D view.
 
 The value grows linearly — one unit per second.
 
-<SimCharts varIds={[['value']]} client:only="react" />
+<SimCharts varIds={[['value']]} />
 
 ---
 
@@ -32,7 +32,7 @@ The value grows linearly — one unit per second.
 
 Change the increment — for example `state.value + 2` or `state.value * 2`. Stage with **Ctrl+Enter**, then press **Apply & Start** in the visualization above.
 
-<SimSource sourceIds={['inc']} autoHeight client:only="react" />
+<SimSource sourceIds={['inc']} autoHeight />
 
 ---
 

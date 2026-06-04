@@ -1,0 +1,7 @@
+---
+import SimVisComponent from '../sim/components/SimVisComponent';
+import type { ComponentProps } from 'react';
+
+type Props = ComponentProps<typeof SimVisComponent>;
+---
+<SimVisComponent {...Astro.props} client:only="react" />

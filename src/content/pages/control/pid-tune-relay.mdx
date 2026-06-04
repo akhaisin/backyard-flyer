@@ -4,8 +4,8 @@ simId: control/pid-tune-relay
 modelId: control/pid-tune-relay
 ---
 
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # PID auto-tuning — Relay-feedback (Åström–Hägglund)
 
@@ -45,7 +45,7 @@ The Tuner sits **in series** between PID and Plant — that's what "replaces the
 
 Click **TUNE NOW** to start an experiment. The plant will oscillate visibly for about 5–10 seconds, then `kp / ki / kd` will jump into place on the PID sliders and the loop resumes with the new gains.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ## What you should see
 
@@ -73,4 +73,4 @@ The trade-off: tuning *perturbs the plant on purpose*. In a real system you'd on
 
 ## Charts
 
-<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['tuner.kp_new','tuner.ki_new','tuner.kd_new'],['tuner.ku','tuner.tu']]} client:only="react" />
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['tuner.kp_new','tuner.ki_new','tuner.kd_new'],['tuner.ku','tuner.tu']]} />

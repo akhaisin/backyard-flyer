@@ -4,8 +4,8 @@ simId: Racing/quad-rates
 modelId: racing/quad-rates
 ---
 
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad Rates — direct RC stick commands over time
 
@@ -56,7 +56,7 @@ The yaw in step 3: `0.25 × 2π × 40 ticks × 0.05 s/tick = π rad = 180°` exa
 
 ## Watch it fly
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -64,7 +64,7 @@ The yaw in step 3: `0.25 × 2π × 40 ticks × 0.05 s/tick = π rad = 180°` exa
 
 `stepIdx` walks 0 → 6 as each step's tick budget expires, then the mission transitions to RTH. `phase` shows the full lifecycle: ARMING → TAKEOFF → NAVIGATE (steps 0–6) → RTH → LAND → DONE.
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed']]} />
 
 ---
 
@@ -72,7 +72,7 @@ The yaw in step 3: `0.25 × 2π × 40 ticks × 0.05 s/tick = π rad = 180°` exa
 
 The four channels written by `navigator_rates` during PHASE_NAVIGATE. The throttle flatlines at the hover value throughout. Pitch dips negative to accelerate, spikes positive to brake, then repeats with smaller amplitude for the return leg. Yaw spikes during the 180° turn step and returns to zero.
 
-<SimCharts varIds={[['aetr.throttle','aetr.pitch','aetr.yaw','aetr.roll']]} client:only="react" />
+<SimCharts varIds={[['aetr.throttle','aetr.pitch','aetr.yaw','aetr.roll']]} />
 
 ---
 
@@ -80,7 +80,7 @@ The four channels written by `navigator_rates` during PHASE_NAVIGATE. The thrott
 
 Pitch (`attitude.z`) tilts nose-down during acceleration and nose-up during braking. Yaw (`attitude.y`) sweeps through π rad during step 3 and stays near that heading for the return. Roll stays near zero throughout.
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} client:only="react" />
+<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} />
 
 ---
 
@@ -88,7 +88,7 @@ Pitch (`attitude.z`) tilts nose-down during acceleration and nose-up during brak
 
 X builds during the forward run, peaks near the brake, then decays as the drone returns. Y drifts slightly around cruise altitude — there is no active altitude hold during NAVIGATE. Z stays near zero (no lateral motion is commanded).
 
-<SimCharts varIds={[['pos.x','pos.y','pos.z']]} client:only="react" />
+<SimCharts varIds={[['pos.x','pos.y','pos.z']]} />
 
 ---
 
@@ -96,4 +96,4 @@ X builds during the forward run, peaks near the brake, then decays as the drone 
 
 The inner rate loop feedback. Pitch rate (`angularVel.z`) tracks the commanded pitch steps. Yaw rate (`angularVel.y`) spikes during the 180° turn and settles when the step ends. Deviations from the commanded rate show how fast `fc_acro`'s PID corrects.
 
-<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} client:only="react" />
+<SimCharts varIds={[['angularVel.x','angularVel.z','angularVel.y']]} />

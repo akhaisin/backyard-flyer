@@ -36,7 +36,7 @@ interface Props {
   varIds?: string[][];
 }
 
-export default function SimCharts({ ctx, simId: simIdProp, modelId: modelIdProp, chartId, varIds }: Props) {
+export default function SimChartsComponent({ ctx, simId: simIdProp, modelId: modelIdProp, chartId, varIds }: Props) {
   const { resolved, sentinelRef } = useResolvedSimContext(ctx, simIdProp, modelIdProp);
 
   if (!resolved) return <div ref={sentinelRef} />;

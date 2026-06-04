@@ -4,8 +4,8 @@ simId: control/pid-tune-str
 modelId: control/pid-tune-str
 ---
 
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # PID auto-tuning — Self-Tuning Regulator
 
@@ -68,11 +68,11 @@ The **AUTO / MANUAL** switch on the Tuner block decides whether the STR-derived 
 - **AUTO** (default): tuner pushes its gains into the PID, sliders are read-only and display the live tuner values, the adjust-arrow is bright.
 - **MANUAL**: PID sliders become editable, the controller uses *your* values, the adjust-arrow dims. RLS *pauses* while in MANUAL — the tuner's recommendation stays frozen at whatever it last estimated in AUTO, so transients from your hand-tuning can't drag the identification off. Click AUTO again to resume identification (with full memory of where it left off).
 
-<SimVis client:only="react" />
+<SimVis />
 
 ## Charts
 
-<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['inputs.plant.mass','tuner.m_hat','inputs.plant.damping','tuner.beta_hat'],['tuner.kp','tuner.ki','tuner.kd']]} client:only="react" />
+<SimCharts varIds={[['inputs.setpoint.target','plant.out'],['inputs.plant.mass','tuner.m_hat','inputs.plant.damping','tuner.beta_hat'],['tuner.kp','tuner.ki','tuner.kd']]} />
 
 ## What you should see
 

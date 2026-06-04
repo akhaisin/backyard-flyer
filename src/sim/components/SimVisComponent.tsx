@@ -28,7 +28,7 @@ interface Props {
 // the ids and leave resolveSimContext to the caller.
 type Resolved = { simId: string; modelId?: string };
 
-export default function SimVis({ simId: simIdProp, modelId: modelIdProp, height }: Props) {
+export default function SimVisComponent({ simId: simIdProp, modelId: modelIdProp, height }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [resolved, setResolved] = useState<Resolved | null>(
     simIdProp ? { simId: simIdProp, modelId: modelIdProp } : null,

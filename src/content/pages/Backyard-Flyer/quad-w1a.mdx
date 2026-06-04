@@ -4,9 +4,9 @@ simId: Backyard-Flyer/quad-w1a
 modelId: quad/quad-w1a
 ---
 
-import SimSource from '../../../sim/components/SimSource'
-import SimVis from '../../../sim/components/SimVis'
-import SimCharts from '../../../sim/components/SimCharts'
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
 
 # Quad W1a — window gates and carrot-and-stick navigation
 
@@ -135,7 +135,7 @@ Like L4 and Noise, the `lifecycle.after` hook scores the run live and `afterSim`
 
 Each gate renders as a wireframe rectangle: the active gate is green, upcoming gates orange, crossed gates fade. The yellow carrot sphere leads the drone along the centerline and through the frame.
 
-<SimVis client:only="react" />
+<SimVis />
 
 ---
 
@@ -143,7 +143,7 @@ Each gate renders as a wireframe rectangle: the active gate is green, upcoming g
 
 During the approach the carrot leads the drone along the gate centerline; the gate-center coordinate is shown for reference. Unlike a naive carrot, these do **not** fully converge at the crossing — the carrot stays ahead, on the normal, so the pull holds through the frame.
 
-<SimCharts varIds={[['planner_w1a.carrot.x','mission.step.pos.x','planner_w1a.carrot.z','mission.step.pos.z']]} client:only="react" />
+<SimCharts varIds={[['planner_w1a.carrot.x','mission.step.pos.x','planner_w1a.carrot.z','mission.step.pos.z']]} />
 
 ---
 
@@ -151,7 +151,7 @@ During the approach the carrot leads the drone along the gate centerline; the ga
 
 `stepIdx` increments on each clean crossing. `phase` spiking to 7 (`RESTART`) and returning to 2 (`NAVIGATE`) marks a missed gate and its recovery; the `restarts` counter steps up once per miss.
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} client:only="react" />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.armed','validator.restarts']]} />
 
 ---
 
@@ -159,7 +159,7 @@ During the approach the carrot leads the drone along the gate centerline; the ga
 
 `current err` is the instantaneous distance from the active mission segment; `accumulated` is its running sum (IAE) over NAVIGATE ticks — the value the pass test compares against `ACC_ERR_LIMIT`.
 
-<SimCharts varIds={[['validator.currentErr','validator.accErr']]} client:only="react" />
+<SimCharts varIds={[['validator.currentErr','validator.accErr']]} />
 
 ---
 
@@ -167,7 +167,7 @@ During the approach the carrot leads the drone along the gate centerline; the ga
 
 `planner_w1a` owns the centerline carrot and the crossing check. Try changing `LOOKAHEAD`, or experiment with the crossing tolerance (`max(width,height)/2`) to make the frame stricter.
 
-<SimSource sourceIds={['planner_w1a']} autoHeight client:only="react" />
+<SimSource sourceIds={['planner_w1a']} autoHeight />
 
 ---
 
@@ -175,7 +175,7 @@ During the approach the carrot leads the drone along the gate centerline; the ga
 
 `navigator_w1` is shared across the whole w1 family — only the planner differs between W1a and W1b. It is a cascaded position → attitude → rate controller that tracks the carrot. Because the yaw loop is a pure-P controller on a noisy heading measurement, it low-passes `attitude.y` (`YAW_MEAS_LPF`) and runs a softer `KP_YAW_OUTER` to stop the drone vibrating its heading left/right while it tracks the carrot.
 
-<SimSource sourceIds={['navigator_w1']} autoHeight client:only="react" />
+<SimSource sourceIds={['navigator_w1']} autoHeight />
 
 ---
 
@@ -183,7 +183,7 @@ During the approach the carrot leads the drone along the gate centerline; the ga
 
 The generic `mission` block sequences phases and owns `PHASE_RESTART`; the gate route lives in `state.K.steps`, edited through the `lifecycle` block. Try widening the gates or moving one off the rectangle to force oblique approaches.
 
-<SimSource sourceIds={['mission','lifecycle']} autoHeight client:only="react" />
+<SimSource sourceIds={['mission','lifecycle']} autoHeight />
 
 ---
 
@@ -191,4 +191,4 @@ The generic `mission` block sequences phases and owns `PHASE_RESTART`; the gate 
 
 Wind and noise are the shared blocks from Quad Noise. A strong crosswind makes it harder to line up with a narrow gate — raise `WIND_FORCE_MAX_PCT` to stress-test the crossing and watch the restart count climb.
 
-<SimSource sourceIds={['wind','noise']} autoHeight client:only="react" />
+<SimSource sourceIds={['wind','noise']} autoHeight />

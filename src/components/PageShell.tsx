@@ -6,7 +6,7 @@ import TableOfContents from './TableOfContents';
 import SourceTab from './SourceTab';
 import BlocksTab from './BlocksTab';
 import VisualizationTab from './VisualizationTab';
-import SimCharts from '../sim/components/SimCharts';
+import SimChartsComponent from '../sim/components/SimChartsComponent';
 import SimStatePanel from '../sim/components/SimStatePanel';
 import { resolveSimContext } from '../sim/useSim';
 import { pauseSim, trackSim } from '../sim/engine/engine';
@@ -90,7 +90,7 @@ function ChapterContent({ pageId }: { pageId: string }) {
 function ChartsPanel({ simId, modelId }: { simId?: string; modelId?: string }) {
   const ctx = simId ? resolveSimContext(simId, modelId) : null;
   if (!ctx) return <div className="panel-placeholder">No charts for this page.</div>;
-  return <SimCharts ctx={ctx} />;
+  return <SimChartsComponent ctx={ctx} />;
 }
 
 const TABS: { id: View; label: string }[] = [
