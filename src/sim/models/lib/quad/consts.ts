@@ -105,7 +105,8 @@ export type QuadConsts = {
   I_ZZ: number;                // pitch inertia
   GROUND_DAMP: number;         // velocity/attitude damping on ground contact
 
-  // ── Rate limits (shared: navigator_wp normalizes, fc_acro inverts) ──
+  // ── Rate limits (shared: navigators normalize desired body rates; fc_acro
+  //     denormalizes the same bus back to rad/s) ──
   MAX_RATE_ROLL_PITCH: number; // rad/s at stick = ±1
   MAX_RATE_YAW: number;        // rad/s at stick = ±1
 

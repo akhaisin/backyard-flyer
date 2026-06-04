@@ -11,12 +11,12 @@
 //   1. Position PID  → desired world-frame acceleration (+ wind-rejecting KI)
 //   2. Acceleration  → desired attitude + thrust (yaw-aware decomposition)
 //   3. Attitude err  → desired body rate (outer P loop)
-//   4. Rate → stick   (normalised by K.MAX_RATE_*; fc_acro inverts with the same K)
+//   4. Rate → stick   (normalised by K.MAX_RATE_* onto the shared AETR bus)
 //
 // All gains/limits arrive via state.K from the lifecycle block. The model bumps
 // KI_POS (wind rejection) and MAX_TILT through per-instance overrides; everything
 // else is the shared QUAD_DEFAULTS. Because both this block and fc_acro read the
-// SAME K.MAX_RATE_*, the stick normalisation and inversion stay in sync.
+// SAME K.MAX_RATE_*, the stick normalisation stays in sync with the inner loop.
 
 type Vec3 = { x: number; y: number; z: number };
 type Aetr = { throttle: number; roll: number; pitch: number; yaw: number };

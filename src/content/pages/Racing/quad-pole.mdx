@@ -14,7 +14,7 @@ import SimCharts from '../../../widgets/SimCharts.astro'
 
 - **mission** ("human") — high-level: arm, fly to a waypoint, then run a named maneuver, then RTH and land.
 - **planner_wp + navigator_wp / planner_cturn + navigator_cturn** ("RC pilot") — convert intent to AETR (Aileron-Elevator-Throttle-Rudder) sticks. Two stacks, one active per mission type.
-- **fc_acro** ("flight controller") — single-mode rate loop. Always interprets inputs as Mode-2 sticks: thrust is a direct value, roll/pitch/yaw are rate commands.
+- **fc_acro** ("flight controller") — single-mode rate loop. Thrust is a direct value; roll, pitch, and yaw are normalized body-rate commands.
 
 ```
 mission ──► planner_wp     ──► navigator_wp     ─┐
@@ -45,7 +45,7 @@ The STEPS array has two entries; `missionType` flips when the active step change
 
 ## AETR sticks
 
-The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the CTURN segment navigator_cturn writes here from the sampled maneuver plan. fc_acro doesn't know or care which one wrote.
+The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the CTURN segment navigator_cturn writes here from the sampled maneuver plan. `aetr.roll/pitch/yaw` are normalized desired body rates, so `aetr.yaw > 0` means yaw-right on the vehicle and in the stick overlay.
 
 <SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} />
 
@@ -61,6 +61,6 @@ Owns the maneuver library and the keyframe sampler. When `missionType !== CTURN`
 
 ## fc_acro
 
-Single-mode, always rate-PID. No attitude memory. The `MAX_RATE_*` constants here define what "stick = 1" means; navigator_wp uses the matching constants in its outer attitude loop to invert the mapping.
+Single-mode, always rate-PID. No attitude memory. The `MAX_RATE_*` constants here define what "stick = 1" means in rad/s; upstream navigators use the same constants to normalize desired body rates onto the AETR bus.
 
 <SimSource sourceIds={['fc_acro']} autoHeight />

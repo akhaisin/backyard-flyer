@@ -11,6 +11,8 @@ import SimCharts from '../../../widgets/SimCharts.astro'
 
 **Quad Rates** replaces position-targeting with scripted stick input. Instead of a navigator computing AETR sticks from a position error, the route encodes the stick values directly — each step says "hold these throttle/pitch/yaw/roll rates for this many ticks" — and the drone executes them open-loop during PHASE_NAVIGATE.
 
+In this model the AETR bus uses body-rate sign directly: `yaw > 0` means positive body yaw rate, so a positive yaw command yaws the drone right and moves the yaw stick dot to the right in the overlay.
+
 This is how acro pilots actually fly: the pilot knows from repetition what input sequence produces a given maneuver. The model makes the encoding explicit and simulates it at the block level.
 
 ```
