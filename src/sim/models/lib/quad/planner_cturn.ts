@@ -5,9 +5,12 @@
 //   v   = arc_length / (durationTicks · DT)   tangential speed (m/s)
 //   φ   = atan(v² / (g · r))                  bank angle magnitude (rad)
 //   ω   = v / r                                yaw rate magnitude (rad/s)
+// Then it adds orbit-tracking feedback from the current position / velocity:
+//   • heading target = local tangent direction, tilted inward/outward by radial error
+//   • bank magnitude = coordinated-turn baseline plus radial-error damping
 // and translates those into AETR sticks for navigator_cturn → fc_acro:
-//   roll   = closed-loop on attitude.x toward dirSign · φ
-//   yaw    = open-loop rate command −dirSign · ω  (negated for lib fc_acro convention)
+//   roll   = closed-loop on attitude.x toward dirSign · φ_des
+//   yaw    = yaw-rate command from nominal ω plus heading error correction
 //   throttle = HOVER_THROTTLE / cos(φ)           (maintain vertical thrust)
 //   pitch  = 0                                    (level turn; constant altitude)
 //
@@ -30,12 +33,24 @@ type Step = {
   waypoints: Vec3[];
 };
 
+type PlannerConsts = {
+    DT: number;
+    GRAVITY: number;
+    MASS: number;
+    MAX_THRUST_N: number;
+    MAX_RATE_ROLL_PITCH: number;
+    MAX_RATE_YAW: number;
+};
+
 type PlannerIn = {
+  pos: Vec3;
+  vel: Vec3;
   step: Step;
   ticksInPhase: number;
   armed: number;
   phase: number;
   attitude: Vec3;
+  K: PlannerConsts;
 };
 
 type PlannerOut = {
@@ -47,11 +62,8 @@ type PlannerOut = {
   stepStatus: number;
 };
 
-const DT             = 0.05;
 const NAVIGATE       = 2;
 const STEP_TYPE_CTURN = 4;
-const HOVER_THROTTLE = 0.245;
-const GRAVITY        = 9.81;
 
 const STATUS_RUNNING   = 0;
 const STATUS_COMPLETED = 1;
@@ -60,8 +72,10 @@ const STATUS_COMPLETED = 1;
 // KP_ROLL_OUTER × KP_RATE (fc_acro). Calibrated for lib KP_RATE = 0.2:
 // 10 × 0.2 = 2.0 Nm/rad, matching the old 40 × 0.05 = 2.0 value.
 const KP_ROLL_OUTER       = 10.0;
-const MAX_RATE_ROLL_PITCH = Math.PI;        // must match fc_acro
-const MAX_RATE_YAW        = 2 * Math.PI;    // must match lib fc_acro K.MAX_RATE_YAW default
+const KP_YAW_TRACK        = 2.0;
+const ORBIT_GUIDE_GAIN    = 1.25;
+const KP_RADIAL_ACCEL     = 1.5;
+const KD_RADIAL_ACCEL     = 1.0;
 
 // Safety clamp on bank — beyond ~60° the thrust compensation grows unbounded
 // and the planner is operating outside any meaningful "coordinated" regime.
@@ -69,6 +83,17 @@ const MAX_BANK = Math.PI / 3;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
+}
+
+function wrapAngle(a: number): number {
+  let r = a % (2 * Math.PI);
+  if (r >  Math.PI) r -= 2 * Math.PI;
+  if (r < -Math.PI) r += 2 * Math.PI;
+  return r;
+}
+
+function norm2(x: number, z: number): number {
+  return Math.sqrt(x * x + z * z);
 }
 
 // Fit a circle in the xz plane through 3 points. Returns null if the points
@@ -124,24 +149,55 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const theta2 = Math.atan2(wps[2].z - cz, wps[2].x - cx);
   const sweep  = arcSweep(theta0, theta1, theta2);    // rad, signed
   const dirSign = Math.sign(sweep);                    // +1 CCW, −1 CW
+  if (dirSign === 0) return idle;
 
   const arcLen   = Math.abs(sweep) * r;
-  const duration = state.step.durationTicks * DT;
-  const v        = arcLen / duration;
-  const phi      = Math.min(Math.atan(v * v / (GRAVITY * r)), MAX_BANK);
-  const omega    = v / r;
+  const duration = state.step.durationTicks * state.K.DT;
+  const vNom     = arcLen / duration;
+  const omegaNom = vNom / r;
+
+  const relX = state.pos.x - cx;
+  const relZ = state.pos.z - cz;
+  const rho = norm2(relX, relZ);
+
+  const fallbackX = wps[0].x - cx;
+  const fallbackZ = wps[0].z - cz;
+  const fallbackNorm = Math.max(norm2(fallbackX, fallbackZ), 1e-6);
+
+  const radialX = rho > 1e-6 ? relX / rho : fallbackX / fallbackNorm;
+  const radialZ = rho > 1e-6 ? relZ / rho : fallbackZ / fallbackNorm;
+  const tangentX = -dirSign * radialZ;
+  const tangentZ =  dirSign * radialX;
+
+  const radialErr = rho - r;
+  const radialVel = state.vel.x * radialX + state.vel.z * radialZ;
+
+  const guide = clamp(ORBIT_GUIDE_GAIN * radialErr / Math.max(r, 1e-3), -0.9, 0.9);
+  const desiredDirX = tangentX - guide * radialX;
+  const desiredDirZ = tangentZ - guide * radialZ;
+  const yawTarget = Math.atan2(-desiredDirZ, desiredDirX);
+  const yawErr = wrapAngle(yawTarget - state.attitude.y);
+
+  const inwardAccel = clamp(
+    vNom * vNom / r + KP_RADIAL_ACCEL * radialErr + KD_RADIAL_ACCEL * radialVel,
+    -state.K.GRAVITY * Math.tan(MAX_BANK),
+    state.K.GRAVITY * Math.tan(MAX_BANK),
+  );
+  const phi = clamp(Math.atan(inwardAccel / state.K.GRAVITY), -MAX_BANK, MAX_BANK);
+  const omega = dirSign * omegaNom + KP_YAW_TRACK * yawErr;
 
   // Roll: closed-loop on attitude.x. Same cascade structure as navigator_wp:
   // rate_des = KP × err; stick = rate_des / MAX_RATE; clamp.
   const rollErr   = dirSign * phi - state.attitude.x;
-  const rollStick = clamp(KP_ROLL_OUTER * rollErr / MAX_RATE_ROLL_PITCH, -1, 1);
+  const rollStick = clamp(KP_ROLL_OUTER * rollErr / state.K.MAX_RATE_ROLL_PITCH, -1, 1);
 
-  // Yaw: open-loop rate command. lib fc_acro applies rate = −stick × MAX_RATE,
-  // so negate dirSign to get the correct turn direction.
-  const yawStick = clamp(-dirSign * omega / MAX_RATE_YAW, -1, 1);
+  // Yaw: fc_acro applies rate = −stick × MAX_RATE, so negate the desired body
+  // yaw rate when mapping back to the AETR bus.
+  const yawStick = clamp(-omega / state.K.MAX_RATE_YAW, -1, 1);
 
   // Thrust comp: keep vertical thrust ≈ hover by scaling 1/cos(φ).
-  const thrustStick = clamp(HOVER_THROTTLE / Math.max(Math.cos(phi), 0.1), 0, 1);
+  const hoverThrottle = state.K.MASS * state.K.GRAVITY / (4 * state.K.MAX_THRUST_N);
+  const thrustStick = clamp(hoverThrottle / Math.max(Math.cos(phi), 0.1), 0, 1);
 
   const ticks      = Math.round(state.ticksInPhase);
   const stepStatus = step_complete_check(ticks, state.step) ? STATUS_COMPLETED : STATUS_RUNNING;
