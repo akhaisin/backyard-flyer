@@ -17,8 +17,8 @@
 
 import type { BlockConfig, LifecycleConfig, ModelState, HookFn } from '../../../engine/types';
 import { compileSource } from '../../../engine/compile';
-import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES } from './consts';
-import type { QuadConsts, StepDef } from './consts';
+import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES, STEP_TYPE_CTURN } from './consts';
+import type { QuadConsts, StepDef, CTurnStep } from './consts';
 
 // ── Source rendering (editable UI text + the default fns are compiled from it) ──
 
@@ -74,6 +74,14 @@ function fmtStep(s: StepDef, cruiseAlt: number): string {
       parts.push(`roll: ${fmtRange(s.roll)}`);
       if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
       break;
+    case STEP_TYPE_CTURN: {
+      const cs = s as CTurnStep;
+      const wps = cs.waypoints.map(w => `{ x: ${w.x}, y: ${fmtCoord(w.y, cruiseAlt, true)}, z: ${w.z} }`).join(', ');
+      parts.push(`waypoints: [${wps}]`);
+      parts.push(`durationTicks: ${cs.durationTicks}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    }
   }
   return `      { ${parts.join(', ')} },`;
 }

@@ -2,7 +2,7 @@
 //
 // AETR conventions (sign = direction of body-frame rate produced; the inverse
 // of navigator_wp's normalization):
-//   thrust ∈ [0, 1]      raw throttle, per-motor base in Newtons via × MAX_THRUST_N
+//   throttle ∈ [0, 1]    raw throttle, per-motor base in Newtons via × MAX_THRUST_N
 //   roll   ∈ [-1, 1]     +1 = roll right (attitude.x positive)
 //   pitch  ∈ [-1, 1]     +1 = pitch back / nose up (attitude.z positive)
 //                        NOTE: opposite of typical Mode-2 elevator stick. The

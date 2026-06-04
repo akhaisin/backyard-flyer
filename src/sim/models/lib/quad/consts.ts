@@ -37,6 +37,7 @@ export const STEP_TYPE_WP    = 0 as const;
 export const STEP_TYPE_W1A   = 1 as const;
 export const STEP_TYPE_W1B   = 2 as const;
 export const STEP_TYPE_RATES = 3 as const;
+export const STEP_TYPE_CTURN = 4 as const;
 
 export type WpStep = {
   type: typeof STEP_TYPE_WP;
@@ -75,10 +76,18 @@ export type RatesStep = {
   timeout?: number;
 };
 
+export type CTurnStep = {
+  type: typeof STEP_TYPE_CTURN;
+  pos: Vec3;
+  waypoints: Vec3[];
+  durationTicks: number;
+  timeout?: number;
+};
+
 // Convenience alias for code that handles either gate style.
 export type WindowStep = W1aStep | W1bStep;
 
-export type StepDef = WpStep | W1aStep | W1bStep | RatesStep;
+export type StepDef = WpStep | W1aStep | W1bStep | RatesStep | CTurnStep;
 
 // A type alias (not interface) so it carries an implicit string index
 // signature — required for the bag to be assignable to the engine's ModelState

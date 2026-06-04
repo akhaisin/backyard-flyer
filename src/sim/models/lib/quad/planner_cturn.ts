@@ -1,5 +1,4 @@
-// Coordinated-turn planner + completion checker. Active when
-// missionType === MISSION_CTURN.
+// Coordinated-turn planner + completion checker. Active when step.stepType === STEP_TYPE_CTURN.
 //
 // Fits a circular arc through the three step.waypoints in the xz plane, then
 // derives the physical quantities of a coordinated horizontal turn:
@@ -8,14 +7,13 @@
 //   ω   = v / r                                yaw rate magnitude (rad/s)
 // and translates those into AETR sticks for navigator_cturn → fc_acro:
 //   roll   = closed-loop on attitude.x toward dirSign · φ
-//   yaw    = open-loop rate command dirSign · ω
-//   thrust = HOVER_THROTTLE / cos(φ)         (maintain vertical thrust)
-//   pitch  = 0                                (level turn; constant altitude)
+//   yaw    = open-loop rate command −dirSign · ω  (negated for lib fc_acro convention)
+//   throttle = HOVER_THROTTLE / cos(φ)           (maintain vertical thrust)
+//   pitch  = 0                                    (level turn; constant altitude)
 //
-// Sign convention: dirSign comes from the signed arc sweep via atan2 angles
-// around the fitted center. atan2 angles decrease CW (math convention);
-// drone-frame yaw stick is negative for a left turn. The two cancel so
-// dirSign · ω directly maps to the correct stick sign.
+// Sign convention: lib fc_acro applies rate_yaw_des = −aetrYaw × MAX_RATE_YAW.
+// A positive arc sweep (CCW, dirSign=+1) needs a positive yaw rate at the drone,
+// which requires a NEGATIVE yaw stick. Hence yaw = −dirSign · ω / MAX_RATE_YAW.
 //
 // Reports STATUS_COMPLETED once ticksInPhase >= step.durationTicks.
 // Returns idle (and STATUS_RUNNING) if not active, if waypoints aren't 3, if
@@ -23,17 +21,16 @@
 
 type Vec3 = { x: number; y: number; z: number };
 
-// Projection of the active step on the bus. Only cturn-relevant fields are
-// read here; wp-only fields are also present (zeroed-out by mission) but
-// ignored. Gating is by missionType, so no `type` discriminator is needed.
+// Projection of the active step on the bus. stepType gates whether this planner
+// is active for the current step; cturn-specific fields are read when it is.
 type Step = {
   pos: Vec3;
+  stepType?: number;
   durationTicks: number;
   waypoints: Vec3[];
 };
 
 type PlannerIn = {
-  missionType: number;
   step: Step;
   ticksInPhase: number;
   armed: number;
@@ -42,7 +39,7 @@ type PlannerIn = {
 };
 
 type PlannerOut = {
-  thrust: number;
+  throttle: number;
   roll: number;
   pitch: number;
   yaw: number;
@@ -52,18 +49,19 @@ type PlannerOut = {
 
 const DT             = 0.05;
 const NAVIGATE       = 2;
-const MISSION_CTURN  = 1;
+const STEP_TYPE_CTURN = 4;
 const HOVER_THROTTLE = 0.245;
 const GRAVITY        = 9.81;
 
 const STATUS_RUNNING   = 0;
 const STATUS_COMPLETED = 1;
 
-// Outer P-gain for roll-attitude tracking. Mirrors navigator_wp's
-// KP_ATT_OUTER so the cascade authority matches the wp stack.
-const KP_ROLL_OUTER       = 40.0;
+// Outer P-gain for roll-attitude tracking. Effective cascade gain =
+// KP_ROLL_OUTER × KP_RATE (fc_acro). Calibrated for lib KP_RATE = 0.2:
+// 10 × 0.2 = 2.0 Nm/rad, matching the old 40 × 0.05 = 2.0 value.
+const KP_ROLL_OUTER       = 10.0;
 const MAX_RATE_ROLL_PITCH = Math.PI;        // must match fc_acro
-const MAX_RATE_YAW        = Math.PI / 2;    // must match fc_acro
+const MAX_RATE_YAW        = 2 * Math.PI;    // must match lib fc_acro K.MAX_RATE_YAW default
 
 // Safety clamp on bank — beyond ~60° the thrust compensation grows unbounded
 // and the planner is operating outside any meaningful "coordinated" regime.
@@ -105,13 +103,13 @@ function step_complete_check(ticks: number, step: Step): boolean {
 
 export function planner_cturn(state: PlannerIn): PlannerOut {
   const idle: PlannerOut = {
-    thrust: 0, roll: 0, pitch: 0, yaw: 0,
+    throttle: 0, roll: 0, pitch: 0, yaw: 0,
     active: 0, stepStatus: STATUS_RUNNING,
   };
 
   if (!state.armed) return idle;
   if (Math.round(state.phase) !== NAVIGATE) return idle;
-  if (Math.round(state.missionType) !== MISSION_CTURN) return idle;
+  if (Math.round(state.step.stepType ?? 0) !== STEP_TYPE_CTURN) return idle;
 
   const wps = state.step.waypoints;
   if (wps.length !== 3) return idle;
@@ -138,8 +136,9 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const rollErr   = dirSign * phi - state.attitude.x;
   const rollStick = clamp(KP_ROLL_OUTER * rollErr / MAX_RATE_ROLL_PITCH, -1, 1);
 
-  // Yaw: open-loop rate command. fc_acro takes stick × MAX_RATE → rad/s.
-  const yawStick = clamp(dirSign * omega / MAX_RATE_YAW, -1, 1);
+  // Yaw: open-loop rate command. lib fc_acro applies rate = −stick × MAX_RATE,
+  // so negate dirSign to get the correct turn direction.
+  const yawStick = clamp(-dirSign * omega / MAX_RATE_YAW, -1, 1);
 
   // Thrust comp: keep vertical thrust ≈ hover by scaling 1/cos(φ).
   const thrustStick = clamp(HOVER_THROTTLE / Math.max(Math.cos(phi), 0.1), 0, 1);
@@ -148,7 +147,7 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const stepStatus = step_complete_check(ticks, state.step) ? STATUS_COMPLETED : STATUS_RUNNING;
 
   return {
-    thrust: thrustStick,
+    throttle: thrustStick,
     roll:   rollStick,
     pitch:  0,
     yaw:    yawStick,

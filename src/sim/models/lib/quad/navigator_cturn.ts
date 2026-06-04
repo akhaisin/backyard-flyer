@@ -10,10 +10,10 @@
 // When the planner reports inactive, this block passes through the current
 // aetr unchanged — letting navigator_wp's value (or any earlier writer) stand.
 
-type Aetr = { thrust: number; roll: number; pitch: number; yaw: number };
+type Aetr = { throttle: number; roll: number; pitch: number; yaw: number };
 
 type NavIn = {
-  planThrust: number;
+  planThrottle: number;
   planRoll:   number;
   planPitch:  number;
   planYaw:    number;
@@ -29,10 +29,10 @@ export function navigator_cturn(state: NavIn): NavOut {
   }
   return {
     aetr: {
-      thrust: state.planThrust,
-      roll:   state.planRoll,
-      pitch:  state.planPitch,
-      yaw:    state.planYaw,
+      throttle: state.planThrottle,
+      roll:     state.planRoll,
+      pitch:    state.planPitch,
+      yaw:      state.planYaw,
     },
   };
 }

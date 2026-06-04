@@ -29,12 +29,13 @@ type RateRange = { start: number; end: number };
 // so the matching planner can read them.
 // Numeric type constants (mirror consts.ts STEP_* — kept inline because
 // block source is compiled with imports stripped).
-const STEP_TYPE_WP = 0, STEP_TYPE_W1A = 1, STEP_TYPE_W1B = 2, STEP_TYPE_RATES = 3;
+const STEP_TYPE_WP = 0, STEP_TYPE_W1A = 1, STEP_TYPE_W1B = 2, STEP_TYPE_RATES = 3, STEP_TYPE_CTURN = 4;
 type WpStep    = { type: 0; pos: Vec3; threshold: number; timeout?: number };
 type W1aStep   = { type: 1; pos: Vec3; normal: Vec3; width: number; height: number; timeout?: number };
 type W1bStep   = { type: 2; pos: Vec3; normal: Vec3; width: number; height: number; preStageDist: number; timeout?: number };
 type RatesStep = { type: 3; pos: Vec3; duration: number; throttle: RateRange; yaw: RateRange; pitch: RateRange; roll: RateRange; timeout?: number };
-type StepDef = WpStep | W1aStep | W1bStep | RatesStep;
+type CTurnStep = { type: 4; pos: Vec3; waypoints: Vec3[]; durationTicks: number; timeout?: number };
+type StepDef = WpStep | W1aStep | W1bStep | RatesStep | CTurnStep;
 type MissionConsts = {
   steps: StepDef[];
   CRUISE_ALT: number;
@@ -56,12 +57,12 @@ type MissionIn = {
   K: MissionConsts;
 };
 
-// What rides the bus to the planner. `type` is NOT included — ModelState
-// only permits number/Vec3/RateRange values, not string literals. Planners
-// discriminate by the fields they read, not by type; mission itself never
-// needs to know the variant.
+// What rides the bus to the planner. The string `type` discriminator is NOT
+// included — ModelState only permits number/Vec3/RateRange values. Instead,
+// the numeric `stepType` field lets planners gate without importing consts.
 type StepBus = {
   pos: Vec3;
+  stepType?: number;      // mirrors StepDef.type as a number for planner gating
   threshold?: number;
   normal?: Vec3;
   width?: number;
@@ -72,6 +73,8 @@ type StepBus = {
   yaw?: RateRange;
   pitch?: RateRange;
   roll?: RateRange;
+  durationTicks?: number; // cturn: maneuver duration in ticks
+  waypoints?: Vec3[];     // cturn: arc waypoints
   timeout?: number;
 };
 
@@ -110,10 +113,11 @@ function dist3(a: Vec3, b: Vec3): number {
 
 function stepToBus(step: StepDef): StepBus {
   switch (step.type) {
-    case STEP_TYPE_WP:    return { pos: step.pos, threshold: step.threshold, timeout: step.timeout };
-    case STEP_TYPE_W1A:   return { pos: step.pos, normal: step.normal, width: step.width, height: step.height, timeout: step.timeout };
-    case STEP_TYPE_W1B:   return { pos: step.pos, normal: step.normal, width: step.width, height: step.height, preStageDist: step.preStageDist, timeout: step.timeout };
-    case STEP_TYPE_RATES: return { pos: step.pos, duration: step.duration, throttle: step.throttle, yaw: step.yaw, pitch: step.pitch, roll: step.roll, timeout: step.timeout };
+    case STEP_TYPE_WP:    return { stepType: step.type, pos: step.pos, threshold: step.threshold, timeout: step.timeout };
+    case STEP_TYPE_W1A:   return { stepType: step.type, pos: step.pos, normal: step.normal, width: step.width, height: step.height, timeout: step.timeout };
+    case STEP_TYPE_W1B:   return { stepType: step.type, pos: step.pos, normal: step.normal, width: step.width, height: step.height, preStageDist: step.preStageDist, timeout: step.timeout };
+    case STEP_TYPE_RATES: return { stepType: step.type, pos: step.pos, duration: step.duration, throttle: step.throttle, yaw: step.yaw, pitch: step.pitch, roll: step.roll, timeout: step.timeout };
+    case STEP_TYPE_CTURN: return { stepType: step.type, pos: step.pos, durationTicks: step.durationTicks, waypoints: step.waypoints, timeout: step.timeout };
   }
 }
 
@@ -143,10 +147,16 @@ export function mission(state: MissionIn): MissionOut {
 
   const navigateStep = (stepIdx: number, ticks: number, pos: Vec3): MissionOut => {
     const step = steps[stepIdx];
+    const isCTurn = step.type === STEP_TYPE_CTURN;
+    // cturn: anchor target to drone pos so vis sphere stays hidden; segEnd = pos
+    // so distPointToSegment = 0 (no meaningful linear cross-track for a circle).
     return makeOut(
       PHASE_NAVIGATE, stepIdx, ticks, 1,
-      step, step.pos, dist3(pos, step.pos),
-      segStartFor(stepIdx), step.pos,
+      step,
+      isCTurn ? pos : step.pos,
+      isCTurn ? 0   : dist3(pos, step.pos),
+      segStartFor(stepIdx),
+      isCTurn ? pos : step.pos,
     );
   };
 
