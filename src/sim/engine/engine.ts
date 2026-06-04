@@ -318,6 +318,7 @@ export function resetSim(simId: string): void {
   inst.error = null;
   inst.errorListeners.forEach(cb => cb(null));
   inst.inputsListeners.forEach(cb => cb(inst.liveInputs));
+  inst.stateListeners.forEach(cb => cb(inst.state, inst.tick));
 }
 
 export function stageBlock(simId: string, sourceId: string, code: string): { ok: boolean; error?: string } {
