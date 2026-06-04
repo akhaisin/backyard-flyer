@@ -14,9 +14,9 @@
 //   throttle = HOVER_THROTTLE / cos(φ)           (maintain vertical thrust)
 //   pitch  = 0                                    (level turn; constant altitude)
 //
-// Sign convention: lib fc_acro applies rate_yaw_des = −aetrYaw × MAX_RATE_YAW.
+// Sign convention: the internal AETR bus uses body-rate sign directly.
 // A positive arc sweep (CCW, dirSign=+1) needs a positive yaw rate at the drone,
-// which requires a NEGATIVE yaw stick. Hence yaw = −dirSign · ω / MAX_RATE_YAW.
+// which means a POSITIVE yaw stick on the bus. Hence yaw = dirSign · ω / MAX_RATE_YAW.
 //
 // Reports STATUS_COMPLETED once ticksInPhase >= step.durationTicks.
 // Returns idle (and STATUS_RUNNING) if not active, if waypoints aren't 3, if
@@ -191,9 +191,8 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const rollErr   = dirSign * phi - state.attitude.x;
   const rollStick = clamp(KP_ROLL_OUTER * rollErr / state.K.MAX_RATE_ROLL_PITCH, -1, 1);
 
-  // Yaw: fc_acro applies rate = −stick × MAX_RATE, so negate the desired body
-  // yaw rate when mapping back to the AETR bus.
-  const yawStick = clamp(-omega / state.K.MAX_RATE_YAW, -1, 1);
+  // Yaw: AETR yaw is normalized desired body yaw rate.
+  const yawStick = clamp(omega / state.K.MAX_RATE_YAW, -1, 1);
 
   // Thrust comp: keep vertical thrust ≈ hover by scaling 1/cos(φ).
   const hoverThrottle = state.K.MASS * state.K.GRAVITY / (4 * state.K.MAX_THRUST_N);

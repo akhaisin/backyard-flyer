@@ -111,7 +111,7 @@ export function navigator_w1(state: NavIn): NavOut {
     throttle: clamp(thrust_N / (4 * K.MAX_THRUST_N), 0, 1),
     roll:   clamp(rate_roll  / K.MAX_RATE_ROLL_PITCH, -1, 1),
     pitch:  clamp(rate_pitch / K.MAX_RATE_ROLL_PITCH, -1, 1),
-    yaw:   -clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
+    yaw:    clamp(rate_yaw   / K.MAX_RATE_YAW,        -1, 1),
   };
 
   return {

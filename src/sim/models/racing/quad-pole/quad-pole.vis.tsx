@@ -87,7 +87,7 @@ const sceneHandler = composeScene(() => [
     fontSize: 32,
   }),
   textLabel({
-    text: 'Quad Pole\nAcro-mode coordinated turn\nsweep-left around the pole',
+    text: 'Quad Pole\nAcro-mode coordinated turn\nsweep-right around the pole',
     position: [-10, 0, -10],
     fontSize: 36,
   }),

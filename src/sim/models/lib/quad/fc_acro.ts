@@ -1,7 +1,6 @@
 // fc_acro — single-mode flight controller. Always treats inputs as AETR sticks.
 //
-// AETR conventions (sign = direction of body-frame rate produced; the inverse
-// of navigator_wp's normalization):
+// AETR conventions (sign = direction of body-frame rate produced):
 //   throttle ∈ [0, 1]    raw throttle, per-motor base in Newtons via × MAX_THRUST_N
 //   roll   ∈ [-1, 1]     +1 = roll right (attitude.x positive)
 //   pitch  ∈ [-1, 1]     +1 = pitch back / nose up (attitude.z positive)
@@ -15,8 +14,8 @@
 // stops commanding rate. Canonical FPV "acro mode".
 //
 // Tunables (MAX_RATE_*, KP_*, MAX_THRUST_N, ARM, K_DRAG) arrive via state.K from
-// the params block. navigator_wp inverts the MAX_RATE mapping using the SAME K,
-// so the two stay in sync by construction.
+// the params block. Upstream navigators normalize desired body rates with the
+// same K, so the bus and controller stay in sync by construction.
 
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
 type Vec3    = { x: number; y: number; z: number };
@@ -50,7 +49,7 @@ export function fc_acro(state: FcIn): FcOut {
 
   const rate_roll_des  = state.aetrRoll  * K.MAX_RATE_ROLL_PITCH;
   const rate_pitch_des = state.aetrPitch * K.MAX_RATE_ROLL_PITCH;
-  const rate_yaw_des   = -state.aetrYaw  * K.MAX_RATE_YAW;
+  const rate_yaw_des   = state.aetrYaw   * K.MAX_RATE_YAW;
 
   const tau_roll  = K.KP_RATE     * (rate_roll_des  - state.angularVel.x);
   const tau_pitch = K.KP_RATE     * (rate_pitch_des - state.angularVel.z);

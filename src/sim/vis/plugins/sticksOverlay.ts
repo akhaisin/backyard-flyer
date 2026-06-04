@@ -4,7 +4,8 @@
 // Right square (Mode-2 right stick): Pitch    (vertical) / Roll (horizontal)
 //
 // Throttle maps 0→bottom, 1→top. All other axes map −1→left/bottom, +1→right/top.
-// Pitch display follows internal sign convention (+1 = nose up = dot up).
+// The overlay follows the internal AETR bus directly: +yaw = dot right,
+// +pitch = dot up, +roll = dot right.
 //
 // Usage:
 //   sticksOverlay(s => view(s).aetr)
@@ -142,7 +143,7 @@ export function sticksOverlay(
     const pitch = isFinite(aetr.pitch)    ? aetr.pitch    : 0;
     const roll  = isFinite(aetr.roll)     ? aetr.roll     : 0;
 
-    // Left stick: throttle (vertical 0→top) / yaw (horizontal −1→+1)
+    // Left stick: throttle (vertical 0→top) / yaw (horizontal −1→+1, right = yaw right)
     const lDotX = leftX  + half + yaw * (half - DOT_RADIUS - 2);
     const lDotY = topY   + half - (thr * 2 - 1) * (half - DOT_RADIUS - 2);
     drawStick(ctx, leftX, topY, size, lDotX, lDotY, 'THR / YAW');
