@@ -182,7 +182,7 @@ export const QUAD_DEFAULTS: QuadConsts = {
   KI_POS: 0,
   KD_POS: 1.5,
   MAX_INT_POS: 15.0,
-  KP_ATT_OUTER: 40.0,
+  KP_ATT_OUTER: 10.0,
   KP_YAW_OUTER: 10.0,
   YAW_MEAS_LPF: 1.0,     // no yaw-measurement filtering by default; window models opt in
   MAX_TILT: 0.3,
