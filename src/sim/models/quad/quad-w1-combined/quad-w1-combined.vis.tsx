@@ -4,7 +4,6 @@ import { baseScene } from '../../../vis/plugins/baseScene';
 import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
-import type { WindowDef } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
@@ -12,8 +11,7 @@ import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
-import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
-import type { WindowStep } from '../../lib/quad/consts';
+import { HOME_A, HOME_B } from './route';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -59,16 +57,22 @@ function maxWindForce(staticState: ModelState): number {
   return (num(staticState, 'WIND_MAX_N') * num(staticState, 'WIND_FORCE_MAX_PCT')) / 100;
 }
 
-const toWindows = (route: WindowStep[], p: string): WindowDef[] =>
-  route.map((s, i) => ({
-    center: s.pos,
-    normal: s.normal ?? { x: 1, y: 0, z: 0 },
-    width:  s.width  ?? 4,
-    height: s.height ?? 4,
-    label:  `${p}${i + 1}`,
-  }));
-const WINDOWS_A = toWindows(W1COMB_A_ROUTE, 'A');
-const WINDOWS_B = toWindows(W1COMB_B_ROUTE, 'B');
+const makeWindowsGetter = (stepsKey: string, prefix: string) => (staticState: ModelState) => {
+  const steps = ((staticState.K as ModelState | undefined)?.[stepsKey] ?? []) as Array<{
+    pos: Vec3; normal?: Vec3; width?: number; height?: number;
+  }>;
+  return steps
+    .filter(s => s.normal != null)
+    .map((s, i) => ({
+      center: s.pos,
+      normal: s.normal!,
+      width:  s.width  ?? 4,
+      height: s.height ?? 4,
+      label:  `${prefix}${i + 1}`,
+    }));
+};
+const getWindowsA = makeWindowsGetter('stepsA', 'A');
+const getWindowsB = makeWindowsGetter('stepsB', 'B');
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'RESTART'];
 const PASS_GREEN = '#44dd66';
@@ -145,7 +149,7 @@ const sceneHandler = composeScene(() => {
   trail(s => view(s).vehicles.a.pos, { color: 0x4488ff, opacity: 0.7 }),
   windowGate(
     s => ({ windowIdx: view(s).vehicles.a.mission.stepIdx, phase: view(s).vehicles.a.mission.phase, carrot: view(s).vehicles.a.planner.carrot, pos: view(s).vehicles.a.pos }),
-    WINDOWS_A,
+    getWindowsA,
     { drawGuides: guidesRefA },
   ),
 
@@ -157,7 +161,7 @@ const sceneHandler = composeScene(() => {
   trail(s => view(s).vehicles.b.pos, { color: 0xff8800, opacity: 0.7 }),
   windowGate(
     s => ({ windowIdx: view(s).vehicles.b.mission.stepIdx, phase: view(s).vehicles.b.mission.phase, carrot: view(s).vehicles.b.planner.carrot, pos: view(s).vehicles.b.pos }),
-    WINDOWS_B,
+    getWindowsB,
     { drawGuides: guidesRefB },
   ),
 

@@ -44,7 +44,7 @@ export type WindowGateOpts = {
 
 export function windowGate(
   getState: (state: ModelState) => GateState,
-  windows: WindowDef[],
+  windows: WindowDef[] | ((staticState: ModelState) => WindowDef[]),
   opts?: WindowGateOpts,
 ): ScenePlugin {
   let sceneRef: THREE.Scene | null = null;
@@ -52,6 +52,10 @@ export function windowGate(
   const labelSprites: (THREE.Sprite | null)[] = [];
   let carrotMesh: THREE.Mesh | null = null;
   let guideMesh: THREE.LineSegments | null = null;
+  let resolvedWindows: WindowDef[] = Array.isArray(windows) ? windows : [];
+  // For function-based windows: track the staticState object we last built from.
+  // Any change in identity (sim reset, Apply & Start, first run) triggers a rebuild.
+  let prevStaticState: ModelState | null = null;
 
   function buildGate(win: WindowDef, color: number): THREE.LineSegments {
     const geo   = new THREE.EdgesGeometry(new THREE.PlaneGeometry(win.width, win.height));
@@ -109,20 +113,36 @@ export function windowGate(
     return sprite;
   }
 
+  function applyWindows(wins: WindowDef[]) {
+    gateMeshes.forEach(lines => {
+      sceneRef!.remove(lines);
+      lines.geometry.dispose();
+      (lines.material as THREE.LineBasicMaterial).dispose();
+    });
+    gateMeshes.length = 0;
+    labelSprites.forEach(sprite => {
+      if (!sprite) return;
+      sceneRef!.remove(sprite);
+      (sprite.material as THREE.SpriteMaterial).map?.dispose();
+      (sprite.material as THREE.SpriteMaterial).dispose();
+    });
+    labelSprites.length = 0;
+    for (const win of wins) {
+      const lines = buildGate(win, COLOR_PENDING);
+      sceneRef!.add(lines);
+      gateMeshes.push(lines);
+      const sprite = buildLabel(win);
+      if (sprite) sceneRef!.add(sprite);
+      labelSprites.push(sprite);
+    }
+    resolvedWindows = wins;
+  }
+
   return {
     init(scene) {
       sceneRef = scene;
 
-      // Build one gate frame + optional label per window.
-      for (const win of windows) {
-        const lines = buildGate(win, COLOR_PENDING);
-        scene.add(lines);
-        gateMeshes.push(lines);
-
-        const sprite = buildLabel(win);
-        if (sprite) scene.add(sprite);
-        labelSprites.push(sprite);
-      }
+      if (Array.isArray(windows)) applyWindows(windows);
 
       // Carrot sphere (small — half the radius of a regular waypoint sphere).
       const geo  = new THREE.SphereGeometry(0.15, 8, 8);
@@ -150,8 +170,12 @@ export function windowGate(
       }
     },
 
-    update(state) {
+    update(state, _tick, _history, staticState) {
       if (!sceneRef) return;
+      if (!Array.isArray(windows) && staticState !== prevStaticState) {
+        applyWindows((windows)(staticState));
+        prevStaticState = staticState;
+      }
       const { windowIdx, phase, carrot, pos } = getState(state);
       const activeIdx   = Math.round(windowIdx);
       const phaseInt    = Math.round(phase);
@@ -186,10 +210,10 @@ export function windowGate(
       if (guideMesh) {
         const dg = opts?.drawGuides;
         const guidesOn = typeof dg === 'object' ? dg.enabled : !!dg;
-        if (!pos || !inNavigate || activeIdx >= windows.length || !guidesOn) {
+        if (!pos || !inNavigate || activeIdx >= resolvedWindows.length || !guidesOn) {
           guideMesh.visible = false;
         } else {
-          const win = windows[activeIdx];
+          const win = resolvedWindows[activeIdx];
           const normal = new THREE.Vector3(win.normal.x, win.normal.y, win.normal.z).normalize();
           const up     = new THREE.Vector3(0, 1, 0);
           const right  = up.clone().cross(normal).normalize();
@@ -282,6 +306,7 @@ export function windowGate(
         (guideMesh.material as THREE.LineBasicMaterial).dispose();
         guideMesh = null;
       }
+      prevStaticState = null;
       sceneRef = null;
     },
   };

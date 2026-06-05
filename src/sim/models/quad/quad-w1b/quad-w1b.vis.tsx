@@ -4,7 +4,6 @@ import { baseScene } from '../../../vis/plugins/baseScene';
 import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
-import type { WindowDef } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
@@ -12,7 +11,6 @@ import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
-import { W1B_ROUTE } from './route';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -55,14 +53,20 @@ function maxWindForce(staticState: ModelState): number {
   return (num(staticState, 'WIND_MAX_N') * num(staticState, 'WIND_FORCE_MAX_PCT')) / 100;
 }
 
-// Gate frames from the route: pos → center, label W1..Wn.
-const WINDOWS: WindowDef[] = W1B_ROUTE.map((s, i) => ({
-  center: s.pos,
-  normal: s.normal ?? { x: 1, y: 0, z: 0 },
-  width:  s.width  ?? 5,
-  height: s.height ?? 5,
-  label:  `W${i + 1}`,
-}));
+const getWindows = (staticState: ModelState) => {
+  const steps = ((staticState.K as ModelState | undefined)?.steps ?? []) as Array<{
+    pos: Vec3; normal?: Vec3; width?: number; height?: number;
+  }>;
+  return steps
+    .filter(s => s.normal != null)
+    .map((s, i) => ({
+      center: s.pos,
+      normal: s.normal!,
+      width:  s.width  ?? 5,
+      height: s.height ?? 5,
+      label:  `W${i + 1}`,
+    }));
+};
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'RESTART'];
 const PASS_GREEN = '#44dd66';
@@ -87,7 +91,7 @@ const sceneHandler = composeScene(() => {
       carrot:    view(s).planner_w1b.carrot,
       pos:       view(s).pos,
     }),
-    WINDOWS,
+    getWindows,
     { drawGuides: guidesRef },
   ),
   windSock(s => view(s).wind, { getMaxForceN: maxWindForce }),
