@@ -8,9 +8,10 @@ import type { WindowDef } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
+import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
-import { cornerGroup } from '../../../vis/plugins/cornerGroup';
+import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
 import { W1COMB_A_ROUTE, W1COMB_B_ROUTE, HOME_A, HOME_B } from './route';
 import type { WindowStep } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
@@ -127,7 +128,11 @@ const vehicleRows = (pick: (s: ModelState) => VehicleState, tint: string) => [
     } },
 ];
 
-const sceneHandler = composeScene(() => [
+const sceneHandler = composeScene(() => {
+  const guidesRefA = { enabled: true };
+  const guidesRefB = { enabled: true };
+
+  return [
   baseScene({ bg: 0x080810, camera: { pos: [24, 20, 24], lookAt: [0, 4, 0] } }),
   homePad({ position: [HOME_A.x, 0, HOME_A.z] }),
   homePad({ position: [HOME_B.x, 0, HOME_B.z] }),
@@ -139,8 +144,9 @@ const sceneHandler = composeScene(() => [
   }, { frontIndicator: true }),
   trail(s => view(s).vehicles.a.pos, { color: 0x4488ff, opacity: 0.7 }),
   windowGate(
-    s => ({ windowIdx: view(s).vehicles.a.mission.stepIdx, phase: view(s).vehicles.a.mission.phase, carrot: view(s).vehicles.a.planner.carrot }),
+    s => ({ windowIdx: view(s).vehicles.a.mission.stepIdx, phase: view(s).vehicles.a.mission.phase, carrot: view(s).vehicles.a.planner.carrot, pos: view(s).vehicles.a.pos }),
     WINDOWS_A,
+    { drawGuides: guidesRefA },
   ),
 
   // ── Vehicle B — orange (w1b pre-stage) ──
@@ -150,8 +156,9 @@ const sceneHandler = composeScene(() => [
   }, { frontIndicator: true }),
   trail(s => view(s).vehicles.b.pos, { color: 0xff8800, opacity: 0.7 }),
   windowGate(
-    s => ({ windowIdx: view(s).vehicles.b.mission.stepIdx, phase: view(s).vehicles.b.mission.phase, carrot: view(s).vehicles.b.planner.carrot }),
+    s => ({ windowIdx: view(s).vehicles.b.mission.stepIdx, phase: view(s).vehicles.b.mission.phase, carrot: view(s).vehicles.b.planner.carrot, pos: view(s).vehicles.b.pos }),
     WINDOWS_B,
+    { drawGuides: guidesRefB },
   ),
 
   windSock(s => view(s).wind, { position: [5, 0, 5], getMaxForceN: maxWindForce }),
@@ -161,14 +168,17 @@ const sceneHandler = composeScene(() => [
     fontSize: 48,
   }),
   cornerGroup('bottom-left', [
+    toggleOverlay('Guides A', guidesRefA),
     infoOverlay({ title: 'W1a — carrot',    titleColor: '#4488ff', rows: vehicleRows(s => view(s).vehicles.a, '#4488ff') }),
     sticksOverlay(s => view(s).vehicles.a.aetr),
   ]),
   cornerGroup('bottom-right', [
+    toggleOverlay('Guides B', guidesRefB),
     infoOverlay({ title: 'W1b — pre-stage', titleColor: '#ff8800', rows: vehicleRows(s => view(s).vehicles.b, '#ff8800') }),
     sticksOverlay(s => view(s).vehicles.b.aetr),
   ]),
-]);
+  ];
+});
 
 export default function QuadW1CombinedVis() {
   return <ThreeCanvas sceneHandler={sceneHandler} />;

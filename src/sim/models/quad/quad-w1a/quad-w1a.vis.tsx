@@ -8,8 +8,10 @@ import type { WindowDef } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { windSock } from '../../../vis/plugins/windSock';
 import { textLabel } from '../../../vis/plugins/textLabel';
+import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
+import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
 import { W1A_ROUTE } from './route';
 import type { ModelState } from '../../../engine/types';
 
@@ -68,7 +70,13 @@ const PASS_GREEN = '#44dd66';
 const FAIL_RED = '#ff4444';
 const NEUTRAL_TEXT = 'rgba(255, 255, 255, 0.85)';
 
-const sceneHandler = composeScene(() => [
+const sceneHandler = composeScene(() => {
+  // Shared mutable ref: created once per vis instance in the factory closure.
+  // Both toggleOverlay (writes) and windowGate (reads) hold a reference to the
+  // same object — no subscriptions or signals needed.
+  const guidesRef = { enabled: true };
+
+  return [
   baseScene({ bg: 0x080810, camera: { pos: [14, 14, 20], lookAt: [0, 4, 0] } }),
   homePad(),
   quadMesh(s => {
@@ -81,8 +89,10 @@ const sceneHandler = composeScene(() => [
       windowIdx: view(s).mission.stepIdx,
       phase:     view(s).mission.phase,
       carrot:    view(s).planner_w1a.carrot,
+      pos:       view(s).pos,
     }),
     WINDOWS,
+    { drawGuides: guidesRef },
   ),
   windSock(s => view(s).wind, { getMaxForceN: maxWindForce }),
   textLabel({
@@ -90,8 +100,9 @@ const sceneHandler = composeScene(() => [
     position: [-18, 0, 0],
     fontSize: 36,
   }),
-  infoOverlay({
-    corner: 'bottom-left',
+  cornerGroup('bottom-left', [
+    toggleOverlay('Guides', guidesRef),
+    infoOverlay({
     rows: [
       { label: 'Total laps',
         display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}`,
@@ -148,9 +159,11 @@ const sceneHandler = composeScene(() => [
           return p < 0 ? '#cccc44' : (p ? '#44dd66' : '#ff4444');
         } },
     ],
-  }),
+    }),
+  ]),
   sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
-]);
+  ];
+});
 
 export default function QuadW1aVis() {
   return <ThreeCanvas sceneHandler={sceneHandler} />;

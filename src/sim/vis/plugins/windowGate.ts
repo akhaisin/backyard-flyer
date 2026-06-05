@@ -21,6 +21,7 @@ type GateState = {
   windowIdx: number;
   phase: number;
   carrot: { x: number; y: number; z: number };
+  pos?: { x: number; y: number; z: number };
 };
 
 const NAVIGATE_PHASE = 2;
@@ -28,6 +29,7 @@ const COLOR_ACTIVE   = 0x00ff88;
 const COLOR_PENDING  = 0xff6622;
 const COLOR_DONE     = 0x446644;
 const COLOR_CARROT   = 0xffee00;
+const COLOR_GUIDE    = 0x66aaff;
 
 const Z_AXIS  = new THREE.Vector3(0, 0, 1);
 const WORLD_Y = new THREE.Vector3(0, 1, 0);
@@ -35,6 +37,9 @@ const WORLD_Y = new THREE.Vector3(0, 1, 0);
 export type WindowGateOpts = {
   opacity?: number;   // < 1 renders faintly (transparent material)
   noCarrot?: boolean; // suppress the carrot sphere (for secondary/guide gate calls)
+  // Pass `true` for always-on guides, or a ToggleRef from toggleOverlay so a
+  // UI switch can enable/disable them at runtime without re-composing the scene.
+  drawGuides?: boolean | { enabled: boolean };
 };
 
 export function windowGate(
@@ -46,6 +51,7 @@ export function windowGate(
   const gateMeshes: THREE.LineSegments[] = [];
   const labelSprites: (THREE.Sprite | null)[] = [];
   let carrotMesh: THREE.Mesh | null = null;
+  let guideMesh: THREE.LineSegments | null = null;
 
   function buildGate(win: WindowDef, color: number): THREE.LineSegments {
     const geo   = new THREE.EdgesGeometry(new THREE.PlaneGeometry(win.width, win.height));
@@ -124,11 +130,29 @@ export function windowGate(
       carrotMesh = new THREE.Mesh(geo, mat);
       carrotMesh.visible = false;
       scene.add(carrotMesh);
+
+      // Guide lines: 4 perpendicular lines from quad center to each gate side.
+      if (opts?.drawGuides) {
+        const guideGeo = new THREE.BufferGeometry();
+        // 4 lines × 2 endpoints × 3 coords = 24 floats.
+        // 4 guide lines (quad→foot) + 4 extension lines (corner→foot) = 8 × 2 × 3 = 48 floats.
+        guideGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(48), 3));
+        // WebGL clamps linewidth to 1, so opacity is the only cross-platform way
+        // to make guide lines visually lighter than the solid gate frame lines.
+        const guideMat = new THREE.LineBasicMaterial({ color: COLOR_GUIDE, transparent: true, opacity: 0.4 });
+        guideMesh = new THREE.LineSegments(guideGeo, guideMat);
+        guideMesh.visible = false;
+        // Positions are rewritten every tick — frustum culling would use a stale
+        // bounding sphere (computed from the initial zeros) once the foot points
+        // extend past the gate corners, causing the whole mesh to disappear.
+        guideMesh.frustumCulled = false;
+        scene.add(guideMesh);
+      }
     },
 
     update(state) {
       if (!sceneRef) return;
-      const { windowIdx, phase, carrot } = getState(state);
+      const { windowIdx, phase, carrot, pos } = getState(state);
       const activeIdx   = Math.round(windowIdx);
       const phaseInt    = Math.round(phase);
       const inNavigate  = phaseInt === NAVIGATE_PHASE;
@@ -153,6 +177,83 @@ export function windowGate(
           carrotMesh.position.set(carrot.x, carrot.y, carrot.z);
         }
       }
+
+      // Guide lines: perpendiculars from quad to each side of the active gate.
+      // Each line goes from the quad's 3D position to the foot of the perpendicular
+      // on the INFINITE line containing that side. When the foot lies within the
+      // segment the line lands on the gate frame; when outside it extends past the
+      // corner — making misalignment immediately visible.
+      if (guideMesh) {
+        const dg = opts?.drawGuides;
+        const guidesOn = typeof dg === 'object' ? dg.enabled : !!dg;
+        if (!pos || !inNavigate || activeIdx >= windows.length || !guidesOn) {
+          guideMesh.visible = false;
+        } else {
+          const win = windows[activeIdx];
+          const normal = new THREE.Vector3(win.normal.x, win.normal.y, win.normal.z).normalize();
+          const up     = new THREE.Vector3(0, 1, 0);
+          const right  = up.clone().cross(normal).normalize();
+          const center = new THREE.Vector3(win.center.x, win.center.y, win.center.z);
+          const q      = new THREE.Vector3(pos.x, pos.y, pos.z);
+
+          // Project quad offset onto the gate's local right and up axes.
+          const qRel = q.clone().sub(center);
+          const qu   = qRel.dot(right);   // signed distance along "right"
+          const qv   = qRel.dot(up);      // signed distance along "up"
+
+          const hw = win.width  / 2;
+          const hh = win.height / 2;
+
+          // Foot of perpendicular on each side's infinite line (in 3D).
+          // top/bottom sides are horizontal (span along right); perp is along up.
+          // left/right sides are vertical (span along up);   perp is along right.
+          const footTop    = center.clone().addScaledVector(up, +hh).addScaledVector(right, qu);
+          const footBottom = center.clone().addScaledVector(up, -hh).addScaledVector(right, qu);
+          const footRight  = center.clone().addScaledVector(right, +hw).addScaledVector(up, qv);
+          const footLeft   = center.clone().addScaledVector(right, -hw).addScaledVector(up, qv);
+
+          // Clamp qu/qv to the segment bounds to get the nearest gate corner.
+          // When the foot is INSIDE the segment: clamped == foot → zero-length extension (invisible).
+          // When OUTSIDE: clamped == corner → visible extension from corner to the extended foot.
+          const clamped_qu = Math.max(-hw, Math.min(+hw, qu));
+          const clamped_qv = Math.max(-hh, Math.min(+hh, qv));
+
+          const extTop    = center.clone().addScaledVector(up, +hh).addScaledVector(right, clamped_qu);
+          const extBottom = center.clone().addScaledVector(up, -hh).addScaledVector(right, clamped_qu);
+          const extRight  = center.clone().addScaledVector(right, +hw).addScaledVector(up, clamped_qv);
+          const extLeft   = center.clone().addScaledVector(right, -hw).addScaledVector(up, clamped_qv);
+
+          const buf = guideMesh.geometry.attributes.position.array as Float32Array;
+          let i = 0;
+          const seg = (ax: number, ay: number, az: number, b: THREE.Vector3) => {
+            buf[i++] = ax; buf[i++] = ay; buf[i++] = az;
+            buf[i++] = b.x; buf[i++] = b.y; buf[i++] = b.z;
+          };
+          const segVV = (a: THREE.Vector3, b: THREE.Vector3) => {
+            buf[i++] = a.x; buf[i++] = a.y; buf[i++] = a.z;
+            buf[i++] = b.x; buf[i++] = b.y; buf[i++] = b.z;
+          };
+
+          // Lines 0–3: quad → foot (guide lines).
+          seg(q.x, q.y, q.z, footTop);
+          seg(q.x, q.y, q.z, footBottom);
+          seg(q.x, q.y, q.z, footRight);
+          seg(q.x, q.y, q.z, footLeft);
+
+          // Lines 4–7: corner → foot (extension lines — zero-length when foot is inside segment).
+          segVV(extTop,    footTop);
+          segVV(extBottom, footBottom);
+          segVV(extRight,  footRight);
+          segVV(extLeft,   footLeft);
+          guideMesh.geometry.attributes.position.needsUpdate = true;
+          guideMesh.geometry.computeBoundingSphere();
+          guideMesh.visible = true;
+
+          // Tint: green when quad projection is inside the gate aperture, red when outside.
+          const inside = Math.abs(qu) <= hw && Math.abs(qv) <= hh;
+          (guideMesh.material as THREE.LineBasicMaterial).color.setHex(inside ? 0x44ff88 : 0xff4444);
+        }
+      }
     },
 
     dispose(scene) {
@@ -174,6 +275,12 @@ export function windowGate(
         carrotMesh.geometry.dispose();
         (carrotMesh.material as THREE.MeshPhongMaterial).dispose();
         carrotMesh = null;
+      }
+      if (guideMesh) {
+        scene.remove(guideMesh);
+        guideMesh.geometry.dispose();
+        (guideMesh.material as THREE.LineBasicMaterial).dispose();
+        guideMesh = null;
       }
       sceneRef = null;
     },

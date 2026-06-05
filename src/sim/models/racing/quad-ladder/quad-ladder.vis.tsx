@@ -6,8 +6,10 @@ import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
+import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
+import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
 import { GATES, GUIDE_GATES } from './route';
 import type { ModelState } from '../../../engine/types';
 
@@ -46,7 +48,10 @@ const NEUTRAL_TEXT = 'rgba(255, 255, 255, 0.85)';
 // Steps 5–7  → Level 3 (gate index 2: M3 / G3)
 const toGateIdx = (stepIdx: number): number => stepIdx < 2 ? 0 : stepIdx < 5 ? 1 : 2;
 
-const sceneHandler = composeScene(() => [
+const sceneHandler = composeScene(() => {
+  const guidesRef = { enabled: true };
+
+  return [
   baseScene({ bg: 0x080810, camera: { pos: [-10, 20, 25], lookAt: [12, 5, 0] } }),
   homePad(),
   quadMesh(s => {
@@ -59,8 +64,10 @@ const sceneHandler = composeScene(() => [
       windowIdx: toGateIdx(view(s).mission.stepIdx),
       phase:     view(s).mission.phase,
       carrot:    view(s).pos,
+      pos:       view(s).pos,
     }),
     GATES,
+    { drawGuides: guidesRef },
   ),
   windowGate(
     s => ({
@@ -76,36 +83,39 @@ const sceneHandler = composeScene(() => [
     position: [-15, 0, -15],
     fontSize: 36,
   }),
-  infoOverlay({
-    corner: 'bottom-left',
-    rows: [
-      {
-        label:   'Total laps',
-        display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}`,
-        valueColor: (s, tick, K) => {
-          const v = view(s).validator;
-          const passed   = Math.round(v.lapsTotal) >= num(K, 'REQUIRED_LAPS');
-          const timedOut = tick > num(K, 'MAX_TICKS');
-          return passed ? PASS_GREEN : ((timedOut || v.pass >= 0) ? FAIL_RED : NEUTRAL_TEXT);
+  cornerGroup('bottom-left', [
+    toggleOverlay('Guides', guidesRef),
+    infoOverlay({
+      rows: [
+        {
+          label:   'Total laps',
+          display: (s, _t, K) => `${Math.round(view(s).validator.lapsTotal)}/${num(K, 'REQUIRED_LAPS')}`,
+          valueColor: (s, tick, K) => {
+            const v = view(s).validator;
+            const passed   = Math.round(v.lapsTotal) >= num(K, 'REQUIRED_LAPS');
+            const timedOut = tick > num(K, 'MAX_TICKS');
+            return passed ? PASS_GREEN : ((timedOut || v.pass >= 0) ? FAIL_RED : NEUTRAL_TEXT);
+          },
         },
-      },
-      {
-        label:   'Duration',
-        display: (s, tick, K) => {
-          const v = view(s).validator;
-          const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
-          return `${judgedTick}/${num(K, 'MAX_TICKS')}`;
+        {
+          label:   'Duration',
+          display: (s, tick, K) => {
+            const v = view(s).validator;
+            const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
+            return `${judgedTick}/${num(K, 'MAX_TICKS')}`;
+          },
+          valueColor: (s, tick, K) => {
+            const v = view(s).validator;
+            const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
+            return judgedTick <= num(K, 'MAX_TICKS') ? PASS_GREEN : FAIL_RED;
+          },
         },
-        valueColor: (s, tick, K) => {
-          const v = view(s).validator;
-          const judgedTick = v.completionTick >= 0 ? v.completionTick : tick;
-          return judgedTick <= num(K, 'MAX_TICKS') ? PASS_GREEN : FAIL_RED;
-        },
-      },
-    ],
-  }),
+      ],
+    }),
+  ]),
   sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
-]);
+  ];
+});
 
 export default function QuadLadderVis() {
   return <ThreeCanvas sceneHandler={sceneHandler} />;
