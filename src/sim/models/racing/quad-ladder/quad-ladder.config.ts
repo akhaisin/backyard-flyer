@@ -1,286 +1,397 @@
-import missionCode from './blocks/mission.ts?raw';
-import { mission } from './blocks/mission';
-import fcPathPlannerCode from './blocks/fc_path_planner.ts?raw';
-import { fc_path_planner } from './blocks/fc_path_planner';
-import fcNavigatorCode from './blocks/fc_navigator.ts?raw';
-import { fc_navigator } from './blocks/fc_navigator';
-import fcStabilizerCode from './blocks/fc_stabilizer.ts?raw';
-import { fc_stabilizer } from './blocks/fc_stabilizer';
-import hwCode from './blocks/hw.ts?raw';
-import { hw } from './blocks/hw';
-import worldCode from './blocks/world.ts?raw';
-import { world } from './blocks/world';
+import missionCode from '../../lib/quad/mission.ts?raw';
+import { mission } from '../../lib/quad/mission';
+import plannerWpCode from '../../lib/quad/planner_wp.ts?raw';
+import { planner_wp } from '../../lib/quad/planner_wp';
+import plannerCturnCode from '../../lib/quad/planner_cturn.ts?raw';
+import { planner_cturn } from '../../lib/quad/planner_cturn';
+import navigatorWpCode from '../../lib/quad/navigator_wp.ts?raw';
+import { navigator_wp } from '../../lib/quad/navigator_wp';
+import navigatorCturnCode from '../../lib/quad/navigator_cturn.ts?raw';
+import { navigator_cturn } from '../../lib/quad/navigator_cturn';
+import fcAcroCode from '../../lib/quad/fc_acro.ts?raw';
+import { fc_acro } from '../../lib/quad/fc_acro';
+import hwCode from '../../lib/quad/hw.ts?raw';
+import { hw } from '../../lib/quad/hw';
+import noiseCode from '../../lib/quad/noise.ts?raw';
+import { noise } from '../../lib/quad/noise';
+import worldCode from '../../lib/quad/world.ts?raw';
+import { world } from '../../lib/quad/world';
+import { makeLifecycleBlock } from '../../lib/quad/lifecycle';
+import { QUAD_DEFAULTS, STEP_TYPE_CTURN } from '../../lib/quad/consts';
+import type { QuadConsts } from '../../lib/quad/consts';
+import { QUAD_LADDER_ROUTE } from './route';
 import QuadLadderVis from './quad-ladder.vis';
 import type { ModelConfig, ModelState } from '../../../engine/types';
 
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
-export const quadLadderConfig: ModelConfig = {
-  modelId: 'racing/quad-ladder',
-  tickIntervalMs: 50,
-  initialState: {
-    pos:        { ...vec0 },
-    vel:        { ...vec0 },
-    acc:        { ...vec0 },
-    attitude:   { ...vec0 },
-    angularVel: { ...vec0 },
-    fc: {
-      nav:      { roll_des: 0, pitch_des: 0, yaw_des: 0, thrust: 0 },
-      integral: { pos: { ...vec0 }, att: { ...vec0 } },
+export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
+  const modelOverrides: Partial<QuadConsts> = {
+    CRUISE_ALT:    3,     // ladder flies at y=3 (vs default 5)
+    REQUIRED_LAPS: 1,     // complete the full ladder run once
+    MAX_RESTARTS:  -1,    // no gate-miss restart logic (time-based completion)
+    MAX_TICKS:     3000,
+    simDuration:   6000,
+    ACC_ERR_LIMIT: 20000,
+    ...overrides,
+  };
+
+  return {
+    modelId: 'racing/quad-ladder',
+    tickIntervalMs: 50,
+    initialState: {
+      pos:        { ...vec0 },
+      vel:        { ...vec0 },
+      acc:        { ...vec0 },
+      attitude:   { ...vec0 },
+      angularVel: { ...vec0 },
+      sensors: {
+        pos:        { ...vec0 },
+        vel:        { ...vec0 },
+        attitude:   { ...vec0 },
+        angularVel: { ...vec0 },
+      },
+      fc: {
+        integral: { pos: { ...vec0 } },
+      },
+      aetr:   { throttle: 0, roll: 0, pitch: 0, yaw: 0 },
+      motors: {
+        desired: { ...motors0 },
+        thrust:  { ...motors0 },
+      },
+      mission: {
+        phase:        0,
+        stepIdx:      0,
+        ticksInPhase: 0,
+        armed:        0,
+        step:         { pos: { x: 0, y: 3, z: 0 }, stepType: 0, threshold: 1.0 },
+        target:       { ...vec0 },
+        dist:         0,
+        segStart:     { ...vec0 },
+        segEnd:       { ...vec0 },
+      },
+      planner_wp: { stepStatus: 0 },
+      planner_cturn: { throttle: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0 },
+      validator: {
+        prevPhase:        0,
+        lapsTotal:        0,
+        restarts:         0,
+        completionTick:   -1,
+        completionAccErr: -1,
+        currentErr:       0,
+        accErr:           0,
+        passCount:        0,
+        passTotal:        1,
+        pass:             -1,
+      },
     },
-    motors: {
-      desired: { ...motors0 },
-      thrust:  { ...motors0 },
-    },
-    mission: {
-      phase:        0,
-      stepIdx:      0,
-      ticksInPhase: 0,
-      armed:        0,
-      windowSide:   0,
-      target:       { ...vec0 },
-      targetNormal: { x: 1, y: 0, z: 0 },
-      stepKind:     0,
-      dist:         0,
-    },
-    planner: {
-      carrot:        { ...vec0 },
-      yawSetpoint:   0,
-      preGateDone:   0,
-      activeStepIdx: -1,
-    },
-  },
-  blocks: [
-    {
-      sourceId: 'mission',
-      exportName: 'mission',
-      defaultFn: (s) => mission(s as Parameters<typeof mission>[0]),
-      defaultCode: missionCode,
-      mapStateIn: (s) => ({
-        pos:          s.pos,
-        phase:        (s.mission as ModelState).phase,
-        stepIdx:      (s.mission as ModelState).stepIdx,
-        ticksInPhase: (s.mission as ModelState).ticksInPhase,
-        armed:        (s.mission as ModelState).armed,
-        windowSide:   (s.mission as ModelState).windowSide,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        mission: {
-          ...(s.mission as ModelState),
-          phase:        out.phase,
-          stepIdx:      out.stepIdx,
-          ticksInPhase: out.ticksInPhase,
-          armed:        out.armed,
-          windowSide:   out.windowSide,
-          target:       out.target,
-          targetNormal: out.targetNormal,
-          stepKind:     out.stepKind,
-          dist:         out.dist,
+    blocks: [
+      makeLifecycleBlock(QUAD_DEFAULTS, QUAD_LADDER_ROUTE, modelOverrides),
+
+      // ── Sensor noise ──────────────────────────────────────────────────────────
+      {
+        sourceId:    'noise',
+        exportName:  'noise',
+        defaultFn:   (s) => noise(s as Parameters<typeof noise>[0]),
+        defaultCode: noiseCode,
+        mapStateIn:  (s) => ({
+          pos:        s.pos,
+          vel:        s.vel,
+          attitude:   s.attitude,
+          angularVel: s.angularVel,
+          K:          s.K,
+        }),
+        mapStateOut: (out, s) => ({ ...s, sensors: out }),
+        tickFrequency: 1,
+      },
+
+      // ── Mission sequencer ─────────────────────────────────────────────────────
+      // statusWp routes to the right planner based on current step type:
+      // CTURN steps → planner_cturn.stepStatus, WP steps → planner_wp.stepStatus.
+      {
+        sourceId:    'mission',
+        exportName:  'mission',
+        defaultFn:   (s) => mission(s as Parameters<typeof mission>[0]),
+        defaultCode: missionCode,
+        mapStateIn:  (s) => {
+          const step = (s.mission as ModelState).step as ModelState;
+          const isCturn = Math.round(step.stepType as number ?? 0) === STEP_TYPE_CTURN;
+          return {
+            pos:          (s.sensors as ModelState).pos,
+            phase:        (s.mission as ModelState).phase,
+            stepIdx:      (s.mission as ModelState).stepIdx,
+            ticksInPhase: (s.mission as ModelState).ticksInPhase,
+            armed:        (s.mission as ModelState).armed,
+            statusWp:     isCturn
+              ? (s.planner_cturn as ModelState).stepStatus
+              : (s.planner_wp as ModelState).stepStatus,
+            K:            s.K,
+          };
         },
-      }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'fc_path_planner',
-      exportName: 'fc_path_planner',
-      defaultFn: (s) => fc_path_planner(s as Parameters<typeof fc_path_planner>[0]),
-      defaultCode: fcPathPlannerCode,
-      mapStateIn: (s) => ({
-        pos:           s.pos,
-        target:        (s.mission as ModelState).target,
-        targetNormal:  (s.mission as ModelState).targetNormal,
-        stepKind:      (s.mission as ModelState).stepKind,
-        stepIdx:       (s.mission as ModelState).stepIdx,
-        armed:         (s.mission as ModelState).armed,
-        phase:         (s.mission as ModelState).phase,
-        preGateDone:   (s.planner as ModelState).preGateDone,
-        activeStepIdx: (s.planner as ModelState).activeStepIdx,
-        yawSetpoint:   (s.planner as ModelState).yawSetpoint,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        planner: {
-          carrot:        out.carrot,
-          yawSetpoint:   out.yawSetpoint,
-          preGateDone:   out.preGateDone,
-          activeStepIdx: out.activeStepIdx,
-        },
-      }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'fc_navigator',
-      exportName: 'fc_navigator',
-      defaultFn: (s) => fc_navigator(s as Parameters<typeof fc_navigator>[0]),
-      defaultCode: fcNavigatorCode,
-      mapStateIn: (s) => ({
-        pos:         s.pos,
-        vel:         s.vel,
-        attitude:    s.attitude,
-        carrot:      (s.planner as ModelState).carrot,
-        armed:       (s.mission as ModelState).armed,
-        integralPos: ((s.fc as ModelState).integral as ModelState).pos,
-        yawSetpoint: (s.planner as ModelState).yawSetpoint,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        fc: {
-          ...(s.fc as ModelState),
-          nav: { roll_des: out.roll_des, pitch_des: out.pitch_des, yaw_des: out.yaw_des, thrust: out.thrust },
-          integral: {
-            ...(((s.fc as ModelState).integral) as ModelState),
-            pos: out.integralPos,
+        mapStateOut: (out, s) => ({
+          ...s,
+          mission: {
+            ...(s.mission as ModelState),
+            phase:        out.phase,
+            stepIdx:      out.stepIdx,
+            ticksInPhase: out.ticksInPhase,
+            armed:        out.armed,
+            step:         out.step,
+            target:       out.target,
+            dist:         out.dist,
+            segStart:     out.segStart,
+            segEnd:       out.segEnd,
           },
-        },
-      }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'fc_stabilizer',
-      exportName: 'fc_stabilizer',
-      defaultFn: (s) => fc_stabilizer(s as Parameters<typeof fc_stabilizer>[0]),
-      defaultCode: fcStabilizerCode,
-      mapStateIn: (s) => ({
-        attitude:    s.attitude,
-        angularVel:  s.angularVel,
-        roll_des:    ((s.fc as ModelState).nav as ModelState).roll_des,
-        pitch_des:   ((s.fc as ModelState).nav as ModelState).pitch_des,
-        yaw_des:     ((s.fc as ModelState).nav as ModelState).yaw_des,
-        thrust:      ((s.fc as ModelState).nav as ModelState).thrust,
-        armed:       (s.mission as ModelState).armed,
-        integralAtt: ((s.fc as ModelState).integral as ModelState).att,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        fc: {
-          ...(s.fc as ModelState),
-          integral: {
-            ...(((s.fc as ModelState).integral) as ModelState),
-            att: out.integralAtt,
+        }),
+        tickFrequency: 1,
+      },
+
+      // ── Waypoint completion checker (WP approach steps) ───────────────────────
+      {
+        sourceId:    'planner_wp',
+        exportName:  'planner_wp',
+        defaultFn:   (s) => planner_wp(s as Parameters<typeof planner_wp>[0]),
+        defaultCode: plannerWpCode,
+        mapStateIn:  (s) => ({
+          pos:   (s.sensors as ModelState).pos,
+          step:  (s.mission as ModelState).step,
+          armed: (s.mission as ModelState).armed,
+          phase: (s.mission as ModelState).phase,
+        }),
+        mapStateOut: (out, s) => ({
+          ...s,
+          planner_wp: { stepStatus: out.stepStatus },
+        }),
+        tickFrequency: 1,
+      },
+
+      // ── Coordinated-turn planner — active during CTURN steps ─────────────────
+      {
+        sourceId:    'planner_cturn',
+        exportName:  'planner_cturn',
+        defaultFn:   (s) => planner_cturn(s as Parameters<typeof planner_cturn>[0]),
+        defaultCode: plannerCturnCode,
+        mapStateIn:  (s) => ({
+          pos:          (s.sensors as ModelState).pos,
+          vel:          (s.sensors as ModelState).vel,
+          step:         (s.mission as ModelState).step,
+          ticksInPhase: (s.mission as ModelState).ticksInPhase,
+          armed:        (s.mission as ModelState).armed,
+          phase:        (s.mission as ModelState).phase,
+          attitude:     (s.sensors as ModelState).attitude,
+          K:            s.K,
+        }),
+        mapStateOut: (out, s) => ({ ...s, planner_cturn: out }),
+        tickFrequency: 1,
+      },
+
+      // ── Waypoint navigator — TAKEOFF / RTH / LAND + WP approach steps ────────
+      {
+        sourceId:    'navigator_wp',
+        exportName:  'navigator_wp',
+        defaultFn:   (s) => navigator_wp(s as Parameters<typeof navigator_wp>[0]),
+        defaultCode: navigatorWpCode,
+        mapStateIn:  (s) => ({
+          pos:         (s.sensors as ModelState).pos,
+          vel:         (s.sensors as ModelState).vel,
+          attitude:    (s.sensors as ModelState).attitude,
+          angularVel:  (s.sensors as ModelState).angularVel,
+          step:        (s.mission as ModelState).step,
+          armed:       (s.mission as ModelState).armed,
+          integralPos: ((s.fc as ModelState).integral as ModelState).pos,
+          aetr:        s.aetr,
+          K:           s.K,
+        }),
+        mapStateOut: (out, s) => ({
+          ...s,
+          aetr: out.aetr,
+          fc: {
+            ...(s.fc as ModelState),
+            integral: {
+              ...(((s.fc as ModelState).integral) as ModelState),
+              pos: out.integralPos,
+            },
           },
-        },
-        motors: {
-          ...(s.motors as ModelState),
-          desired: out.motors,
-        },
-      }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'hw',
-      exportName: 'hw',
-      defaultFn: (s) => hw(s as Parameters<typeof hw>[0]),
-      defaultCode: hwCode,
-      mapStateIn: (s) => ({
-        motors:     (s.motors as ModelState).desired,
-        thrustPrev: (s.motors as ModelState).thrust,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        motors: { ...(s.motors as ModelState), thrust: out.thrust },
-      }),
-      tickFrequency: 1,
-    },
-    {
-      sourceId: 'world',
-      exportName: 'world',
-      defaultFn: (s) => world(s as Parameters<typeof world>[0]),
-      defaultCode: worldCode,
-      mapStateIn: (s) => ({
-        pos:        s.pos,
-        vel:        s.vel,
-        attitude:   s.attitude,
-        angularVel: s.angularVel,
-        thrust:     (s.motors as ModelState).thrust,
-        windFx:     0,
-        windFz:     0,
-      }),
-      mapStateOut: (out, s) => ({
-        ...s,
-        pos:        out.pos,
-        vel:        out.vel,
-        acc:        out.acc,
-        attitude:   out.attitude,
-        angularVel: out.angularVel,
-      }),
-      tickFrequency: 1,
-    },
-  ],
-  vis: QuadLadderVis,
-  blocksDiagram: [
-    { from: 'world',           to: 'mission',         label: 'pos'        },
-    { from: 'world',           to: 'fc_path_planner', label: 'pos'        },
-    { from: 'world',           to: 'fc_navigator',    label: 'state'      },
-    { from: 'world',           to: 'fc_stabilizer',   label: 'state'      },
-    { from: 'mission',         to: 'fc_path_planner', label: 'target+kind'},
-    { from: 'fc_path_planner', to: 'fc_navigator',    label: 'carrot+yaw' },
-    { from: 'fc_navigator',    to: 'fc_stabilizer',   label: 'att cmd'    },
-    { from: 'fc_stabilizer',   to: 'hw',              label: 'motors'     },
-    { from: 'hw',              to: 'world',           label: 'thrust'     },
-  ],
-  charts: [
-    {
-      label: 'Mission',
-      series: [
-        { var: 'mission.phase',   label: 'phase',   color: '#ffaa00' },
-        { var: 'mission.stepIdx', label: 'stepIdx', color: '#00ffaa' },
-        { var: 'mission.dist',    label: 'dist',    color: '#ff66ff' },
-        { var: 'mission.armed',   label: 'armed',   color: '#aaaaaa' },
-      ],
-    },
-    {
-      label: 'Position (m)',
-      series: [
-        { var: 'pos.x', label: 'x', color: '#ff4444' },
-        { var: 'pos.y', label: 'y', color: '#44ff44' },
-        { var: 'pos.z', label: 'z', color: '#4488ff' },
-      ],
-    },
-    {
-      label: 'Attitude (rad)',
-      series: [
-        { var: 'attitude.x', label: 'roll',  color: '#ff8844' },
-        { var: 'attitude.z', label: 'pitch', color: '#44ffaa' },
-        { var: 'attitude.y', label: 'yaw',   color: '#cc88ff' },
-      ],
-    },
-    {
-      label: 'Yaw setpoint vs actual (rad)',
-      series: [
-        { var: 'planner.yawSetpoint', label: 'yaw setpoint', color: '#ffee44' },
-        { var: 'attitude.y',          label: 'yaw actual',   color: '#cc88ff' },
-      ],
-    },
-    {
-      label: 'Speed (m/s)',
-      series: [{
-        label: 'speed',
-        color: '#aaffff',
-        fn: (s) => {
-          const v = s.vel as ModelState;
-          return Math.sqrt(((v.x as number) ?? 0) ** 2 + ((v.y as number) ?? 0) ** 2 + ((v.z as number) ?? 0) ** 2);
-        },
-      }],
-    },
-    {
-      label: 'Carrot vs target',
-      series: [
-        { var: 'planner.carrot.y',  label: 'carrot y',  color: '#ffee00' },
-        { var: 'mission.target.y',  label: 'target y',  color: '#ff8800' },
-        { var: 'planner.carrot.z',  label: 'carrot z',  color: '#aaee00' },
-        { var: 'mission.target.z',  label: 'target z',  color: '#88aa00' },
-      ],
-    },
-    {
-      label: 'Motor power (0–1)',
-      series: [
-        { var: 'motors.desired.m0', label: 'M0 FL', color: '#ff4444' },
-        { var: 'motors.desired.m1', label: 'M1 FR', color: '#ffaa00' },
-        { var: 'motors.desired.m2', label: 'M2 RR', color: '#44ff88' },
-        { var: 'motors.desired.m3', label: 'M3 RL', color: '#4488ff' },
-      ],
-    },
-  ],
-};
+        }),
+        tickFrequency: 1,
+      },
+
+      // ── Coordinated-turn navigator — overwrites aetr during CTURN steps ───────
+      {
+        sourceId:    'navigator_cturn',
+        exportName:  'navigator_cturn',
+        defaultFn:   (s) => navigator_cturn(s as Parameters<typeof navigator_cturn>[0]),
+        defaultCode: navigatorCturnCode,
+        mapStateIn:  (s) => ({
+          planThrottle: (s.planner_cturn as ModelState).throttle,
+          planRoll:     (s.planner_cturn as ModelState).roll,
+          planPitch:    (s.planner_cturn as ModelState).pitch,
+          planYaw:      (s.planner_cturn as ModelState).yaw,
+          planActive:   (s.planner_cturn as ModelState).active,
+          aetr:         s.aetr,
+        }),
+        mapStateOut: (out, s) => ({ ...s, aetr: out.aetr }),
+        tickFrequency: 1,
+      },
+
+      // ── Inner rate loop ───────────────────────────────────────────────────────
+      {
+        sourceId:    'fc_acro',
+        exportName:  'fc_acro',
+        defaultFn:   (s) => fc_acro(s as Parameters<typeof fc_acro>[0]),
+        defaultCode: fcAcroCode,
+        mapStateIn:  (s) => ({
+          angularVel:   (s.sensors as ModelState).angularVel,
+          armed:        (s.mission as ModelState).armed,
+          aetrThrottle: (s.aetr as ModelState).throttle,
+          aetrRoll:     (s.aetr as ModelState).roll,
+          aetrPitch:    (s.aetr as ModelState).pitch,
+          aetrYaw:      (s.aetr as ModelState).yaw,
+          K:            s.K,
+        }),
+        mapStateOut: (out, s) => ({
+          ...s,
+          motors: { ...(s.motors as ModelState), desired: out.motors },
+        }),
+        tickFrequency: 1,
+      },
+
+      // ── Motor spool-up ────────────────────────────────────────────────────────
+      {
+        sourceId:    'hw',
+        exportName:  'hw',
+        defaultFn:   (s) => hw(s as Parameters<typeof hw>[0]),
+        defaultCode: hwCode,
+        mapStateIn:  (s) => ({
+          motors:     (s.motors as ModelState).desired,
+          thrustPrev: (s.motors as ModelState).thrust,
+          K:          s.K,
+        }),
+        mapStateOut: (out, s) => ({
+          ...s,
+          motors: { ...(s.motors as ModelState), thrust: out.thrust },
+        }),
+        tickFrequency: 1,
+      },
+
+      // ── Physics ───────────────────────────────────────────────────────────────
+      {
+        sourceId:    'world',
+        exportName:  'world',
+        defaultFn:   (s) => world(s as Parameters<typeof world>[0]),
+        defaultCode: worldCode,
+        mapStateIn:  (s) => ({
+          pos:        s.pos,
+          vel:        s.vel,
+          attitude:   s.attitude,
+          angularVel: s.angularVel,
+          thrust:     (s.motors as ModelState).thrust,
+          K:          s.K,
+        }),
+        mapStateOut: (out, s) => ({
+          ...s,
+          pos:        out.pos,
+          vel:        out.vel,
+          acc:        out.acc,
+          attitude:   out.attitude,
+          angularVel: out.angularVel,
+        }),
+        tickFrequency: 1,
+      },
+    ],
+    vis: QuadLadderVis,
+    blocksDiagram: [
+      { from: 'lifecycle',       to: 'mission',         label: 'K'          },
+      { from: 'noise',           to: 'mission',         label: 'pos'        },
+      { from: 'noise',           to: 'navigator_wp',    label: 'sensors'    },
+      { from: 'noise',           to: 'planner_cturn',   label: 'sensors'    },
+      { from: 'noise',           to: 'fc_acro',         label: 'rates'      },
+      { from: 'mission',         to: 'planner_wp',      label: 'step'       },
+      { from: 'mission',         to: 'navigator_wp',    label: 'step'       },
+      { from: 'mission',         to: 'planner_cturn',   label: 'step/type'  },
+      { from: 'planner_wp',      to: 'mission',         label: 'status'     },
+      { from: 'planner_cturn',   to: 'mission',         label: 'status'     },
+      { from: 'planner_cturn',   to: 'navigator_cturn', label: 'plan'       },
+      { from: 'navigator_wp',    to: 'navigator_cturn', label: 'aetr'       },
+      { from: 'navigator_cturn', to: 'fc_acro',         label: 'aetr'       },
+      { from: 'fc_acro',         to: 'hw',              label: 'motors'     },
+      { from: 'hw',              to: 'world',           label: 'thrust'     },
+      { from: 'world',           to: 'noise',           label: 'true state' },
+    ],
+    charts: [
+      {
+        label: 'Mission',
+        series: [
+          { var: 'mission.phase',   label: 'phase',   color: '#ffaa00' },
+          { var: 'mission.stepIdx', label: 'stepIdx', color: '#00ffaa' },
+          { var: 'mission.armed',   label: 'armed',   color: '#aaaaaa' },
+        ],
+      },
+      {
+        label: 'AETR sticks',
+        series: [
+          { var: 'aetr.throttle', label: 'throttle', color: '#ffee44' },
+          { var: 'aetr.roll',     label: 'roll',     color: '#ff8844' },
+          { var: 'aetr.pitch',    label: 'pitch',    color: '#44ffaa' },
+          { var: 'aetr.yaw',      label: 'yaw',      color: '#cc88ff' },
+        ],
+      },
+      {
+        label: 'Attitude (rad)',
+        series: [
+          { var: 'attitude.x', label: 'roll',  color: '#ff8844' },
+          { var: 'attitude.z', label: 'pitch', color: '#44ffaa' },
+          { var: 'attitude.y', label: 'yaw',   color: '#cc88ff' },
+        ],
+      },
+      {
+        label: 'Speed (m/s)',
+        series: [{
+          label: 'speed',
+          color: '#aaffff',
+          fn: (s) => {
+            const v = s.vel as ModelState;
+            return Math.sqrt(
+              ((v.x as number) ?? 0) ** 2 +
+              ((v.y as number) ?? 0) ** 2 +
+              ((v.z as number) ?? 0) ** 2,
+            );
+          },
+        }],
+      },
+      {
+        label: 'Position (m)',
+        series: [
+          { var: 'pos.x', label: 'x', color: '#ff4444' },
+          { var: 'pos.y', label: 'y', color: '#44ff44' },
+          { var: 'pos.z', label: 'z', color: '#4488ff' },
+        ],
+      },
+      {
+        label: 'Motor power (0–1)',
+        series: [
+          { var: 'motors.desired.m0', label: 'M0 FL', color: '#ff4444' },
+          { var: 'motors.desired.m1', label: 'M1 FR', color: '#ffaa00' },
+          { var: 'motors.desired.m2', label: 'M2 RR', color: '#44ff88' },
+          { var: 'motors.desired.m3', label: 'M3 RL', color: '#4488ff' },
+        ],
+      },
+      {
+        label: 'Angular rates (rad/s)',
+        series: [
+          { var: 'angularVel.x', label: 'roll rate',  color: '#ff8844' },
+          { var: 'angularVel.z', label: 'pitch rate', color: '#44ffaa' },
+          { var: 'angularVel.y', label: 'yaw rate',   color: '#cc88ff' },
+        ],
+      },
+      {
+        label: 'Track error',
+        series: [
+          { var: 'validator.currentErr', label: 'current err (m)', color: '#ffaa44' },
+          { var: 'validator.accErr',     label: 'accumulated',     color: '#44aaff' },
+        ],
+      },
+    ],
+  };
+}

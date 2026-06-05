@@ -6,7 +6,7 @@ import { trail } from '../../../vis/plugins/trail';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
-import { GATES, GUIDE_GATES } from './blocks/mission';
+import { GATES, GUIDE_GATES } from './route';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -16,15 +16,16 @@ interface QuadLadderState {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   mission: { phase: number; stepIdx: number };
-  planner: { carrot: Vec3 };
 }
 const view = (s: ModelState): QuadLadderState => s as unknown as QuadLadderState;
 
-const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE'];
+const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'RESTART'];
 
-// Steps 0-2 → gate 0, steps 3-5 → gate 1, steps 6-7 → gate 2.
-// Pattern: [waypoint, main gate, guide gate] × 2, then [waypoint, main gate].
-const toGateIdx = (stepIdx: number) => Math.min(Math.floor(stepIdx / 3), GATES.length - 1);
+// Route is 8 steps: [WP_entry, CTURN] × 3 levels, with inter-level staging WPs.
+// Steps 0–1  → Level 1 (gate index 0: M1 / G1)
+// Steps 2–4  → Level 2 (gate index 1: M2 / G2)
+// Steps 5–7  → Level 3 (gate index 2: M3 / G3)
+const toGateIdx = (stepIdx: number): number => stepIdx < 2 ? 0 : stepIdx < 5 ? 1 : 2;
 
 const sceneHandler = composeScene(() => [
   baseScene({ bg: 0x080810, camera: { pos: [-10, 20, 25], lookAt: [12, 5, 0] } }),
@@ -38,7 +39,7 @@ const sceneHandler = composeScene(() => [
     s => ({
       windowIdx: toGateIdx(view(s).mission.stepIdx),
       phase:     view(s).mission.phase,
-      carrot:    view(s).planner.carrot,
+      carrot:    view(s).pos,
     }),
     GATES,
   ),
@@ -46,13 +47,13 @@ const sceneHandler = composeScene(() => [
     s => ({
       windowIdx: toGateIdx(view(s).mission.stepIdx),
       phase:     view(s).mission.phase,
-      carrot:    view(s).planner.carrot,
+      carrot:    view(s).pos,
     }),
     GUIDE_GATES,
     { opacity: 0.25, noCarrot: false },
   ),
   textLabel({
-    text: 'Quad Ladder\nThree-gate vertical FPV ladder\nguide gates + body-frame yaw decomposition',
+    text: 'Quad Ladder\nThree-gate vertical FPV ladder\ncoordinated-turn arcs through each gate pair',
     position: [-15, 0, -15],
     fontSize: 36,
   }),
