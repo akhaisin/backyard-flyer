@@ -32,10 +32,29 @@ pnpm install          # install deps
 pnpm dev              # dev server → http://localhost:4321
 pnpm build            # type-check + production build (output: dist/)
 pnpm preview          # serve production build locally
-pnpm test             # vitest watch mode
+pnpm test             # fast unit tests, one-shot — engine, hooks, lib (< 1 s)
+pnpm test:sim         # sim model tests only — quad-l4/noise/w1a/w1b (~ 2–3 s)
+pnpm test:all         # full suite, one-shot
 pnpm test:ui          # vitest browser UI
 pnpm lint             # tsc --noEmit (type-check only)
 ```
+
+## Testing strategy
+
+Two test groups exist:
+
+| Command | Covers | When to run |
+|---|---|---|
+| `pnpm test` | engine, hooks, lib | Default — run after every change |
+| `pnpm test:sim` | quad model sims | See trigger below |
+
+**Run `pnpm test:sim` when any of these paths change:**
+
+- `src/sim/models/lib/quad/` — shared block library (blocks, consts, lifecycle)
+- `src/sim/models/quad/*/` — individual model configs or test files
+- `src/sim/engine/` — engine changes that may affect sim behavior
+
+Skip `pnpm test:sim` for changes to UI components, MDX content, routing, styles, or anything outside `src/sim/`.
 
 ## Project Layout
 

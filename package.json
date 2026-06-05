@@ -6,7 +6,9 @@
     "dev": "astro dev --force  --port 4322",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "vitest",
+    "test": "vitest run src/hooks/ src/sim/engine/ src/sim/models/lib/",
+    "test:sim": "vitest run src/sim/models/quad/",
+    "test:all": "vitest run",
     "test:ui": "vitest --ui",
     "lint": "tsc --noEmit"
   },
