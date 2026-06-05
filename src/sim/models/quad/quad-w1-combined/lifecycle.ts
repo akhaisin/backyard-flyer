@@ -2,22 +2,47 @@
 // tunables + both tracks' routes) and runs the cross-track / restart validator
 // for BOTH vehicles each tick, with a per-vehicle pass/fail verdict.
 //
-// This is the dual-vehicle analogue of lib/quad/lifecycle.ts. The per-vehicle
-// validation math is identical to that block's after()/simTest, just applied to
-// `state.vehicles.a` and `state.vehicles.b` instead of the top-level vehicle.
-// Routes are injected into K by makeCombinedLifecycleBlock's mapStateOut (kept in
-// route.ts as the single source of truth), and per-vehicle mission blocks read
-// their own `steps` + `HOME_X/HOME_Z` via a K view in the config.
+// Mirrors lib/quad/lifecycle.ts in structure: renderCombinedLifecycleSource
+// produces editable source (with stepsA + stepsB in beforeSim), compileSource
+// turns it into the defaultFns, so source and behavior never drift.
 
-import type { BlockConfig, ModelState, HookFn } from '../../../engine/types';
+import type { BlockConfig, LifecycleConfig, ModelState, HookFn } from '../../../engine/types';
+import { compileSource } from '../../../engine/compile';
+import { fmt, fmtStep } from '../../lib/quad/lifecycle';
 import type { QuadConsts, StepDef } from '../../lib/quad/consts';
 
-type Vec3 = { x: number; y: number; z: number };
+const EXPORTS = ['beforeSim', 'before', 'after', 'afterSim'];
 
-const NAVIGATE = 2;
-const RESTART  = 7;
+export function renderCombinedLifecycleSource(
+  values: QuadConsts,
+  routeA: StepDef[],
+  routeB: StepDef[],
+): string {
+  const scalarLines = (Object.keys(values) as (keyof QuadConsts)[])
+    .map(k => k === 'CRUISE_ALT' ? '    CRUISE_ALT,' : `    ${k}: ${fmt(values[k])},`)
+    .join('\n');
+  const stepLinesA = routeA.map(s => fmtStep(s, values.CRUISE_ALT)).join('\n');
+  const stepLinesB = routeB.map(s => fmtStep(s, values.CRUISE_ALT)).join('\n');
+  return `// combined lifecycle — sim setup/teardown + per-tick hooks for both vehicles.
+//
+// beforeSim() returns the shared constants bag (state.K) plus both mission
+// routes. after() runs the cross-track validator for vehicles.a and vehicles.b
+// each tick and stops at K.simDuration. afterSim() finalizes per-vehicle pass.
 
-function distPointToSegment(p: Vec3, a: Vec3, b: Vec3): number {
+export function beforeSim() {
+  const CRUISE_ALT = ${fmt(values.CRUISE_ALT)};
+  return {
+${scalarLines}
+    stepsA: [
+${stepLinesA}
+    ],
+    stepsB: [
+${stepLinesB}
+    ],
+  };
+}
+
+function distPointToSegment(p, a, b) {
   const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
   const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
   const ab2 = abx * abx + aby * aby + abz * abz;
@@ -29,29 +54,29 @@ function distPointToSegment(p: Vec3, a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-// Advance one vehicle's validator by a tick. Mirrors lib lifecycle.after +
-// simTest: cross-track IAE over NAVIGATE, lap count (NAVIGATE→exit, excluding
-// the RESTART retry), restart count (entries into PHASE_RESTART), and a live
-// pass tally. `pass` is finalized in afterSim.
-function stepValidator(veh: ModelState, K: ModelState, tick: number): ModelState {
-  const v = veh.validator as ModelState;
-  const mission = veh.mission as ModelState;
-  const phase = Math.round(mission.phase as number);
-  const prevPhase = Math.round(v.prevPhase as number);
+// Advance one vehicle's validator by a tick. Returns updated validator state.
+// cross-track IAE over NAVIGATE, lap count (NAVIGATE→exit, excluding RESTART
+// retry), restart count (entries into PHASE_RESTART), live pass tally.
+function stepValidator(veh, K, tick) {
+  const NAVIGATE = 2, RESTART = 7;
+  const v = veh.validator;
+  const mission = veh.mission;
+  const phase = Math.round(mission.phase);
+  const prevPhase = Math.round(v.prevPhase);
 
-  let lapsTotal = v.lapsTotal as number;
+  let lapsTotal = v.lapsTotal;
   if (prevPhase === NAVIGATE && phase !== NAVIGATE && phase !== RESTART) lapsTotal += 1;
-  let restarts = v.restarts as number;
+  let restarts = v.restarts;
   if (prevPhase !== RESTART && phase === RESTART) restarts += 1;
 
-  let completionTick = v.completionTick as number;
-  let completionAccErr = v.completionAccErr as number;
+  let completionTick = v.completionTick;
+  let completionAccErr = v.completionAccErr;
 
   const currentErr = phase === NAVIGATE
-    ? distPointToSegment(veh.pos as Vec3, mission.segStart as Vec3, mission.segEnd as Vec3)
+    ? distPointToSegment(veh.pos, mission.segStart, mission.segEnd)
     : 0;
-  const accErr = (v.accErr as number) + currentErr;
-  if (completionTick < 0 && lapsTotal >= (K.REQUIRED_LAPS as number)) {
+  const accErr = v.accErr + currentErr;
+  if (completionTick < 0 && lapsTotal >= K.REQUIRED_LAPS) {
     completionTick = tick;
     completionAccErr = accErr;
   }
@@ -59,56 +84,52 @@ function stepValidator(veh: ModelState, K: ModelState, tick: number): ModelState
   const judgedTick = completionTick >= 0 ? completionTick : tick;
   const judgedAccErr = completionAccErr >= 0 ? completionAccErr : accErr;
   const checks = [
-    lapsTotal >= (K.REQUIRED_LAPS as number),
-    judgedTick <= (K.MAX_TICKS as number),
-    judgedAccErr < (K.ACC_ERR_LIMIT as number),
+    lapsTotal >= K.REQUIRED_LAPS,
+    judgedTick <= K.MAX_TICKS,
+    judgedAccErr < K.ACC_ERR_LIMIT,
   ];
-  if ((K.MAX_RESTARTS as number) >= 0) checks.push(restarts <= (K.MAX_RESTARTS as number));
+  if (K.MAX_RESTARTS >= 0) checks.push(restarts <= K.MAX_RESTARTS);
 
   return {
     prevPhase: phase, lapsTotal, restarts, completionTick, completionAccErr,
     currentErr, accErr,
     passCount: checks.filter(Boolean).length,
     passTotal: checks.length,
-    pass: v.pass as number,
+    pass: v.pass,
   };
 }
 
-export function before(state: ModelState): ModelState {
+export function before(state) {
   return state;
 }
 
-export function after(state: ModelState): ModelState | false {
-  const K = state.K as ModelState;
-  const vehicles = state.vehicles as ModelState;
-  const tick = state.tick as number;
+export function after(state) {
+  const K = state.K;
+  const tick = state.tick;
   state.vehicles = {
-    a: { ...(vehicles.a as ModelState), validator: stepValidator(vehicles.a as ModelState, K, tick) },
-    b: { ...(vehicles.b as ModelState), validator: stepValidator(vehicles.b as ModelState, K, tick) },
+    a: { ...state.vehicles.a, validator: stepValidator(state.vehicles.a, K, tick) },
+    b: { ...state.vehicles.b, validator: stepValidator(state.vehicles.b, K, tick) },
   };
-  if (tick >= (K.simDuration as number)) return false;
+  if (tick >= K.simDuration) return false;
   return state;
 }
 
-export function afterSim(state: ModelState): ModelState {
-  const K = state.K as ModelState;
-  const tick = state.tick as number;
-  const finalize = (veh: ModelState): ModelState => {
+export function afterSim(state) {
+  const K = state.K;
+  const tick = state.tick;
+  const finalize = (veh) => {
     const v = stepValidator(veh, K, tick);
     return { ...veh, validator: { ...v, pass: v.passCount === v.passTotal ? 1 : 0 } };
   };
-  const vehicles = state.vehicles as ModelState;
-  state.vehicles = { a: finalize(vehicles.a as ModelState), b: finalize(vehicles.b as ModelState) };
+  state.vehicles = { a: finalize(state.vehicles.a), b: finalize(state.vehicles.b) };
   return state;
 }
+`;
+}
 
-const LIFECYCLE_CODE = `// combined lifecycle (read-only): publishes shared K and runs the per-vehicle
-// cross-track + restart validator for vehicles.a and vehicles.b each tick, then
-// finalizes a per-vehicle pass in afterSim. See quad-w1-combined/lifecycle.ts.`;
-
-// Build the static lifecycle block. Scalars come from the shared defaults (+
-// overrides); both tracks' routes are merged into K here so route.ts stays the
-// single source of truth and the editable scalar producer stays route-free.
+// Build the combined lifecycle BlockConfig. Scalars come from defaults +
+// overrides; both routes are rendered into beforeSim so the user can edit them
+// in the source UI, exactly like the single-vehicle lifecycle.
 export function makeCombinedLifecycleBlock(
   defaults: QuadConsts,
   overrides: Partial<QuadConsts>,
@@ -116,23 +137,28 @@ export function makeCombinedLifecycleBlock(
   routeB: StepDef[],
 ): BlockConfig {
   const scalars: QuadConsts = { ...defaults, ...overrides };
+  const source = renderCombinedLifecycleSource(scalars, routeA, routeB);
+  const { fns, error } = compileSource(source, EXPORTS);
+  if (error || !fns.beforeSim || !fns.before || !fns.after || !fns.afterSim) {
+    throw new Error(`combined lifecycle source failed to compile: ${error ?? 'missing export'}`);
+  }
+
+  const lifecycle: LifecycleConfig = {
+    before:   { exportName: 'before',   defaultFn: fns.before   as HookFn },
+    after:    { exportName: 'after',    defaultFn: fns.after    as HookFn },
+    afterSim: { exportName: 'afterSim', defaultFn: fns.afterSim as HookFn },
+  };
+
   return {
     sourceId: 'lifecycle',
     exportName: 'beforeSim',
-    defaultFn: () => ({ ...scalars }) as unknown as ModelState,
-    defaultCode: LIFECYCLE_CODE,
+    defaultFn: () => fns.beforeSim!({}) as ModelState,
+    defaultCode: source,
     mapStateIn: () => ({}),
-    mapStateOut: (out, s) => ({
-      ...s,
-      K: Object.freeze({ ...out, stepsA: routeA, stepsB: routeB }),
-    }),
+    mapStateOut: (out, s) => ({ ...s, K: Object.freeze(out) }),
     static: true,
     staticKeys: ['K'],
-    lifecycle: {
-      before:   { exportName: 'before',   defaultFn: before   as HookFn },
-      after:    { exportName: 'after',    defaultFn: after    as HookFn },
-      afterSim: { exportName: 'afterSim', defaultFn: afterSim as HookFn },
-    },
+    lifecycle,
     tickFrequency: 1,
   };
 }

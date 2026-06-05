@@ -22,7 +22,7 @@ import type { QuadConsts, StepDef, CTurnStep } from './consts';
 
 // ── Source rendering (editable UI text + the default fns are compiled from it) ──
 
-function fmt(v: number): string {
+export function fmt(v: number): string {
   if (v === Math.PI) return 'Math.PI';
   if (v === Math.PI / 2) return 'Math.PI / 2';
   return String(v);
@@ -43,7 +43,7 @@ function fmtRange(r: { start: number; end: number }): string {
   return `{ start: ${r.start}, end: ${r.end} }`;
 }
 
-function fmtStep(s: StepDef, cruiseAlt: number): string {
+export function fmtStep(s: StepDef, cruiseAlt: number): string {
   const x = fmtCoord(s.pos.x, cruiseAlt, false);
   const y = fmtCoord(s.pos.y, cruiseAlt, true);
   const z = fmtCoord(s.pos.z, cruiseAlt, false);
