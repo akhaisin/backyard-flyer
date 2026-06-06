@@ -64,6 +64,9 @@ function SimVisInner({ simId, config, height }: { simId: string; config: ModelCo
   const statusRef = useRef(status);
 
   useEffect(() => {
+    setStatus(getStatus(simId));
+    setError(getError(simId));
+    setHistoryLen(getHistory(simId).length);
     const unsubState = subscribe(simId, (_state, tick) => setHistoryLen(tick));
     const unsubStatus = subscribeStatus(simId, setStatus);
     const unsubError = subscribeError(simId, setError);
