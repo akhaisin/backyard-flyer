@@ -1,0 +1,170 @@
+---
+order: 22
+simId: Backyard-Flyer/quad-c2a
+modelId: quad/quad-c2a
+---
+
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
+
+# Quad C2a — first-class target vehicle
+
+**Quad C2a** upgrades the chase scenario to a *physically simulated target*. In the c1 family, the target was a kinematic ghost — a point that moves along a line with no inertia, no flight controller, and no wind. Here the target is a full quadrotor running the same shared block stack as the interceptor: sensor noise, a WP mission, a flight controller, motor dynamics, and physics.
+
+This is the first model in the **c2** algorithm family, which requires intercepting a target that can overshoot corners, fight wind, and behave differently on every run.
+
+---
+
+## The scenario
+
+The target flies a 10 × 10 m square displaced **+10 m on both X and Z** from the c1 path — its circuit sits entirely in positive X/Z, well away from the interceptor's home pad at the origin.
+
+| Corner | Position | Leg |
+|--------|----------|-----|
+| SE | (15, 5, 5) | East side → NE |
+| NE | (15, 5, 15) | North side → NW |
+| NW | (5, 5, 15) | West side → SW |
+| SW | (5, 5, 5) | South side → SE |
+
+The target homes at (10, 0, 10) — the centre of its square. It takes off, flies the four waypoints, returns home, lands, and immediately restarts.
+
+The interceptor homes at the origin. It pre-stages at **(10, 5, 5)** — midway along the target's south side — then switches to direct pursuit once the stage point is reached. One successful intercept (within 1.5 m) ends the round with RTH. If the target completes its circuit before being caught, the interceptor restarts.
+
+---
+
+## Block architecture
+
+Both vehicles run the full shared lib stack. The interceptor's `planner_c2a` is the only block that reads across the vehicle boundary — it takes `vehicles.target.pos` as its pursuit target.
+
+```
+state.vehicles.target
+  noise_target → mission_target → planner_wp_target
+                                        │ (statusWp)
+                                        ↓
+                         navigator_target → fc_acro_target → hw_target → world_target
+                         (navigator_wp: drives to step.pos, full angular-rate feedback)
+
+state.vehicles.interceptor
+  noise_interceptor → mission_interceptor → planner_c2a ←── vehicles.target.pos
+                                                 │ (carrot + yawSetpoint)
+                                                 ↓
+                              navigator_interceptor → fc_acro_interceptor → hw_interceptor → world_interceptor
+                              (navigator_c2: outer-P carrot loop, c2 extension point)
+```
+
+| Block | Role |
+|-------|------|
+| `mission_target` | Standard lib mission FSM: arms, takes off, navigates the four WP corners, RTHs, loops |
+| `planner_wp_target` | Proximity checker for the target's waypoints — identical to the L4 planner |
+| `navigator_target` | `navigator_wp` — drives to `step.pos` with full angular-rate feedback; the same navigator used by every disturbance model in the shared lib |
+| `planner_c2a` | **New.** Pre-stage then live-target pursuit: fly to `step.pos`, latch `preGateDone`, then chase `vehicles.target.pos`; `STATUS_FAILED` when target enters RTH |
+| `navigator_interceptor` | `navigator_c2` — dedicated navigator for the c2 chase family; currently shares the same outer-P carrot loop as `navigator_w1`, reserved for future pursuit algorithm development |
+
+---
+
+## What changes when the target is physical
+
+With a kinematic ghost the target position is exact and noise-free. A simulated target introduces:
+
+- **Inertia**: the target overshoots corners before correcting. Its actual path is a rounded square, not a sharp rectangle.
+- **Speed variation**: the target's speed depends on its own PID tuning and the current leg. It slows as it nears a waypoint and accelerates after.
+- **Wind coupling**: both vehicles are disturbed by the same wind. A gust that pushes the target also pushes the interceptor, but not identically — each vehicle's mass and current orientation determine how much the wind deflects it.
+
+The interceptor cannot rely on the target appearing at a predictable position at a predictable time. It reads the target's true physics position every tick.
+
+---
+
+## planner_c2a: pre-stage then live pursuit
+
+```
+if not navigating:
+  carrot = step.pos    yaw = face step.pos    preGateDone = 0
+
+if preGateDone == 0:
+  if dist(quad, step.pos) < PREGATE_THRESHOLD (2 m) → latch preGateDone = 1
+  else → carrot = step.pos, yaw = face step.pos
+
+if preGateDone == 1:
+  if target.mission.phase ≥ RTH (3) → STATUS_FAILED   (target escaped)
+  if dist(quad, target.pos) < threshold (1.5 m) → STATUS_COMPLETED
+  else → carrot = target.pos, yaw = face target.pos
+```
+
+The `STATUS_FAILED` trigger differs from c1b: instead of watching for a `TARGET_LAPPED` phase on a ghost, it watches the target vehicle's mission phase. Once the target enters `PHASE_RTH` (phase ≥ 3) it has completed its circuit — the round is over and the interceptor RTHs. `STATUS_FAILED` (rather than `STATUS_RESTART`) was chosen because there is no recoverable retry within the current round; the interceptor must land, reset, and start a fresh attempt from the staging point.
+
+> **Try it:** edit `step.pos` in the lifecycle's `stepsInterceptor` to change where the interceptor stages. Moving it closer to a corner forces a tighter pursuit angle.
+
+---
+
+## Watch it fly
+
+The red quad is the target; the blue quad is the interceptor. Red spheres mark the target's four waypoints (bright = active, dim = pending, dark = done). The interceptor's trail shows the pre-stage approach followed by the pursuit arc. A full-screen banner flashes **INTERCEPTED** on a successful close, or **INTERCEPTION FAILED** when the target escapes.
+
+The bottom-left HUD has five toggles:
+
+| Toggle | Effect |
+|--------|--------|
+| **Intercept** | ON (default) — interceptor arms and pursues normally. OFF — interceptor stays in ARMING (infinite arming ticks); toggling back ON arms it immediately without waiting for the target's cycle. |
+| **Wind** | Zeroes the wind block at source — windsock and wind chart go to zero. |
+| **Noise** | Zeroes all sensor noise standard deviations at the noise blocks — both vehicles fly on clean sensor readings. |
+| **Trail** | Show/hide the interceptor's position trail. |
+| **Guide** | Show/hide the guide line from the interceptor to its current carrot. |
+
+<SimVis />
+
+---
+
+## Intercepts and circuits
+
+`interceptor.validator.lapsTotal` counts successful intercepts; `target.validator.lapsTotal` counts completed target circuits.
+
+<SimCharts varIds={[['vehicles.interceptor.validator.lapsTotal','vehicles.target.validator.lapsTotal','vehicles.interceptor.validator.restarts']]} />
+
+---
+
+## Mission phases
+
+Both vehicles run independent mission FSMs. Watch the target cycle through TAKEOFF (1) → NAVIGATE (2) → RTH (3) → LAND (4) → DONE (6) while the interceptor does the same — it has no RESTART phase; a missed intercept (STATUS_FAILED) sends it straight to RTH, not back to a restart anchor.
+
+<SimCharts varIds={[['vehicles.interceptor.mission.phase','vehicles.target.mission.phase']]} />
+
+---
+
+## Speed comparison
+
+The target's speed varies as its position controller accelerates away from home and brakes at each corner. The interceptor spikes when pursuing then drops at staging.
+
+<SimCharts varIds={[['vehicles.interceptor.vel.x','vehicles.interceptor.vel.z','vehicles.target.vel.x','vehicles.target.vel.z']]} />
+
+---
+
+## Edit the intercept planner
+
+`planner_c2a` controls staging and pursuit. The pre-stage point is fixed at `step.pos`; the pursuit target is the live vehicle position. Try extending this to lead pursuit — compute where the target will be in N ticks and aim there instead.
+
+<SimSource sourceIds={['planner_c2a']} autoHeight />
+
+---
+
+## Edit the target's mission
+
+`mission_target` and `planner_wp_target` control the target vehicle's waypoint sequencing. Edit the waypoint positions and thresholds in the lifecycle's `stepsTarget`.
+
+<SimSource sourceIds={['mission_target','planner_wp_target']} autoHeight />
+
+---
+
+## Edit the interceptor's navigator
+
+`navigator_interceptor` is `navigator_c2` — a dedicated navigator for the c2 chase family. Currently it runs the same outer-P carrot loop as the other lib navigators, but it is the extension point where a future pursuit algorithm (lead pursuit, predictive intercept) will live. Edit it here without touching the target's navigator.
+
+<SimSource sourceIds={['navigator_interceptor']} autoHeight />
+
+---
+
+## Edit the target's flight controller and constants
+
+The target uses `navigator_wp` for position control and `fc_acro` for attitude stabilisation — the same blocks as Quad L4 and Quad Noise. Tuning constants in the `lifecycle` changes both vehicles' shared params (`KP_POS`, `KD_POS`, `MAX_TILT`, wind strength) or per-vehicle params inside the `target:` / `interceptor:` blocks.
+
+<SimSource sourceIds={['navigator_target','lifecycle']} autoHeight />

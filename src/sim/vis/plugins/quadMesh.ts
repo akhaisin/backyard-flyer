@@ -36,16 +36,21 @@ const ROTOR_FRAG = `
   }
 `;
 
-function buildMesh(frontIndicator: boolean): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial[] } {
+function buildMesh(
+  frontIndicator: boolean,
+  bodyColor = 0x223366,
+  bodyEmissive = 0x001122,
+  armColor = 0x334455,
+): { group: THREE.Group; rotorMaterials: THREE.ShaderMaterial[] } {
   const group = new THREE.Group();
   const rotorMaterials: THREE.ShaderMaterial[] = [];
 
   group.add(new THREE.Mesh(
     new THREE.BoxGeometry(0.35, 0.1, 0.35),
-    new THREE.MeshPhongMaterial({ color: 0x223366, emissive: 0x001122 }),
+    new THREE.MeshPhongMaterial({ color: bodyColor, emissive: bodyEmissive }),
   ));
 
-  const armMat = new THREE.MeshPhongMaterial({ color: 0x334455 });
+  const armMat = new THREE.MeshPhongMaterial({ color: armColor });
   const rotorGeo = new THREE.PlaneGeometry(0.44, 0.44);
 
   for (const angle of [Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4, -Math.PI / 4]) {
@@ -99,14 +104,15 @@ function makePhaseSprite(): THREE.Sprite {
   return sprite;
 }
 
-function updatePhaseSprite(sprite: THREE.Sprite, label: string): void {
+function updatePhaseSprite(sprite: THREE.Sprite, phaseLabel: string, vehicleName?: string): void {
   const s = sprite as THREE.Sprite & { _canvas: HTMLCanvasElement };
   const ctx = s._canvas.getContext('2d')!;
   ctx.clearRect(0, 0, s._canvas.width, s._canvas.height);
   ctx.fillStyle = '#ffcc44';
-  ctx.font = 'bold 28px monospace';
+  ctx.font = 'bold 22px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const label = vehicleName ? `${vehicleName}: ${phaseLabel}` : phaseLabel;
   ctx.fillText(label, s._canvas.width / 2, s._canvas.height / 2);
   (sprite.material as THREE.SpriteMaterial).map!.needsUpdate = true;
 }
@@ -121,7 +127,7 @@ export interface VisQuad {
 
 export function quadMesh(
   getVehicle: (state: ModelState) => VisQuad,
-  options: { frontIndicator?: boolean } = {},
+  options: { frontIndicator?: boolean; bodyColor?: number; bodyEmissive?: number; armColor?: number; vehicleName?: string } = {},
 ): ScenePlugin {
   let group: THREE.Group | null = null;
   let rotorMaterials: THREE.ShaderMaterial[] = [];
@@ -129,7 +135,12 @@ export function quadMesh(
 
   return {
     init(scene) {
-      const built = buildMesh(options.frontIndicator ?? false);
+      const built = buildMesh(
+        options.frontIndicator ?? false,
+        options.bodyColor,
+        options.bodyEmissive,
+        options.armColor,
+      );
       group = built.group;
       rotorMaterials = built.rotorMaterials;
       phaseSprite = makePhaseSprite();
@@ -150,7 +161,7 @@ export function quadMesh(
         rotorMaterials[i].uniforms.thrust.value = t / 10;
       });
 
-      updatePhaseSprite(phaseSprite, v.phaseLabels[Math.round(v.phase)] ?? '');
+      updatePhaseSprite(phaseSprite, v.phaseLabels[Math.round(v.phase)] ?? '', options.vehicleName);
     },
     dispose(scene) {
       if (group) scene.remove(group);

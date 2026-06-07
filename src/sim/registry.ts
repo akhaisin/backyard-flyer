@@ -14,6 +14,7 @@ import { quadW1bConfig } from './models/quad/quad-w1b/quad-w1b.config';
 import { quadW1CombinedConfig } from './models/quad/quad-w1-combined/quad-w1-combined.config';
 import { quadC1aConfig } from './models/quad/quad-c1a/quad-c1a.config';
 import { quadC1bConfig } from './models/quad/quad-c1b/quad-c1b.config';
+import { quadC2aConfig } from './models/quad/quad-c2a/quad-c2a.config';
 import { quadLadderConfig } from './models/racing/quad-ladder/quad-ladder.config';
 import { quadPoleConfig } from './models/racing/quad-pole/quad-pole.config';
 import { quadRatesConfig } from './models/racing/quad-rates/quad-rates.config';
@@ -42,6 +43,7 @@ export const modelRegistry: Record<string, ModelEntry> = {
   'quad/quad-w1-combined': quadW1CombinedConfig,
   'quad/quad-c1a':         quadC1aConfig,
   'quad/quad-c1b':         quadC1bConfig,
+  'quad/quad-c2a':         quadC2aConfig,
   'racing/quad-ladder':    quadLadderConfig,
   'racing/quad-pole':      quadPoleConfig,
   'racing/quad-rates':     quadRatesConfig,

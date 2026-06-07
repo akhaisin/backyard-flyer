@@ -6,6 +6,7 @@
 - [Quad block library & consts design](quad-block-library-consts.md) — lib blocks + lifecycle block publishing frozen state.K + createConfig factory
 - [Window-model rebuild pattern](window-model-rebuild-pattern.md) — w1a/w1b/combined on shared lib; StepDef; planner owns STATUS_RESTART; navigator_w1
 - [C1 chase family](c1-chase-family.md) — target_c1 ghost, planner_c1a/c1b, mission one-intercept trick, pre-stage pattern, vis guide line, KD_POS braking limitation
+- [C2 chase family](c2-chase-family.md) — first-class target, dual-vehicle K bags, planner_c2a STATUS_FAILED, navigator_c2, stepValidator timing fix (capturedC2aStatus), Intercept/Wind/Noise toggles, flash banners
 - [Sim components API](sim-components-api.md) — SimVis/SimSource/SimCharts props, SceneHandler pattern, subscriptions, MDX rendering, layout
 - [Adding a new model](adding-new-model.md) — step-by-step generator: config, blocks, vis, registry, MDX page
 

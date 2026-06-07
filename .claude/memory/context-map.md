@@ -52,6 +52,8 @@ metadata:
 | `target_c1.ts` | Kinematic ghost target (c1 chase family) — loops all K.steps independently of mission stepIdx; phases: 0=IDLE 1=MOVING 2=LAPPED |
 | `planner_c1a.ts` | Direct-pursuit chase planner — carrot = target_c1.pos; step.pos as carrot outside NAVIGATE; yaw = atan2(-dz, dx) |
 | `planner_c1b.ts` | Pre-stage then direct pursuit — flies to `step.pos + preStageDist * normalize(dest−pos)`, latches `preGateDone`, then degrades to c1a logic; `preStageDist=0` = pure c1a |
+| `navigator_c2.ts` | Dedicated interceptor navigator for c2 chase family — same outer-P carrot loop as `navigator_w1`, reserved as extension point for future pursuit algorithms |
+| `planner_c2a.ts` | Pre-stage then live-target pursuit for first-class target — fly to `step.pos`, latch `preGateDone`, then chase `vehicles.target.pos`; `STATUS_FAILED` when `targetPhase >= PHASE_RTH`; `STATUS_COMPLETED` within threshold |
 
 ## Models — on shared lib (no local `blocks/` dir)
 
@@ -64,6 +66,7 @@ metadata:
 | `quad-w1-combined` | `quad/quad-w1-combined/quad-w1-combined.config.ts` | Dual A-vs-B race; own `lifecycle.ts`; route in `quad-w1-combined/route.ts` |
 | `quad-c1a` | `quad/quad-c1a/quad-c1a.config.ts` | Chase model; route in `quad-c1a/route.ts`; C1aStep type (STEP_TYPE_C1A=5); uses target_c1 + planner_c1a + navigator_w1; mission restricted to steps[0] so one intercept = RTH |
 | `quad-c1b` | `quad/quad-c1b/quad-c1b.config.ts` | Pre-staged chase; route in `quad-c1b/route.ts`; same as c1a + planner_c1b; preStageDist=5.0, threshold=1.0; guide line points to carrot (pre-stage pt then target) |
+| `quad-c2a` | `quad/quad-c2a/quad-c2a.config.ts` | First-class target vehicle; own `lifecycle.ts` (dual-vehicle K bags + stepValidator with captured planner statuses); route in `quad-c2a/route.ts`; see [[c2-chase-family]] |
 | `quad-pole` | `racing/quad-pole/quad-pole.config.ts` | Racing (not yet on lib) |
 | `quad-ladder` | `racing/quad-ladder/quad-ladder.config.ts` | Racing (not yet on lib) |
 | `quad-rates` | `racing/quad-rates/quad-rates.config.ts` | Racing (not yet on lib) |

@@ -17,8 +17,8 @@
 
 import type { BlockConfig, LifecycleConfig, ModelState, HookFn } from '../../../engine/types';
 import { compileSource } from '../../../engine/compile';
-import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES, STEP_TYPE_CTURN, STEP_TYPE_C1A } from './consts';
-import type { QuadConsts, StepDef, CTurnStep, C1aStep } from './consts';
+import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES, STEP_TYPE_CTURN, STEP_TYPE_C1A, STEP_TYPE_C2A } from './consts';
+import type { QuadConsts, StepDef, CTurnStep, C1aStep, C2aStep } from './consts';
 
 // ── Source rendering (editable UI text + the default fns are compiled from it) ──
 
@@ -91,6 +91,12 @@ export function fmtStep(s: StepDef, cruiseAlt: number): string {
       parts.push(`speed: ${cs.speed}`);
       parts.push(`threshold: ${cs.threshold}`);
       if (cs.preStageDist !== undefined) parts.push(`preStageDist: ${cs.preStageDist}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    }
+    case STEP_TYPE_C2A: {
+      const cs = s as C2aStep;
+      parts.push(`threshold: ${cs.threshold}`);
       if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
       break;
     }

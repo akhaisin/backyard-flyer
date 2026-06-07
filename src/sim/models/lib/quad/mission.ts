@@ -29,14 +29,15 @@ type RateRange = { start: number; end: number };
 // so the matching planner can read them.
 // Numeric type constants (mirror consts.ts STEP_* — kept inline because
 // block source is compiled with imports stripped).
-const STEP_TYPE_WP = 0, STEP_TYPE_W1A = 1, STEP_TYPE_W1B = 2, STEP_TYPE_RATES = 3, STEP_TYPE_CTURN = 4, STEP_TYPE_C1A = 5;
+const STEP_TYPE_WP = 0, STEP_TYPE_W1A = 1, STEP_TYPE_W1B = 2, STEP_TYPE_RATES = 3, STEP_TYPE_CTURN = 4, STEP_TYPE_C1A = 5, STEP_TYPE_C2A = 6;
 type WpStep    = { type: 0; pos: Vec3; threshold: number; timeout?: number };
 type W1aStep   = { type: 1; pos: Vec3; normal: Vec3; width: number; height: number; timeout?: number };
 type W1bStep   = { type: 2; pos: Vec3; normal: Vec3; width: number; height: number; preStageDist: number; timeout?: number };
 type RatesStep = { type: 3; pos: Vec3; duration: number; throttle: RateRange; yaw: RateRange; pitch: RateRange; roll: RateRange; timeout?: number };
 type CTurnStep = { type: 4; pos: Vec3; waypoints: Vec3[]; durationTicks: number; timeout?: number };
 type C1aStep   = { type: 5; pos: Vec3; dest: Vec3; speed: number; threshold: number; preStageDist?: number; timeout?: number };
-type StepDef = WpStep | W1aStep | W1bStep | RatesStep | CTurnStep | C1aStep;
+type C2aStep   = { type: 6; pos: Vec3; threshold: number; timeout?: number };
+type StepDef = WpStep | W1aStep | W1bStep | RatesStep | CTurnStep | C1aStep | C2aStep;
 type MissionConsts = {
   steps: StepDef[];
   CRUISE_ALT: number;
@@ -55,6 +56,8 @@ type MissionIn = {
   armed: number;
   statusWp: number;      // primary step planner (window crossing / waypoint reach)
   statusReturn?: number; // recovery-waypoint planner: arrival at the start anchor
+  forceRTH?: number;     // 1 = abort TAKEOFF or NAVIGATE → PHASE_RTH immediately (cross-vehicle coordination)
+  holdDone?: number;     // 1 = stay in PHASE_DONE (reset ticks to 0) until signal clears
   K: MissionConsts;
 };
 
@@ -122,6 +125,7 @@ function stepToBus(step: StepDef): StepBus {
     case STEP_TYPE_RATES: return { stepType: step.type, pos: step.pos, duration: step.duration, throttle: step.throttle, yaw: step.yaw, pitch: step.pitch, roll: step.roll, timeout: step.timeout };
     case STEP_TYPE_CTURN: return { stepType: step.type, pos: step.pos, durationTicks: step.durationTicks, waypoints: step.waypoints, timeout: step.timeout };
     case STEP_TYPE_C1A:   return { stepType: step.type, pos: step.pos, dest: step.dest, speed: step.speed, threshold: step.threshold, preStageDist: step.preStageDist, timeout: step.timeout };
+    case STEP_TYPE_C2A:   return { stepType: step.type, pos: step.pos, threshold: step.threshold, timeout: step.timeout };
   }
 }
 
@@ -190,6 +194,9 @@ export function mission(state: MissionIn): MissionOut {
   }
 
   if (phase === PHASE_TAKEOFF) {
+    if (Math.round(state.forceRTH ?? 0) === 1) {
+      return makeOut(PHASE_RTH, 0, 0, 1, HOME_STEP, HOME, dist3(state.pos, HOME));
+    }
     if (state.pos.y >= K.CRUISE_ALT - K.LAND_THRESHOLD) {
       return navigateStep(0, 0, state.pos);
     }
@@ -197,6 +204,10 @@ export function mission(state: MissionIn): MissionOut {
   }
 
   if (phase === PHASE_NAVIGATE) {
+    if (Math.round(state.forceRTH ?? 0) === 1) {
+      const step: StepDef = steps[stepIdx];
+      return makeOut(PHASE_RTH, stepIdx, 0, 1, HOME_STEP, HOME, dist3(state.pos, HOME), step.pos, HOME);
+    }
     const step: StepDef = steps[stepIdx];
     const timedOut = step.timeout !== undefined && ticks >= step.timeout;
     const status   = timedOut ? STATUS_FAILED : Math.round(state.statusWp);
@@ -263,7 +274,10 @@ export function mission(state: MissionIn): MissionOut {
     return makeOut(PHASE_DISARMING, 0, ticks + 1, 0, LAND_STEP, LAND_PAD, 0);
   }
 
-  // PHASE_DONE — restart
+  // PHASE_DONE — wait for any cross-vehicle holdDone gate, then restart
+  if (Math.round(state.holdDone ?? 0) === 1) {
+    return makeOut(PHASE_DONE, 0, 0, 0, LAND_STEP, LAND_PAD, 0); // reset ticks while held
+  }
   if (ticks >= K.ARMING_TICKS) {
     return makeOut(PHASE_ARMING, 0, 0, 0, HOME_STEP, HOME, 0);
   }
