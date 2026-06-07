@@ -340,7 +340,7 @@ export function quadC1aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     ],
     vis: QuadC1aVis,
     blocksDiagram: [
-      { from: 'lifecycle',    to: 'mission',      label: 'K'             },
+      { from: 'lifecycle',    to: 'wind',          label: 'K'             },
       { from: 'wind',         to: 'world',         label: 'force'         },
       { from: 'noise',        to: 'mission',       label: 'pos'           },
       { from: 'noise',        to: 'target_c1',     label: '—'             },

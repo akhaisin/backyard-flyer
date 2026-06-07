@@ -521,6 +521,41 @@ export function quadC2aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
       ...interceptorBlocks(),
     ],
     vis: QuadC2aVis,
+    blocksDiagram: [
+      { from: 'lifecycle',             to: 'mission_target',        label: 'K.target'     },
+      { from: 'lifecycle',             to: 'mission_interceptor',   label: 'K.interceptor'},
+      // Wind couples into both physics blocks
+      { from: 'wind',                  to: 'world_target',          label: 'force'        },
+      { from: 'wind',                  to: 'world_interceptor',     label: 'force'        },
+      // ── Target ──────────────────────────────────────────────────────────────────────
+      { from: 'world_target',          to: 'noise_target',          label: 'true state'   },
+      { from: 'noise_target',          to: 'mission_target',        label: 'pos'          },
+      // { from: 'noise_target',          to: 'navigator_target',      label: 'sensors'      },
+      // { from: 'noise_target',          to: 'fc_acro_target',        label: 'rates'        },
+      { from: 'mission_target',        to: 'planner_wp_target',     label: 'step/phase'   },
+      { from: 'planner_wp_target',     to: 'mission_target',        label: 'status'       },
+      { from: 'mission_target',        to: 'navigator_target',      label: 'step'         },
+      { from: 'navigator_target',      to: 'fc_acro_target',        label: 'aetr'         },
+      { from: 'fc_acro_target',        to: 'hw_target',             label: 'motors'       },
+      { from: 'hw_target',             to: 'world_target',          label: 'throttle'     },
+      // ── Interceptor ─────────────────────────────────────────────────────────────────
+      { from: 'world_interceptor',     to: 'noise_interceptor',     label: 'true state'   },
+      { from: 'noise_interceptor',     to: 'mission_interceptor',   label: 'pos'          },
+      // { from: 'noise_interceptor',     to: 'navigator_interceptor', label: 'sensors'      },
+      // { from: 'noise_interceptor',     to: 'fc_acro_interceptor',   label: 'rates'        },
+      { from: 'mission_interceptor',   to: 'planner_c2a',           label: 'step/phase'   },
+      { from: 'planner_c2a',           to: 'mission_interceptor',   label: 'status'       },
+      { from: 'mission_interceptor',   to: 'planner_wp_interceptor',label: 'anchor'       },
+      { from: 'planner_wp_interceptor',to: 'mission_interceptor',   label: 'return'       },
+      { from: 'planner_c2a',           to: 'navigator_interceptor', label: 'carrot+yaw'   },
+      { from: 'navigator_interceptor', to: 'fc_acro_interceptor',   label: 'aetr'         },
+      { from: 'fc_acro_interceptor',   to: 'hw_interceptor',        label: 'motors'       },
+      { from: 'hw_interceptor',        to: 'world_interceptor',     label: 'throttle'     },
+      // ── Cross-vehicle ────────────────────────────────────────────────────────────────
+      // { from: 'world_target',          to: 'planner_c2a',           label: 'target pos'   },
+      // { from: 'mission_target',        to: 'planner_c2a',           label: 'target phase' },
+      // { from: 'mission_interceptor',   to: 'mission_target',        label: 'RTH phase'    },
+    ],
     charts: [
       {
         label: 'Intercepts / target circuits',

@@ -40,9 +40,12 @@ function makeProxy(obj: ModelState, pfx: string, acc: Set<string>): ModelState {
       const path = pfx ? `${pfx}.${prop}` : prop;
       acc.add(path);
       const val = t[prop];
-      return typeof val === 'object' && val !== null
-        ? makeProxy(val as ModelState, path, acc)
-        : val;
+      if (typeof val !== 'object' || val === null) return val;
+      // Frozen objects have non-configurable, non-writable own properties. Returning
+      // a proxy (a different object reference) for such a property violates the Proxy
+      // invariant and throws a TypeError. Record the path but return the actual value.
+      if (Object.isFrozen(t)) return val;
+      return makeProxy(val as ModelState, path, acc);
     },
   }) as ModelState;
 }
