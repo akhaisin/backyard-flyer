@@ -30,6 +30,8 @@ Quadcopter simulations in order of increasing realism — from a point-mass sphe
 | [**Quad W1a**](#Backyard-Flyer/quad-w1a) | Four rectangular window gates the drone must fly through | **Window gate** plane-crossing detection in shared `planner_w1a`, **pure-pursuit carrot on the gate centerline** (forward pull never collapses at the frame), yaw aligned to gate normal with a measurement low-pass, mission-owned **`PHASE_RESTART`** recovery + **restart-budget pass criterion** |
 | [**Quad W1b**](#Backyard-Flyer/quad-w1b) | W1a with a smarter gate approach | **Pre-stage waypoint** on the approach axis (shared `planner_w1b`), `preGateDone` latch to prevent staging–gate oscillation; degrades to W1a when `preStageDist = 0` |
 | [**Quad W1 Combined**](#Backyard-Flyer/quad-w1-combined) | W1a (Blue) vs W1b (Orange) flying under shared wind | **Dual-vehicle A/B comparison** (one shared stack wired twice under `state.vehicles.a/.b` on offset tracks), **per-vehicle PASS/FAIL**; laps-completed and restart-count charts show the planner difference over many laps |
+| [**Quad C1a**](#Backyard-Flyer/quad-c1a) | Moving-target chase — drone intercepts a ghost target sliding around the rectangle before it completes a full circuit | **Chase family** (c1): `target_c1` kinematic ghost running its own continuous loop independent of mission step index; `planner_c1a` direct pursuit (carrot = target pos); `STATUS_RESTART` on target escape |
+| [**Quad C1b**](#Backyard-Flyer/quad-c1b) | C1a with a pre-staged intercept approach | **Pre-stage for chase** (`planner_c1b`): fixed pre-stage point `preStageDist` along the target's trajectory, `preGateDone` latch, then direct pursuit; cyan indicator dot follows the active carrot; degrades to C1a when `preStageDist = 0` |
 
 ---
 

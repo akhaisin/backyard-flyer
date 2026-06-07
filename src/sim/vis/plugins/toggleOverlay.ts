@@ -32,6 +32,7 @@ export type ToggleOverlayCorner =
 export interface ToggleOverlayOptions {
   corner?: ToggleOverlayCorner; // default 'bottom-left'; stripped when inside cornerGroup
   margin?: number;              // px from corner, default 12
+  labelMinWidth?: number | string; // fixes label column width so stacked toggles align
 }
 
 const BG         = 'rgba(0, 0, 0, 0.55)';
@@ -57,7 +58,7 @@ export function toggleOverlay(
   ref: ToggleRef,
   opts: ToggleOverlayOptions = {},
 ): ScenePlugin {
-  const { corner = 'bottom-left', margin = 12 } = opts;
+  const { corner = 'bottom-left', margin = 12, labelMinWidth } = opts;
 
   let root:  HTMLDivElement  | null = null;
   let track: HTMLDivElement  | null = null;
@@ -96,6 +97,8 @@ export function toggleOverlay(
       const labelEl = document.createElement('span');
       labelEl.textContent = label;
       labelEl.style.color = 'rgba(255, 255, 255, 0.55)';
+      if (labelMinWidth !== undefined)
+        labelEl.style.minWidth = typeof labelMinWidth === 'number' ? `${labelMinWidth}px` : labelMinWidth;
       root.appendChild(labelEl);
 
       // Toggle track (pill outline)

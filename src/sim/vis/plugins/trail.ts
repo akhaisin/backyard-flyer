@@ -3,14 +3,19 @@ import type { ModelState } from '../../engine/types';
 import type { ScenePlugin } from '../scenePlugin';
 
 type Vec3 = { x: number; y: number; z: number };
+type ToggleRef = { enabled: boolean };
 
 export function trail(
   getPos: (state: ModelState) => Vec3,
-  opts: { color?: number; length?: number; opacity?: number } = {},
+  opts: { color?: number; length?: number; opacity?: number; visible?: boolean | ToggleRef } = {},
 ): ScenePlugin {
-  const { color = 0x4488ff, length: maxLen = 600, opacity = 0.55 } = opts;
+  const { color = 0x4488ff, length: maxLen = 600, opacity = 0.55, visible = true } = opts;
   let geo: THREE.BufferGeometry | null = null;
   let line: THREE.Line | null = null;
+
+  function isVisible(): boolean {
+    return typeof visible === 'boolean' ? visible : visible.enabled;
+  }
 
   return {
     init(scene) {
@@ -21,7 +26,9 @@ export function trail(
       scene.add(line);
     },
     update(_state, _tick, history) {
-      if (!geo) return;
+      if (!geo || !line) return;
+      line.visible = isVisible();
+      if (!line.visible) return;
       const slice = history.slice(-maxLen);
       const buf = geo.attributes.position as THREE.BufferAttribute;
       slice.forEach((h, i) => {

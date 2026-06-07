@@ -58,6 +58,8 @@ All paths are under `src/sim/models/`.
 | quad-w1a | `quad/quad-w1a` | ✓ |
 | quad-w1b | `quad/quad-w1b` | ✓ |
 | quad-w1-combined | `quad/quad-w1-combined` | ✓ own `lifecycle.ts` |
+| quad-c1a | `quad/quad-c1a` | ✓ (target_c1 + planner_c1a) |
+| quad-c1b | `quad/quad-c1b` | ✓ (target_c1 + planner_c1b) |
 | quad-pole | `racing/quad-pole` | — own blocks |
 | quad-ladder | `racing/quad-ladder` | — own blocks |
 | quad-rates | `racing/quad-rates` | — own blocks |

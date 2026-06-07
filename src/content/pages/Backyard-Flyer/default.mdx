@@ -117,6 +117,26 @@ Two complete copies of the shared flight stack fly at once under `state.vehicles
 
 ---
 
+## [Quad C1a — moving-target direct pursuit](#Backyard-Flyer/quad-c1a)
+
+The window-gate scenario is swapped for a **moving target**: instead of a static frame, a kinematic ghost spawns at a corner of the rectangle and slides at constant speed along each 10 m side, looping all four independently of the mission step index. The drone's goal is to close within the intercept threshold before the target finishes its full circuit. One successful intercept sends the drone RTH; if the target completes the rectangle first the mission restarts.
+
+A new `target_c1` block owns the ghost — no physics, just a point that advances `speed × DT` each tick through its own step list. `planner_c1a` reads `target_c1.pos` each tick and sets the carrot directly there (direct pursuit). If the drone gets within `threshold` metres: `STATUS_COMPLETED`. If the target laps: `STATUS_RESTART`.
+
+**What it introduces:** the c1 chase family — a kinematic ghost target with its own independent circuit, direct pursuit as the simplest viable chase strategy, continuous target loop with per-attempt reset, and wind enabled by default to keep the scenario honest.
+
+---
+
+## [Quad C1b — pre-staged intercept chase](#Backyard-Flyer/quad-c1b)
+
+The same scenario as C1a with a **pre-stage leg** inserted before pursuit commits — mirroring the relationship between W1a and W1b. Before switching to direct pursuit, the drone flies to a fixed point `preStageDist` metres along the target's trajectory from its spawn position. Once within `PREGATE_THRESHOLD` of that point the `preGateDone` latch fires and `planner_c1b` hands off to the direct-pursuit logic.
+
+The pre-stage position is derived from static step data (`pos + preStageDist × normalize(dest − pos)`) and is visible in the 3D scene as a cyan indicator dot — the guide line from the drone points to the pre-stage point while staging, then transitions to track the target directly after the latch. When `preStageDist = 0` the block degrades exactly to C1a.
+
+**What it introduces:** pre-staging as a path-planning primitive applied to a moving-target scenario; the guide-to-carrot indicator that switches between the pre-stage point and the target as staging completes; the `preStageDist` step parameter as an independently tunable approach offset.
+
+---
+
 ## What's next: [Racing](#Racing)
 
 The Racing section takes the same shared block library in a different direction — instead of autonomous position control, it explores open-loop rates control and FPV racing maneuvers.

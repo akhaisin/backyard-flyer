@@ -1,0 +1,93 @@
+---
+order: 21
+simId: Backyard-Flyer/quad-c1b
+modelId: quad/quad-c1b
+---
+
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
+
+# Quad C1b — pre-staged chase
+
+**Quad C1b** extends the c1 chase scenario with a pre-staging leg, mirroring the w1b gate approach. Instead of immediately pursuing the target, the drone first flies to a fixed *pre-stage point* on the target's trajectory, then commits to direct pursuit from there.
+
+---
+
+## The scenario
+
+Same four-sided 10 × 10 m square as c1a. The key difference: each step has a `preStageDist` (5 m), so the drone first flies to the midpoint of the target's segment before switching to pursuit.
+
+| Step | Spawn | Destination | Pre-stage point |
+|------|-------|-------------|-----------------|
+| 0 | (5, 5, −5) | (5, 5, 5) | (5, 5, 0) |
+| 1 | (5, 5, 5) | (−5, 5, 5) | (0, 5, 5) |
+| 2 | (−5, 5, 5) | (−5, 5, −5) | (−5, 5, 0) |
+| 3 | (−5, 5, −5) | (5, 5, −5) | (0, 5, −5) |
+
+Once the drone reaches the pre-stage point it latches (`preGateDone = 1`) and switches to direct pursuit for the rest of the attempt.
+
+---
+
+## planner_c1b: pre-stage then pursue
+
+```
+if not staged (preGateDone == 0):
+  carrot = step.pos + preStageDist * normalize(step.dest − step.pos)
+  yaw    = face pre-stage point
+  if dist(quad, preStage) < PREGATE_THRESHOLD → latch preGateDone = 1
+
+if staged:
+  carrot = target_c1.pos   (direct pursuit, same as c1a)
+  yaw    = face target
+  if dist(quad, target) < threshold  → STATUS_COMPLETED
+  if target.phase == LAPPED          → STATUS_RESTART
+```
+
+The pre-stage latch resets on every non-NAVIGATE phase (restart fly-back, takeoff, RTH) so each new attempt starts with a fresh staging run.
+
+> **Try it:** reduce `preStageDist` toward 0 to approach c1a behaviour, or increase it to position the drone further along the trajectory — potentially ahead of the target.
+
+---
+
+## Watch it fly
+
+The staged indicator in the chart (`staged` series) flips from 0 → 1 when the drone reaches the pre-stage point. Notice the initial approach trajectory — it aims for the midpoint rather than the target directly.
+
+<SimVis />
+
+---
+
+## Mission and staging state
+
+`planner_c1b.preGateDone` shows staging status. It resets each attempt and latches once the pre-stage point is reached.
+
+<SimCharts varIds={[['mission.phase','planner_c1b.preGateDone','target_c1.phase','validator.restarts']]} />
+
+---
+
+## Distance to target
+
+<SimCharts varIds={[['mission.dist']]} />
+
+---
+
+## Position (XZ plane)
+
+<SimCharts varIds={[['pos.x','pos.z','target_c1.pos.x','target_c1.pos.z']]} />
+
+---
+
+## Edit the chase planner
+
+`planner_c1b` controls staging and pursuit. Try changing `PREGATE_THRESHOLD` or computing the pre-stage point differently (e.g., predict where the target will be in N ticks rather than using a fixed offset).
+
+<SimSource sourceIds={['planner_c1b']} autoHeight />
+
+---
+
+## Edit the target and lifecycle
+
+Tune `speed`, `threshold`, and `preStageDist` in the `lifecycle` block under `K.steps`.
+
+<SimSource sourceIds={['target_c1','lifecycle']} autoHeight />

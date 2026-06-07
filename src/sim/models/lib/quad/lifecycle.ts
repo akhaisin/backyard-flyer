@@ -17,8 +17,8 @@
 
 import type { BlockConfig, LifecycleConfig, ModelState, HookFn } from '../../../engine/types';
 import { compileSource } from '../../../engine/compile';
-import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES, STEP_TYPE_CTURN } from './consts';
-import type { QuadConsts, StepDef, CTurnStep } from './consts';
+import { STEP_TYPE_WP, STEP_TYPE_W1A, STEP_TYPE_W1B, STEP_TYPE_RATES, STEP_TYPE_CTURN, STEP_TYPE_C1A } from './consts';
+import type { QuadConsts, StepDef, CTurnStep, C1aStep } from './consts';
 
 // ── Source rendering (editable UI text + the default fns are compiled from it) ──
 
@@ -79,6 +79,18 @@ export function fmtStep(s: StepDef, cruiseAlt: number): string {
       const wps = cs.waypoints.map(w => `{ x: ${w.x}, y: ${fmtCoord(w.y, cruiseAlt, true)}, z: ${w.z} }`).join(', ');
       parts.push(`waypoints: [${wps}]`);
       parts.push(`durationTicks: ${cs.durationTicks}`);
+      if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
+      break;
+    }
+    case STEP_TYPE_C1A: {
+      const cs = s as C1aStep;
+      const dx = fmtCoord(cs.dest.x, cruiseAlt, false);
+      const dy = fmtCoord(cs.dest.y, cruiseAlt, true);
+      const dz = fmtCoord(cs.dest.z, cruiseAlt, false);
+      parts.push(`dest: { x: ${dx}, y: ${dy}, z: ${dz} }`);
+      parts.push(`speed: ${cs.speed}`);
+      parts.push(`threshold: ${cs.threshold}`);
+      if (cs.preStageDist !== undefined) parts.push(`preStageDist: ${cs.preStageDist}`);
       if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
       break;
     }

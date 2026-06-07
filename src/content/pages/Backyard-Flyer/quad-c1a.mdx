@@ -1,0 +1,165 @@
+---
+order: 20
+simId: Backyard-Flyer/quad-c1a
+modelId: quad/quad-c1a
+---
+
+import SimSource from '../../../widgets/SimSource.astro'
+import SimVis from '../../../widgets/SimVis.astro'
+import SimCharts from '../../../widgets/SimCharts.astro'
+
+# Quad C1a — direct-pursuit chase
+
+**Quad C1a** introduces a moving target. Instead of flying to a static waypoint, the drone must intercept a target that spawns at a fixed point and moves at constant speed toward a destination — then disappears. The challenge: close the distance before the target escapes.
+
+This is the first model in the **c** (chase) family. `c1` is the first algorithm family; `c1a` is the simplest variant — direct pursuit.
+
+---
+
+## The scenario
+
+Four steps form a 10 × 10 m square in the horizontal plane at cruise altitude.
+Each step: a target spawns at one corner, slides along a side at 4 m/s, and
+vanishes when it reaches the next corner (2.5 seconds of flight time). The drone
+must get within **2.5 m** of the target before it disappears.
+
+| Step | Spawn | Destination | Direction |
+|------|-------|-------------|-----------|
+| 0 | (5, 5, −5) | (5, 5, 5) | East side, heading +Z |
+| 1 | (5, 5, 5) | (−5, 5, 5) | North side, heading −X |
+| 2 | (−5, 5, 5) | (−5, 5, −5) | West side, heading −Z |
+| 3 | (−5, 5, −5) | (5, 5, −5) | South side, heading +X |
+
+If the drone fails to intercept before the target arrives, the mission enters
+**PHASE_RESTART**: the drone flies back to the step's spawn point and tries again.
+
+---
+
+## Block architecture
+
+Two blocks are new to the c1 family:
+
+```
+lifecycle (K)
+    │
+    ▼
+wind ──► world ──► noise ──► mission ──► target_c1 ──► planner_c1a ──► navigator_w1 ──► fc_acro ──► hw ──► world
+                               ▲             │                │ ▲
+                               │             └── pos/phase ──►│ │
+                               └── statusReturn ─── planner_wp ─┘
+```
+
+| Block | Role |
+|-------|------|
+| `target_c1` | **New (c1 family).** Kinematic ghost: reads `step.pos`, `step.dest`, `step.speed` from `K`; slides a point in space at constant speed; emits `target_c1.pos` and `target_c1.phase` |
+| `planner_c1a` | **New (c1a variant).** Direct pursuit: sets `carrot = target_c1.pos` each tick. Reports `STATUS_COMPLETED` when within threshold, `STATUS_RESTART` when target escapes |
+| `navigator_w1` | Shared w1-family navigator — unchanged. Tracks the carrot using the same PID cascade as the gate models |
+| `mission` | Shared sequencer — unchanged. Handles arming, takeoff, step advancement, RTH, and PHASE_RESTART fly-backs |
+| `planner_wp` | Shared proximity checker — reused to detect arrival at the restart anchor |
+
+---
+
+## target_c1: the kinematic ghost
+
+The target has no physics, no sensors, no flight controller. It is a single point
+that moves along a line:
+
+```
+each tick:
+  if mission.phase ≠ NAVIGATE → reset to step.pos (wait)
+  else if new step → spawn at step.pos, phase = MOVING
+  else → advance pos toward dest at (speed × DT) per tick
+          if reached dest → phase = ARRIVED
+```
+
+Because it resets when `mission.phase` leaves `NAVIGATE`, a restart (fly-back)
+automatically resets the target. When the drone returns and `NAVIGATE` resumes,
+the target spawns fresh.
+
+---
+
+## planner_c1a: direct pursuit
+
+The simplest possible pursuit strategy — just chase the target's current position:
+
+```
+carrot = target_c1.pos   (updated every tick)
+yaw   = atan2(target.x − quad.x, target.z − quad.z)
+
+if dist(quad, target) < threshold  → STATUS_COMPLETED
+if target.phase == ARRIVED         → STATUS_RESTART
+else                               → STATUS_RUNNING
+```
+
+This is a **reactive** strategy: the drone always heads toward where the target
+*is*, not where it *will be*. A predictive variant (`c1b`) would compute an
+intercept point ahead of the target, reaching it sooner and with a smaller
+intercept angle.
+
+> **Try it:** increase `speed` in a step to make the target harder to catch,
+> or tighten `threshold` to require a closer approach.
+
+---
+
+## Watch it fly
+
+The orange sphere is the target. It moves along the trajectory line (dim orange)
+for each step. When the drone intercepts it the step advances; if the target
+reaches its destination first, the drone restarts that leg.
+
+<SimVis />
+
+---
+
+## Mission and target state
+
+`phase` cycling through NAVIGATE (2) and RESTART (7) marks missed intercepts.
+`target_c1.phase` shows the target lifecycle: 0 = idle, 1 = moving, 2 = arrived (escaped).
+
+<SimCharts varIds={[['mission.phase','mission.stepIdx','target_c1.phase','validator.restarts']]} />
+
+---
+
+## Distance to target
+
+The drone must bring this below `threshold` (2.5 m) while `target_c1.phase = 1`.
+
+<SimCharts varIds={[['mission.dist']]} />
+
+---
+
+## Position (XZ plane)
+
+Quad X/Z track the target X/Z during each chase leg.
+
+<SimCharts varIds={[['pos.x','pos.z','target_c1.pos.x','target_c1.pos.z']]} />
+
+---
+
+## Edit the chase planner
+
+`planner_c1a` implements direct pursuit. Try changing the strategy — for example,
+predict the intercept point by extrapolating the target's velocity over a few ticks.
+
+<SimSource sourceIds={['planner_c1a']} autoHeight />
+
+---
+
+## Edit the target
+
+`target_c1` controls how the target moves. Change `step.speed` or add acceleration.
+Note that `step.dest`, `step.speed`, and `step.threshold` are set in the `lifecycle`
+block under `K.steps` — edit them there to tune the scenario.
+
+<SimSource sourceIds={['target_c1','lifecycle']} autoHeight />
+
+---
+
+## Edit the navigator
+
+`navigator_w1` is the shared w1-family navigator — the same block used by the gate
+models. In a chase scenario the carrot changes every tick (it follows the moving
+target) rather than being a fixed lookahead, so the navigator is already working
+harder than in gate flight.
+
+<SimSource sourceIds={['navigator_w1']} autoHeight />
