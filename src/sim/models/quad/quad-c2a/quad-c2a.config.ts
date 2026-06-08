@@ -473,6 +473,7 @@ export function quadC2aConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     ...QUAD_DEFAULTS,
     ...sharedOverrides,
     KI_POS:      0.3,
+    MAX_INT_POS: 5,
     MAX_TILT:    0.4,
     KP_YAW_OUTER: 5.0,
     YAW_MEAS_LPF: 0.35,

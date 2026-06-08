@@ -33,5 +33,5 @@ export const C2A_TARGET_ROUTE: WpStep[] = [
 export const C2A_INTERCEPTOR_STEP: C2aStep = {
   type:      STEP_TYPE_C2A,
   pos:       { x: INTERCEPTOR_HOME.x, y: CRUISE_ALT, z: INTERCEPTOR_HOME.z },
-  threshold: 1.5,
+  threshold: 1.0,
 };
