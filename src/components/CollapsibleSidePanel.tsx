@@ -69,12 +69,12 @@ export default function CollapsibleSidePanel({
       ) : (
         /* ── Expanded (all positions) or collapsed bottom ── */
         <>
-          <div className={`${styles.titleBar} ${styles[`titleBar--${position}`]}`}>
-            <button
-              onClick={toggle}
-              className={styles.toggleBtn}
-              title={collapsed ? 'Expand' : 'Collapse'}
-            >
+          <div
+            className={`${styles.titleBar} ${styles[`titleBar--${position}`]}`}
+            onClick={toggle}
+            title={collapsed ? 'Expand' : 'Collapse'}
+          >
+            <button className={styles.toggleBtn} tabIndex={-1} aria-hidden>
               {arrow}
             </button>
             {title && <span className={styles.titleText}>{title}</span>}

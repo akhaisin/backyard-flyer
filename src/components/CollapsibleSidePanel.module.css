@@ -17,6 +17,8 @@
   flex-shrink: 0;
   gap: 2px;
   background: var(--color-bg-elevated);
+  cursor: pointer;
+  user-select: none;
 }
 
 .titleBar--left,
