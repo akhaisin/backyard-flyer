@@ -148,6 +148,9 @@ export type QuadConsts = {
   MAX_YAW_RATE: number;        // yaw setpoint slew cap (rad/s)
   YAW_SLEW_LPF: number;        // first-order smoothing on the yaw setpoint (0..1; 1 = off)
 
+  // ── planner_c2a (live-target intercept planner) ──
+  LEAD_DIST: number;           // meters ahead of target's current heading to place the carrot
+
   // ── hw (motor spool-up) ──
   THRUST_RATE_N_PER_S: number;
 
@@ -220,6 +223,8 @@ export const QUAD_DEFAULTS: QuadConsts = {
   LOOKAHEAD: 4.0,
   MAX_YAW_RATE: Math.PI / 2,
   YAW_SLEW_LPF: 0.2,
+
+  LEAD_DIST: 3.0,
 
   THRUST_RATE_N_PER_S: 40,
 

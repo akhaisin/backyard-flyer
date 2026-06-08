@@ -1,39 +1,42 @@
-// planner_c2a — pre-staged live-target pursuit planner for the c2 chase family.
+// planner_c2a — velocity-lead intercept planner for the c2 chase family.
 //
-// Unlike the c1 family where the target is a kinematic ghost, here `targetPos`
-// is the true physics position of a real simulated vehicle. Pre-staging works
-// the same way as planner_c1b: fly to `step.pos` first, latch `preGateDone`,
-// then switch to direct pursuit.
+// Places the carrot K.LEAD_DIST metres ahead of the target along its current
+// heading (deviated pure pursuit). The target's velocity is estimated from the
+// last two positions kept in planner state (prevTargetPos1 = 1-tick-ago).
 //
-// STATUS_FAILED fires when the target completes its circuit (targetPhase >= 3,
-// i.e. RTH or later) — this sends the interceptor through a full RTH/land cycle
-// rather than the quick anchor-fly-back of STATUS_RESTART. One intercept
-// (dist < threshold) → STATUS_COMPLETED → mission advances (one-step restriction → RTH).
+// Why not a geometric intercept solve?  The navigator uses a damped PD cascade,
+// not straight-line travel at a fixed speed, so a quadratic-solve intercept
+// time T is systematically wrong.  Velocity lead avoids the model-mismatch
+// problem and adapts naturally to the target's curved path.
 //
-// Yaw:
-//   • Pre-stage leg → face step.pos
-//   • Pursuit leg   → face the target vehicle's current position
-//   • Non-navigate  → face step.pos, reset preGateDone
+// Pre-staging works the same way as planner_c1b: fly to step.pos first (latch
+// preGateDone), then switch to velocity-lead pursuit.
+//
+// STATUS_FAILED fires when the target completes its circuit (targetPhase ≥ RTH).
 
 type Vec3 = { x: number; y: number; z: number };
 type Step = { pos: Vec3; threshold?: number };
+type PlannerK = { LEAD_DIST: number };
 
 type PlannerIn = {
-  pos:          Vec3;
-  targetPos:    Vec3;
-  targetPhase:  number;
-  step:         Step;
-  armed:        number;
-  phase:        number;
-  yawSetpoint:  number;
-  preGateDone:  number;
+  pos:            Vec3;
+  targetPos:      Vec3;
+  prevTargetPos1: Vec3;   // targetPos from 1 tick ago
+  targetPhase:    number;
+  step:           Step;
+  armed:          number;
+  phase:          number;
+  yawSetpoint:    number;
+  preGateDone:    number;
+  K:              PlannerK;
 };
 
 type PlannerOut = {
-  carrot:      Vec3;
-  yawSetpoint: number;
-  stepStatus:  number;
-  preGateDone: number;
+  carrot:         Vec3;
+  yawSetpoint:    number;
+  stepStatus:     number;
+  preGateDone:    number;
+  prevTargetPos1: Vec3;   // current targetPos → prev1 next tick
 };
 
 const NAVIGATE          = 2;
@@ -56,11 +59,15 @@ function faceTarget(pos: Vec3, target: Vec3, prev: number): number {
 }
 
 export function planner_c2a(state: PlannerIn): PlannerOut {
+  // Shift history every tick so velocity estimate is always current.
+  const newPrev1 = state.targetPos;
+
   const navigating = !!state.armed && Math.round(state.phase) === NAVIGATE;
 
   if (!navigating) {
     const yaw = faceTarget(state.pos, state.step.pos, state.yawSetpoint);
-    return { carrot: state.step.pos, yawSetpoint: yaw, stepStatus: STATUS_RUNNING, preGateDone: 0 };
+    return { carrot: state.step.pos, yawSetpoint: yaw, stepStatus: STATUS_RUNNING,
+             preGateDone: 0, prevTargetPos1: newPrev1 };
   }
 
   let preGateDone = Math.round(state.preGateDone);
@@ -70,24 +77,40 @@ export function planner_c2a(state: PlannerIn): PlannerOut {
       preGateDone = 1;
     } else {
       const yaw = faceTarget(state.pos, state.step.pos, state.yawSetpoint);
-      return { carrot: state.step.pos, yawSetpoint: yaw, stepStatus: STATUS_RUNNING, preGateDone: 0 };
+      return { carrot: state.step.pos, yawSetpoint: yaw, stepStatus: STATUS_RUNNING,
+               preGateDone: 0, prevTargetPos1: newPrev1 };
     }
   }
 
-  // Target completed its circuit — abort via STATUS_FAILED so the interceptor
-  // follows the full RTH/land sequence instead of the quick anchor-fly-back.
   if (Math.round(state.targetPhase) >= PHASE_RTH) {
     const yaw = faceTarget(state.pos, state.targetPos, state.yawSetpoint);
-    return { carrot: state.targetPos, yawSetpoint: yaw, stepStatus: STATUS_FAILED, preGateDone };
+    return { carrot: state.targetPos, yawSetpoint: yaw, stepStatus: STATUS_FAILED,
+             preGateDone, prevTargetPos1: newPrev1 };
   }
 
-  const threshold = state.step.threshold ?? 2.0;
+  // ── Velocity-lead (deviated pure pursuit) ────────────────────────────────
+  // Estimate target velocity from position history, then place the carrot
+  // LEAD_DIST metres ahead of the target along its current heading.
+  const vx = state.targetPos.x - state.prevTargetPos1.x;
+  const vy = state.targetPos.y - state.prevTargetPos1.y;
+  const vz = state.targetPos.z - state.prevTargetPos1.z;
+  const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+
+  const scale = speed > 0.01 ? state.K.LEAD_DIST / speed : 0;
+  const carrot = {
+    x: state.targetPos.x + vx * scale,
+    y: Math.max(1.0, state.targetPos.y + vy * scale),
+    z: state.targetPos.z + vz * scale,
+  };
+
   const d         = dist3(state.pos, state.targetPos);
-  const yaw       = faceTarget(state.pos, state.targetPos, state.yawSetpoint);
+  const threshold = state.step.threshold ?? 2.0;
+  const yaw       = faceTarget(state.pos, carrot, state.yawSetpoint);
 
   if (d < threshold) {
-    return { carrot: state.targetPos, yawSetpoint: yaw, stepStatus: STATUS_COMPLETED, preGateDone };
+    return { carrot, yawSetpoint: yaw, stepStatus: STATUS_COMPLETED,
+             preGateDone, prevTargetPos1: newPrev1 };
   }
-
-  return { carrot: state.targetPos, yawSetpoint: yaw, stepStatus: STATUS_RUNNING, preGateDone };
+  return { carrot, yawSetpoint: yaw, stepStatus: STATUS_RUNNING,
+           preGateDone, prevTargetPos1: newPrev1 };
 }

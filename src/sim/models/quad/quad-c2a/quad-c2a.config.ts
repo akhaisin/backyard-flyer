@@ -135,7 +135,8 @@ function interceptorVehicleInit(): ModelState {
       segStart: { x: INTERCEPTOR_HOME.x, y: 5, z: INTERCEPTOR_HOME.z },
       segEnd:   { ...step.pos },
     },
-    planner: { carrot: { ...vec0 }, yawSetpoint: 0, stepStatus: 0, preGateDone: 0 },
+    planner: { carrot: { ...vec0 }, yawSetpoint: 0, stepStatus: 0, preGateDone: 0,
+               prevTargetPos1: { ...vec0 } },
     planner_wp: { stepStatus: 0 },
     validator: { ...validatorInit },
   };
@@ -341,18 +342,23 @@ function interceptorBlocks() {
       defaultFn: (s: ModelState) => planner_c2a(s as Parameters<typeof planner_c2a>[0]),
       defaultCode: plannerC2aCode,
       mapStateIn: (s: ModelState) => ({
-        pos:          (vi(s).sensors as ModelState).pos,
-        targetPos:    vt(s).pos,                           // true physics pos of target
-        targetPhase:  (vt(s).mission as ModelState).phase,
-        step:         (vi(s).mission as ModelState).step,
-        armed:        (vi(s).mission as ModelState).armed,
-        phase:        (vi(s).mission as ModelState).phase,
-        yawSetpoint:  (vi(s).planner as ModelState).yawSetpoint,
-        preGateDone:  (vi(s).planner as ModelState).preGateDone,
-        K:            interceptorK(s),
+        pos:             (vi(s).sensors as ModelState).pos,
+        targetPos:       vt(s).pos,                            // true physics pos of target
+        prevTargetPos1:  (vi(s).planner as ModelState).prevTargetPos1,
+        targetPhase:     (vt(s).mission as ModelState).phase,
+        step:            (vi(s).mission as ModelState).step,
+        armed:           (vi(s).mission as ModelState).armed,
+        phase:           (vi(s).mission as ModelState).phase,
+        yawSetpoint:     (vi(s).planner as ModelState).yawSetpoint,
+        preGateDone:     (vi(s).planner as ModelState).preGateDone,
+        K:               interceptorK(s),
       }),
       mapStateOut: (out: ModelState, s: ModelState) => writeVehicle(s, 'interceptor', {
-        planner: { carrot: out.carrot, yawSetpoint: out.yawSetpoint, stepStatus: out.stepStatus, preGateDone: out.preGateDone },
+        planner: {
+          carrot: out.carrot, yawSetpoint: out.yawSetpoint,
+          stepStatus: out.stepStatus, preGateDone: out.preGateDone,
+          prevTargetPos1: out.prevTargetPos1,
+        },
       }),
       tickFrequency: 1,
     },
