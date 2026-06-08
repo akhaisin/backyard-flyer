@@ -29,7 +29,7 @@ The target flies a 10 × 10 m square displaced **+10 m on both X and Z** from th
 
 The target homes at (10, 0, 10) — the centre of its square. It takes off, flies the four waypoints, returns home, lands, and immediately restarts.
 
-The interceptor homes at the origin. It pre-stages at **(10, 5, 5)** — midway along the target's south side — then switches to direct pursuit once the stage point is reached. One successful intercept (within 1.5 m) ends the round with RTH. If the target completes its circuit before being caught, the interceptor restarts.
+The interceptor homes at **(-5, 0, -5)** — outside the target's square, clear of the circuit. Its pre-stage point is its own home pad, so after takeoff it is already there: pursuit begins immediately with no detour. A successful intercept (within 1.5 m) sends the interceptor to RTH and simultaneously forces the target to RTH as well — both reset and the next round begins. If the target completes its circuit before being caught, the interceptor restarts for another attempt.
 
 ---
 
@@ -58,7 +58,7 @@ state.vehicles.interceptor
 | `mission_target` | Standard lib mission FSM: arms, takes off, navigates the four WP corners, RTHs, loops |
 | `planner_wp_target` | Proximity checker for the target's waypoints — identical to the L4 planner |
 | `navigator_target` | `navigator_wp` — drives to `step.pos` with full angular-rate feedback; the same navigator used by every disturbance model in the shared lib |
-| `planner_c2a` | **New.** Pre-stage then live-target pursuit: fly to `step.pos`, latch `preGateDone`, then chase `vehicles.target.pos`; `STATUS_FAILED` when target enters RTH |
+| `planner_c2a` | **New.** Pre-stage then velocity-lead pursuit: fly to `step.pos` (the interceptor's home pad — already there after takeoff), latch `preGateDone`, then place the carrot `K.LEAD_DIST` m ahead of the target in its current heading; `STATUS_COMPLETED` triggers `forceRTH` on the target; `STATUS_FAILED` when target enters RTH |
 | `navigator_interceptor` | `navigator_c2` — dedicated navigator for the c2 chase family; currently shares the same outer-P carrot loop as `navigator_w1`, reserved for future pursuit algorithm development |
 
 ---
@@ -75,7 +75,7 @@ The interceptor cannot rely on the target appearing at a predictable position at
 
 ---
 
-## planner_c2a: pre-stage then live pursuit
+## planner_c2a: pre-stage then velocity-lead pursuit
 
 ```
 if not navigating:
@@ -87,29 +87,39 @@ if preGateDone == 0:
 
 if preGateDone == 1:
   if target.mission.phase ≥ RTH (3) → STATUS_FAILED   (target escaped)
+  vel   = targetPos − prevTargetPos1          (per-tick velocity estimate)
+  speed = |vel|
+  scale = K.LEAD_DIST / speed                 (zero if target is stationary)
+  carrot = targetPos + vel × scale            (LEAD_DIST m ahead in target's heading)
+  yaw   = face carrot
   if dist(quad, target.pos) < threshold (1.5 m) → STATUS_COMPLETED
-  else → carrot = target.pos, yaw = face target.pos
 ```
 
-The `STATUS_FAILED` trigger differs from c1b: instead of watching for a `TARGET_LAPPED` phase on a ghost, it watches the target vehicle's mission phase. Once the target enters `PHASE_RTH` (phase ≥ 3) it has completed its circuit — the round is over and the interceptor RTHs. `STATUS_FAILED` (rather than `STATUS_RESTART`) was chosen because there is no recoverable retry within the current round; the interceptor must land, reset, and start a fresh attempt from the staging point.
+The pre-stage point is the interceptor's own home pad, so `preGateDone` latches immediately after takeoff — there is no detour.
 
-> **Try it:** edit `step.pos` in the lifecycle's `stepsInterceptor` to change where the interceptor stages. Moving it closer to a corner forces a tighter pursuit angle.
+**Velocity-lead (deviated pure pursuit)** places the carrot a fixed distance ahead of the target along its current velocity direction rather than at the target itself. Because the carrot follows the target's actual heading each tick, it adapts naturally to corners on the circuit without any intercept-time solve or model-speed assumption. Compared to direct pursuit (`carrot = targetPos`) the interceptor arrives on the intercept arc earlier instead of always trailing behind.
+
+**`STATUS_COMPLETED` and target restart**: when the interceptor closes within 1.5 m, the planner sets `stepStatus = 1`. On the next tick `mission_target` reads this and receives `forceRTH = 1`, sending the target straight to RTH. Both vehicles reset simultaneously and the next round begins.
+
+`STATUS_FAILED` fires when the target enters `PHASE_RTH` on its own (circuit complete, not intercepted). The interceptor RTHs; the target continues its natural landing sequence and restarts independently.
 
 ---
 
 ## Watch it fly
 
-The red quad is the target; the blue quad is the interceptor. Red spheres mark the target's four waypoints (bright = active, dim = pending, dark = done). The interceptor's trail shows the pre-stage approach followed by the pursuit arc. A full-screen banner flashes **INTERCEPTED** on a successful close, or **INTERCEPTION FAILED** when the target escapes.
+The red quad is the target; the blue quad is the interceptor. Red spheres mark the target's four waypoints (bright = active, dim = pending, dark = done). A guide line shows the vector from the interceptor to its current velocity-lead carrot. A full-screen banner flashes **INTERCEPTED** on a successful close, or **INTERCEPTION FAILED** when the target escapes.
 
 The bottom-left HUD has five toggles:
 
-| Toggle | Effect |
-|--------|--------|
-| **Intercept** | ON (default) — interceptor arms and pursues normally. OFF — interceptor stays in ARMING (infinite arming ticks); toggling back ON arms it immediately without waiting for the target's cycle. |
-| **Wind** | Zeroes the wind block at source — windsock and wind chart go to zero. |
-| **Noise** | Zeroes all sensor noise standard deviations at the noise blocks — both vehicles fly on clean sensor readings. |
-| **Trail** | Show/hide the interceptor's position trail. |
-| **Guide** | Show/hide the guide line from the interceptor to its current carrot. |
+| Toggle | Default | Effect |
+|--------|---------|--------|
+| **Intercept** | ON | Interceptor arms and pursues normally. OFF — interceptor stays in ARMING; toggling back ON arms it immediately. |
+| **Wind** | OFF | Zeroes the wind block at source — windsock and wind chart go to zero. |
+| **Noise** | OFF | Zeroes all sensor noise standard deviations — both vehicles fly on clean readings. |
+| **Trail** | OFF | Show/hide the interceptor's position trail. |
+| **Guide** | ON | Show/hide the guide line from the interceptor to its current carrot. |
+
+The bottom-right HUD has a **Trail** toggle (OFF by default) for the target's position trail.
 
 <SimVis />
 
@@ -125,7 +135,7 @@ The bottom-left HUD has five toggles:
 
 ## Mission phases
 
-Both vehicles run independent mission FSMs. Watch the target cycle through TAKEOFF (1) → NAVIGATE (2) → RTH (3) → LAND (4) → DONE (6) while the interceptor does the same — it has no RESTART phase; a missed intercept (STATUS_FAILED) sends it straight to RTH, not back to a restart anchor.
+Both vehicles run independent mission FSMs. A successful intercept resets both simultaneously: the interceptor reaches RTH normally; the target receives a `forceRTH` pulse and cuts its circuit short, landing and restarting for the next round. A failed intercept (STATUS_FAILED) sends the interceptor to RTH while the target finishes its natural landing sequence independently.
 
 <SimCharts varIds={[['vehicles.interceptor.mission.phase','vehicles.target.mission.phase']]} />
 
@@ -133,7 +143,7 @@ Both vehicles run independent mission FSMs. Watch the target cycle through TAKEO
 
 ## Speed comparison
 
-The target's speed varies as its position controller accelerates away from home and brakes at each corner. The interceptor spikes when pursuing then drops at staging.
+The target's speed varies as its position controller accelerates away from home and brakes at each corner. The interceptor spikes as it closes on the target, then drops to zero after landing and before each new attempt.
 
 <SimCharts varIds={[['vehicles.interceptor.vel.x','vehicles.interceptor.vel.z','vehicles.target.vel.x','vehicles.target.vel.z']]} />
 
@@ -141,7 +151,7 @@ The target's speed varies as its position controller accelerates away from home 
 
 ## Edit the intercept planner
 
-`planner_c2a` controls staging and pursuit. The pre-stage point is fixed at `step.pos`; the pursuit target is the live vehicle position. Try extending this to lead pursuit — compute where the target will be in N ticks and aim there instead.
+`planner_c2a` implements **velocity-lead pursuit**: it estimates the target's per-tick velocity from the last two positions (`targetPos − prevTargetPos1`) and places the carrot `K.LEAD_DIST` metres ahead in that direction. Try changing `LEAD_DIST` in the `lifecycle` block (under `interceptor:`) to see how the lead distance trades off between cutting ahead of the target and overshooting.
 
 <SimSource sourceIds={['planner_c2a']} autoHeight />
 

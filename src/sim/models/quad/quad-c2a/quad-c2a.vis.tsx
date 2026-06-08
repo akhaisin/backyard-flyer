@@ -95,8 +95,8 @@ const NEUTRAL_TEXT  = 'rgba(255, 255, 255, 0.85)';
 const TOGGLE_LABEL_W = 66;
 
 const sceneHandler = composeScene(() => {
-  const interceptorTrailRef = { enabled: true };
-  const targetTrailRef      = { enabled: true };
+  const interceptorTrailRef = { enabled: false };
+  const targetTrailRef      = { enabled: false };
   const guideRef            = { enabled: true };
 
   return [
@@ -148,7 +148,7 @@ const sceneHandler = composeScene(() => {
     },
   ),
   textLabel({
-    text: 'Quad C2a\nChase & intercept (first-class target)\ntarget_wp + planner_c2a / navigator_w1',
+    text: 'Quad C2a\nChase & intercept (first-class target)\nplanner_c2a: velocity-lead / navigator_c2',
     position: [-15, 0, -15],
     fontSize: 30,
   }),

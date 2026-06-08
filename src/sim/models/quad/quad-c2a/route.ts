@@ -5,10 +5,9 @@
 // target's circuit. The target follows four WP waypoints — each corner of the
 // square — looping indefinitely via the normal mission DONE→ARMING restart.
 //
-// INTERCEPTOR: a single C2a step. The interceptor pre-stages at pos (10, 5, 5)
-// — on the south edge of the target's square — then pursues the live target
-// position.  One-step mission restriction means one intercept = STATUS_COMPLETED
-// → RTH. Shift the pos toward a different corner to change staging geometry.
+// INTERCEPTOR: a single C2a step. The pre-stage pos is the interceptor's own
+// home pad, so preGateDone latches right after takeoff and pursuit starts
+// immediately without any detour. One intercept = STATUS_COMPLETED → RTH.
 
 import { STEP_TYPE_WP, STEP_TYPE_C2A } from '../../lib/quad/consts';
 import type { WpStep, C2aStep } from '../../lib/quad/consts';
@@ -29,9 +28,10 @@ export const C2A_TARGET_ROUTE: WpStep[] = [
   { type: STEP_TYPE_WP, pos: { x:  5, y: CRUISE_ALT, z:  5 }, threshold: 2.0 },
 ];
 
-// Interceptor pre-stages at the midpoint of the target's first leg then pursues.
+// Interceptor pre-stages at its own home pad — after takeoff it is already there,
+// so preGateDone latches immediately and pursuit begins without any detour.
 export const C2A_INTERCEPTOR_STEP: C2aStep = {
   type:      STEP_TYPE_C2A,
-  pos:       { x: 10, y: CRUISE_ALT, z: 5 },
+  pos:       { x: INTERCEPTOR_HOME.x, y: CRUISE_ALT, z: INTERCEPTOR_HOME.z },
   threshold: 1.5,
 };

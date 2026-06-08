@@ -35,8 +35,8 @@ import type { ModelConfig, ModelState } from '../../../engine/types';
 // mission_interceptor.mapStateIn reads .enabled each tick, so the toggle takes
 // effect without any engine changes.
 export const interceptEnabled = { enabled: true };
-export const windEnabled      = { enabled: true };
-export const noiseEnabled     = { enabled: true };
+export const windEnabled      = { enabled: false };
+export const noiseEnabled     = { enabled: false };
 
 // ── State accessors ─────────────────────────────────────────────────────────
 
@@ -166,21 +166,18 @@ function targetBlocks() {
       exportName: 'mission',
       defaultFn: (s: ModelState) => mission(s as Parameters<typeof mission>[0]),
       defaultCode: missionCode,
-      mapStateIn: (s: ModelState) => {
-        const iPhase    = Math.round((vi(s).mission as ModelState).phase as number);
-        const intercept = interceptEnabled.enabled;
-        return {
-          pos:          (vt(s).sensors as ModelState).pos,
-          phase:        (vt(s).mission as ModelState).phase,
-          stepIdx:      (vt(s).mission as ModelState).stepIdx,
-          ticksInPhase: (vt(s).mission as ModelState).ticksInPhase,
-          armed:        (vt(s).mission as ModelState).armed,
-          statusWp:     (vt(s).planner_wp as ModelState).stepStatus,
-          // Abort target when interceptor is mid-RTH so both reset together.
-          forceRTH:     (intercept && iPhase >= 3 && iPhase <= 5) ? 1 : 0,
-          K:            targetK(s),
-        };
-      },
+      mapStateIn: (s: ModelState) => ({
+        pos:          (vt(s).sensors as ModelState).pos,
+        phase:        (vt(s).mission as ModelState).phase,
+        stepIdx:      (vt(s).mission as ModelState).stepIdx,
+        ticksInPhase: (vt(s).mission as ModelState).ticksInPhase,
+        armed:        (vt(s).mission as ModelState).armed,
+        statusWp:     (vt(s).planner_wp as ModelState).stepStatus,
+        // Pulse forceRTH for one tick when the interceptor's planner reports
+        // STATUS_COMPLETED (= 1): the target RTHs and restarts its circuit.
+        forceRTH:     Math.round((vi(s).planner as ModelState).stepStatus as number) === 1 ? 1 : 0,
+        K:            targetK(s),
+      }),
       mapStateOut: (out: ModelState, s: ModelState) => writeVehicle(s, 'target', {
         mission: {
           ...(vt(s).mission as ModelState),

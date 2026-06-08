@@ -141,13 +141,13 @@ The pre-stage position is derived from static step data (`pos + preStageDist × 
 
 C2a marks the boundary between the c1 and c2 families: the target is no longer a kinematic ghost but a **fully simulated quadrotor** running the same shared block stack as the interceptor — sensor noise, a WP mission FSM, a flight controller, hardware dynamics, and physics. The target flies a 10 × 10 m square displaced +10 on both X and Z axes, well outside the interceptor's launch pad at the origin. Both vehicles are affected by the same wind; neither behaves identically run to run.
 
-The interceptor uses `planner_c2a`, which mirrors C1b's pre-stage structure: fly to a fixed staging point (`step.pos = (10, 5, 5)`), latch `preGateDone`, then switch to live pursuit of `vehicles.target.pos`. `STATUS_FAILED` fires when the target's mission phase reaches RTH (phase ≥ 3) — meaning the target completed its circuit unintercepted. The target runs `navigator_wp` (same as L4/Noise) for stable position control; the interceptor runs `navigator_c2`, a dedicated navigator reserved for future pursuit algorithm development. Five HUD toggles let you disable the Intercept mission, Wind, Noise, or the trail/guide overlays without editing any source block.
+The interceptor uses `planner_c2a`: its pre-stage point is its own home pad, so pursuit begins immediately after takeoff with no detour. The planner estimates the target's velocity from two consecutive positions and places the carrot `K.LEAD_DIST` metres ahead in the target's current heading — **velocity-lead pursuit** (deviated pure pursuit), which adapts to the target's corners without any intercept-time solve. A successful intercept pulses `forceRTH` on the target, resetting both vehicles simultaneously for the next round. `STATUS_FAILED` fires when the target's mission phase reaches RTH on its own (circuit completed unintercepted). The target runs `navigator_wp` (same as L4/Noise) for stable position control; the interceptor runs `navigator_c2`, a dedicated navigator reserved for future pursuit algorithm development. Wind and Noise are off by default; five HUD toggles let you enable them or hide the trail/guide overlays without editing source.
 
 **What it introduces:** the c2 chase family — symmetric dual-vehicle state layout (`state.vehicles.target` / `state.vehicles.interceptor`), shared lib blocks wrapped to vehicle-specific state paths, cross-vehicle state reads in a planner block, and a physically realistic target whose inertia and wind coupling make pure direct pursuit insufficient for reliable intercepts.
 
 ---
 
-## What's next: [Racing](#Racing)
+## What's next: [Racing](#Racing/default)
 
 The Racing section takes the same shared block library in a different direction — instead of autonomous position control, it explores open-loop rates control and FPV racing maneuvers.
 
