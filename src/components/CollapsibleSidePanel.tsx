@@ -56,6 +56,7 @@ export default function CollapsibleSidePanel({
       collapsedSize={COLLAPSED_SIZE}
       onResize={handleResize}
       className={`${styles.panel} ${styles[`panel--${position}`]}`}
+      style={{ overflow: 'hidden' }}
     >
       {isVertical && collapsed ? (
         /* ── Collapsed vertical bar ── */

@@ -2,7 +2,6 @@
 .panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .panel--left   { border-right: 1px solid var(--color-border-soft); }
