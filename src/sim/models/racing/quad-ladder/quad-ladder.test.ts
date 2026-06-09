@@ -186,7 +186,10 @@ describe('quad-ladder route', () => {
     const s = scoreRoute(history, true);
     const straight = straightSpeedStats(history);
     const lapSeconds = s.frames * SIM_DT;
-    const BASELINE_LAP_SECONDS = 47.0;
+    // Reference run: 23.05 s. Every cturn completes on swept angle; a regression
+    // into timeout-driven completion (arcs crawling at the old ~0.8 m/s carrot
+    // pace) pushes the lap past 39 s, which this gate catches with room to spare.
+    const BASELINE_LAP_SECONDS = 25.0;
 
     console.info(
       `[ladder-arc] lapSeconds=${lapSeconds.toFixed(2)} frames=${s.frames}` +

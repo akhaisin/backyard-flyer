@@ -51,6 +51,8 @@ type PlannerConsts = {
     MAX_THRUST_N: number;
     MAX_RATE_ROLL_PITCH: number;
     MAX_RATE_YAW: number;
+    KP_POS: number;
+    KD_POS: number;
 };
 
 type PlannerIn = {
@@ -240,7 +242,13 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
     : -((theta0 - thetaCurrent + 4 * Math.PI) % (2 * Math.PI));
   const sweptSoFar = rawSwept * dirSign <= Math.abs(sweep) + 0.3 ? rawSwept : 0;
   const progressGeom = clamp((sweptSoFar * dirSign) / Math.max(Math.abs(sweep), 1e-6), 0, 1);
-  const lookaheadFrac = clamp((vH * state.K.DT) / Math.max(arcLen, 1e-3) * 2.2, 0.02, 0.08);
+  // The carrot must sit far enough ahead that the navigator's PD position chase
+  // sustains the nominal pace: steady-state speed toward a point d ahead is
+  // v = KP_POS·d/KD_POS, so d = v·KD_POS/KP_POS (×1.15 margin so the chase
+  // doesn't equilibrate just below vNom). Too short a lookahead caps the chase
+  // at ~KP_POS·d/KD_POS m/s and the arc times out instead of completing.
+  const carrotDist = Math.max(vNom, vH) * state.K.KD_POS / state.K.KP_POS * 1.15;
+  const lookaheadFrac = clamp(carrotDist / Math.max(arcLen, 1e-3), 0.02, 0.5);
   const targetProgress = clamp(progressGeom + lookaheadFrac, 0, 1);
   const thetaRef = theta0 + sweep * targetProgress;
   const targetX  = cx + r * Math.cos(thetaRef);
