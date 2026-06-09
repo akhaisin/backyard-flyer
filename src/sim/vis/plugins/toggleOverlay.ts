@@ -85,7 +85,7 @@ export function toggleOverlay(
         fontSize:      '12px',
         color:         'rgba(255, 255, 255, 0.85)',
         background:    BG,
-        padding:       '6px 10px',
+        padding:       '1px 10px',
         borderRadius:  '4px',
         userSelect:    'none',
         cursor:        'pointer',

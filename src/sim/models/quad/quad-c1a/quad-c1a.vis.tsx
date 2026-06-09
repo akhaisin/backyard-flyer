@@ -11,6 +11,8 @@ import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { windSock } from '../../../vis/plugins/windSock';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
+import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
+import { STEP_TYPE_C1A } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -21,7 +23,10 @@ interface QuadC1aState {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   aetr: Aetr;
-  mission: { phase: number; stepIdx: number };
+  mission: {
+    phase: number; stepIdx: number;
+    step: { stepType: number; pos: Vec3; dest: Vec3; speed: number; threshold: number };
+  };
   target_c1: { pos: Vec3; phase: number };
   wind: { fx: number; fz: number };
   validator: {
@@ -127,7 +132,21 @@ const sceneHandler = composeScene(() => {
       ],
     }),
   ]),
-  sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
+  cornerGroup('top-right', [
+    missionLogOverlay(s => view(s).mission, {
+      stepsEntries: 10,
+      handlers: {
+        step: {
+          [STEP_TYPE_C1A]: (step) => [
+            `pos (${step.pos.x.toFixed(1)}, ${step.pos.y.toFixed(1)}, ${step.pos.z.toFixed(1)})`,
+            `dst (${(step.dest?.x ?? 0).toFixed(1)}, ${(step.dest?.y ?? 0).toFixed(1)}, ${(step.dest?.z ?? 0).toFixed(1)})`,
+            `spd ${(step.speed ?? 0).toFixed(1)} m/s  thr ${(step.threshold ?? 0).toFixed(1)} m`,
+          ],
+        },
+      },
+    }),
+  ]),
+  sticksOverlay(s => view(s).aetr),
   ];
 });
 

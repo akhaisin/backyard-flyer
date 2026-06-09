@@ -8,6 +8,8 @@ import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
+import { cornerGroup } from '../../../vis/plugins/cornerGroup';
+import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
 import { PHASE_NAVIGATE } from '../../lib/quad/mission';
 import type { ModelState } from '../../../engine/types';
 
@@ -19,7 +21,10 @@ interface QuadL4State {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   aetr: Aetr;
-  mission: { phase: number; stepIdx: number; target: Vec3 };
+  mission: {
+    phase: number; stepIdx: number; target: Vec3;
+    step: { stepType: number; pos: Vec3; threshold: number };
+  };
   validator: {
     lapsTotal: number;
     completionTick: number;
@@ -120,7 +125,10 @@ const sceneHandler = composeScene(() => [
         } },
     ],
   }),
-  sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
+  cornerGroup('top-right', [
+    missionLogOverlay(s => view(s).mission, { stepsEntries: 10 }),
+  ]),
+  sticksOverlay(s => view(s).aetr),
 ]);
 
 export default function QuadL4Vis() {

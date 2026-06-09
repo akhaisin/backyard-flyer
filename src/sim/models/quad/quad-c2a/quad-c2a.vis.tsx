@@ -16,6 +16,9 @@ import { TARGET_HOME, INTERCEPTOR_HOME } from './route';
 import { interceptEnabled, windEnabled, noiseEnabled } from './quad-c2a.config';
 import type { ModelState } from '../../../engine/types';
 import { flashBanner } from '../../../vis/plugins/flashBanner';
+import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
+import { STEP_TYPE_C2A } from '../../lib/quad/consts';
+import { PHASE_RTH } from '../../lib/quad/mission';
 
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
@@ -27,7 +30,10 @@ interface VehicleState {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   aetr: Aetr;
-  mission: { phase: number; stepIdx: number; target: Vec3 };
+  mission: {
+    phase: number; stepIdx: number; target: Vec3;
+    step: { stepType: number; pos: Vec3; threshold: number };
+  };
   planner?: { carrot: Vec3; preGateDone: number };
   validator: {
     lapsTotal: number;
@@ -153,6 +159,31 @@ const sceneHandler = composeScene(() => {
     fontSize: 30,
   }),
 
+  cornerGroup('top-left', [
+    missionLogOverlay(s => view(s).vehicles.interceptor.mission, {
+      title: 'Interceptor Log',
+      stepsEntries: 8,
+      getStepsCount: (K) => {
+        const ki = (K.interceptor ?? {}) as ModelState;
+        return Array.isArray(ki.steps) ? (ki.steps as unknown[]).length : 1;
+      },
+      handlers: {
+        phase: {
+          [PHASE_RTH]: (_step, K) => {
+            const ki = (K.interceptor ?? {}) as ModelState;
+            return [`HOME (${typeof ki.HOME_X === 'number' ? ki.HOME_X.toFixed(1) : '0.0'}, ${typeof ki.HOME_Z === 'number' ? ki.HOME_Z.toFixed(1) : '0.0'})`];
+          },
+        },
+        step: {
+          [STEP_TYPE_C2A]: (step) => [
+            `pos (${step.pos.x.toFixed(1)}, ${step.pos.y.toFixed(1)}, ${step.pos.z.toFixed(1)})`,
+            `thr ${(step.threshold ?? 0).toFixed(1)} m`,
+          ],
+        },
+      },
+    }),
+  ]),
+
   // ── Left HUD: interceptor ──
   cornerGroup('bottom-left', [
     toggleOverlay('Intercept', interceptEnabled,     { labelMinWidth: TOGGLE_LABEL_W }),
@@ -201,6 +232,25 @@ const sceneHandler = composeScene(() => {
       ],
     }),
     sticksOverlay(s => view(s).vehicles.interceptor.aetr),
+  ]),
+
+  cornerGroup('top-right', [
+    missionLogOverlay(s => view(s).vehicles.target.mission, {
+      title: 'Target Log',
+      stepsEntries: 8,
+      getStepsCount: (K) => {
+        const kt = (K.target ?? {}) as ModelState;
+        return Array.isArray(kt.steps) ? (kt.steps as unknown[]).length : 1;
+      },
+      handlers: {
+        phase: {
+          [PHASE_RTH]: (_step, K) => {
+            const kt = (K.target ?? {}) as ModelState;
+            return [`HOME (${typeof kt.HOME_X === 'number' ? kt.HOME_X.toFixed(1) : '0.0'}, ${typeof kt.HOME_Z === 'number' ? kt.HOME_Z.toFixed(1) : '0.0'})`];
+          },
+        },
+      },
+    }),
   ]),
 
   // ── Right HUD: target ──

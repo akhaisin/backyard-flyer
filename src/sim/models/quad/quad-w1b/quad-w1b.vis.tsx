@@ -11,6 +11,8 @@ import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
+import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
+import { STEP_TYPE_W1B } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3 = { x: number; y: number; z: number };
@@ -21,7 +23,18 @@ interface QuadW1bState {
   attitude: Vec3;
   motors: { thrust: Motors4 };
   aetr: Aetr;
-  mission: { phase: number; stepIdx: number };
+  mission: {
+    phase: number;
+    stepIdx: number;
+    step: {
+      stepType: number;
+      pos: Vec3;
+      normal: Vec3;
+      width: number;
+      height: number;
+      preStageDist: number;
+    };
+  };
   planner_w1b: { carrot: Vec3; preGateDone: number };
   wind: { fx: number; fz: number };
   validator: {
@@ -161,7 +174,23 @@ const sceneHandler = composeScene(() => {
       ],
     }),
   ]),
-  sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
+  cornerGroup('top-right', [
+    missionLogOverlay(s => view(s).mission, {
+      initialCollapsed: false,
+      stepsEntries: 10,
+      handlers: {
+        step: {
+          [STEP_TYPE_W1B]: (step) => [
+            `pos (${step.pos.x.toFixed(1)}, ${step.pos.y.toFixed(1)}, ${step.pos.z.toFixed(1)})`,
+            `nrm (${(step.normal?.x ?? 0).toFixed(1)}, ${(step.normal?.y ?? 0).toFixed(1)}, ${(step.normal?.z ?? 0).toFixed(1)})`,
+            `${step.width?.toFixed(1) ?? '?'} × ${step.height?.toFixed(1) ?? '?'} m`,
+            `pre-stage ${step.preStageDist?.toFixed(1) ?? '?'} m`,
+          ],
+        },
+      },
+    }),
+  ]),
+  sticksOverlay(s => view(s).aetr),
   ];
 });
 

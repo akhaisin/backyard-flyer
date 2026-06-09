@@ -9,8 +9,10 @@ import { textLabel } from '../../../vis/plugins/textLabel';
 import { cornerGroup } from '../../../vis/plugins/cornerGroup';
 import { infoOverlay } from '../../../vis/plugins/infoOverlay';
 import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
+import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
 import { GATES, GUIDE_GATES } from './route';
+import { STEP_TYPE_CTURN } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
 type Vec3    = { x: number; y: number; z: number };
@@ -22,7 +24,17 @@ interface QuadLadderState {
   attitude: Vec3;
   motors:   { thrust: Motors4 };
   aetr:     Aetr;
-  mission:  { phase: number; stepIdx: number };
+  mission:  {
+    phase: number;
+    stepIdx: number;
+    step: {
+      stepType: number;
+      pos: { x: number; y: number; z: number };
+      threshold: number;
+      durationTicks: number;
+      waypoints?: { x: number; y: number; z: number }[];
+    };
+  };
   validator: {
     lapsTotal:      number;
     completionTick: number;
@@ -113,7 +125,22 @@ const sceneHandler = composeScene(() => {
       ],
     }),
   ]),
-  sticksOverlay(s => view(s).aetr, { corner: 'bottom-right' }),
+  cornerGroup('top-right', [
+    missionLogOverlay(s => view(s).mission, {
+      stepsEntries: 10,
+      handlers: {
+        step: {
+          [STEP_TYPE_CTURN]: (step) => [
+            `ticks ${step.durationTicks ?? '?'}`,
+            ...(step.waypoints ?? []).map(
+              p => `  (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`
+            ),
+          ],
+        },
+      },
+    }),
+  ]),
+  sticksOverlay(s => view(s).aetr),
   ];
 });
 
