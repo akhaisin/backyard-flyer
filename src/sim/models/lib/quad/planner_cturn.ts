@@ -72,9 +72,10 @@ type PlannerOut = {
   active: number;       // 1 when the maneuver is being executed this tick
   stepStatus: number;
   debug: number;        // 1 → navigator flies straight to (targetX,targetY,targetZ)
-  targetX: number;      // active straight-leg target (debug mode only)
+  targetX: number;      // active 3D target for navigator (leg/arc sampled point)
   targetY: number;
   targetZ: number;
+  targetYaw: number;    // desired heading at target (rad)
 };
 
 const NAVIGATE       = 2;
@@ -91,6 +92,7 @@ const KP_YAW_TRACK        = 2.0;
 const ORBIT_GUIDE_GAIN    = 1.25;
 const KP_RADIAL_ACCEL     = 1.5;
 const KD_RADIAL_ACCEL     = 1.0;
+const CTURN_TIMEOUT_FACTOR = 2.5;
 
 // Safety clamp on bank — beyond ~60° the thrust compensation grows unbounded
 // and the planner is operating outside any meaningful "coordinated" regime.
@@ -141,7 +143,7 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const idle: PlannerOut = {
     throttle: 0, roll: 0, pitch: 0, yaw: 0,
     active: 0, stepStatus: STATUS_RUNNING,
-    debug: 0, targetX: 0, targetY: 0, targetZ: 0,
+    debug: 0, targetX: 0, targetY: 0, targetZ: 0, targetYaw: 0,
   };
 
   if (!state.armed) return idle;
@@ -186,6 +188,7 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
       stepStatus: done ? STATUS_COMPLETED : STATUS_RUNNING,
       debug: 1,
       targetX: target.x, targetY: target.y, targetZ: target.z,
+      targetYaw: Math.atan2(-(target.z - state.pos.z), target.x - state.pos.x),
     };
   }
 
@@ -231,6 +234,20 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const yawTarget = Math.atan2(-desiredDirZ, desiredDirX);
   const yawErr = wrapAngle(yawTarget - state.attitude.y);
 
+  const thetaCurrent = Math.atan2(state.pos.z - cz, state.pos.x - cx);
+  const rawSwept = dirSign > 0
+    ? ((thetaCurrent - theta0 + 4 * Math.PI) % (2 * Math.PI))
+    : -((theta0 - thetaCurrent + 4 * Math.PI) % (2 * Math.PI));
+  const sweptSoFar = rawSwept * dirSign <= Math.abs(sweep) + 0.3 ? rawSwept : 0;
+  const progressGeom = clamp((sweptSoFar * dirSign) / Math.max(Math.abs(sweep), 1e-6), 0, 1);
+  const lookaheadFrac = clamp((vH * state.K.DT) / Math.max(arcLen, 1e-3) * 2.2, 0.02, 0.08);
+  const targetProgress = clamp(progressGeom + lookaheadFrac, 0, 1);
+  const thetaRef = theta0 + sweep * targetProgress;
+  const targetX  = cx + r * Math.cos(thetaRef);
+  const targetZ  = cz + r * Math.sin(thetaRef);
+  const targetY  = wps[0].y + (wps[2].y - wps[0].y) * progressGeom;
+  const targetHeading = Math.atan2(-dirSign * Math.cos(thetaRef), -dirSign * Math.sin(thetaRef));
+
   const inwardAccel = clamp(
     vEff * vEff / r + KP_RADIAL_ACCEL * radialErr + KD_RADIAL_ACCEL * radialVel,
     -state.K.GRAVITY * Math.tan(MAX_BANK),
@@ -260,14 +277,9 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   // threshold ≤ 1 m). In that case the modular arithmetic wraps rawSwept to
   // ~2π (nearly a full circle), which would fire completion immediately.
   // Any rawSwept * dirSign > |sweep| + 0.3 is a startup wrap-around; reset to 0.
-  const thetaCurrent = Math.atan2(state.pos.z - cz, state.pos.x - cx);
-  const rawSwept     = dirSign > 0
-    ? ((thetaCurrent - theta0 + 4 * Math.PI) % (2 * Math.PI))
-    : -((theta0 - thetaCurrent + 4 * Math.PI) % (2 * Math.PI));
-  const sweptSoFar   = rawSwept * dirSign <= Math.abs(sweep) + 0.3 ? rawSwept : 0;
   const ticks        = Math.round(state.ticksInPhase);
-  const arcComplete  = sweptSoFar * dirSign >= Math.abs(sweep) - 0.1;
-  const stepStatus   = (arcComplete || ticks >= state.step.durationTicks * 3) ? STATUS_COMPLETED : STATUS_RUNNING;
+  const arcComplete  = sweptSoFar * dirSign >= Math.abs(sweep) - 0.2;
+  const stepStatus   = (arcComplete || ticks >= state.step.durationTicks * CTURN_TIMEOUT_FACTOR) ? STATUS_COMPLETED : STATUS_RUNNING;
 
   return {
     throttle: thrustStick,
@@ -276,6 +288,10 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
     yaw:    yawStick,
     active: 1,
     stepStatus,
-    debug: 0, targetX: 0, targetY: 0, targetZ: 0,
+    debug: 0,
+    targetX,
+    targetY,
+    targetZ,
+    targetYaw: targetHeading,
   };
 }

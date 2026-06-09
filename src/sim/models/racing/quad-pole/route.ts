@@ -21,7 +21,7 @@ export const QUAD_POLE_ROUTE: StepDef[] = [
   {
     type: STEP_TYPE_WP,
     pos:       STAGING,
-    threshold: 0.4,
+    threshold: 1.5,
   },
   {
     type: STEP_TYPE_WP,

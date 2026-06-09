@@ -8,158 +8,77 @@ import SimSource from '../../../widgets/SimSource.astro'
 import SimVis from '../../../widgets/SimVis.astro'
 import SimCharts from '../../../widgets/SimCharts.astro'
 
-# Quad Ladder — yaw-aware navigation through a vertical gate stack
+# Quad Ladder — staged weaving route with coordinated turns
 
-**Quad Ladder** simulates a common FPV racing track element: three gates stacked vertically, each entered from the opposite side to the one before. Flying a ladder requires the drone to arc around the structure between gates while simultaneously climbing to the next altitude — and to pre-rotate its yaw heading so it arrives already pointing in the right direction.
+Quad Ladder models a Jacob's-Ladder-style racing element: a sequence of climbing arcs that weave between main and guide gate centers.
 
-Two things are new in this model:
-
-1. **Mixed step sequences.** The mission interleaves positional waypoints (advance on distance) with window gates (advance on crossing), encoding the full approach-arc-cross-arc pattern in a single flat list.
-2. **Yaw-aware navigation.** The path planner outputs an explicit yaw setpoint (facing the carrot), and the navigator decomposes roll/pitch commands in the drone's actual body frame rather than always assuming yaw = 0.
+The current implementation uses the same dual-stack control split as other racing models:
 
 ```
-mission ──► fc_path_planner ──► fc_navigator ──► fc_stabilizer ──► hw ──► world
+mission ──► planner_wp     ──► navigator_wp     ─┐
+        └─► planner_cturn ──► navigator_cturn ─┤
+                                                  ├──► fc_acro ──► hw ──► world
+                                              (inactive stack passes through)
 ```
-
-| Block | What changed |
-|-------|-------------|
-| `mission` | Mixed waypoint/gate step sequence; alternating approach normals per gate |
-| `fc_path_planner` | Outputs rate-limited `yawSetpoint`; gate steps use gate normal, waypoint steps use direction to target |
-| `fc_navigator` | Yaw-aware: rotates roll/pitch demands into body frame using current yaw |
-| All others | Unchanged from W1b |
-
----
-
-## The ladder element
-
-In FPV racing a *Jacob's Ladder Switchback* is a vertical stack of gates entered from **alternating sides** — the drone weaves through the structure rather than arcing around the outside each time:
-
-```
-                    [Gate 3]   y = 11  ◄── front entrance (from x=5, left)
-                        │
-         arc left  ─────┘   (exit +x → arc to z=+7, climb y=7→11)
-                        │
-                    [Gate 2]   y = 7   ──► back entrance (from x=19, right)
-                        │
-         arc right ─────┘   (exit −x → arc to z=−7, climb y=3→7)
-                        │
-                    [Gate 1]   y = 3   ◄── front entrance (from x=5, left)
-                        │
-         fly around left side (origin → x=5, z=+7)
-```
-
-The drone starts at the origin facing +X. Gates alternate approach direction — M1 and M3 are entered from the **front** (x < 12, crossing going +x); M2 is entered from the **back** (x > 12, crossing going −x). This weaving pattern avoids wide outside arcs and keeps the drone threading through the structure. "Left" and "right" refer to z > 0 and z < 0 respectively.
-
----
-
-## Step sequence
-
-The mission encodes the full maneuver as nine steps — a `[waypoint, main gate, guide gate] × 3` pattern:
-
-| Step | Kind | Position | Notes |
-|------|------|----------|-------|
-| 0 | waypoint | (5, 3, +7)  | arc left to front-left staging |
-| 1 | gate | (12, 3, 0)  | M1: cross going +x (front→back) |
-| 2 | gate | (12, 3, +4) | G1: exit guide going −x → arc right + climb |
-| 3 | waypoint | (19, 7, −7) | arc right to back-right staging |
-| 4 | gate | (12, 7, 0)  | M2: cross going −x (back→front) |
-| 5 | gate | (12, 7, −4) | G2: exit guide going +x → arc left + climb |
-| 6 | waypoint | (5, 11, +7) | arc left to front-left staging |
-| 7 | gate | (12, 11, 0) | M3: cross going +x (front→back) |
-| 8 | gate | (12, 11, +4)| G3: exit guide going −x → RTH |
-
-Waypoint steps advance when `dist < threshold` (1.5 m). Gate steps advance on the same directional plane-crossing check used in W1a/W1b. The two kinds share the same state fields and are distinguished by a `stepKind` flag the planner reads.
-
----
-
-## Yaw-aware navigation
-
-Previous models always command `yaw_des = 0`, so the drone faces +X regardless of where it is flying. That works when the position PID never needs to fight yaw: roll controls +Z acceleration and pitch controls +X acceleration by assumption.
-
-For the ladder the drone frequently flies in the ±Z direction and rotates its heading between gates. If the body frame is rotated by yaw angle ψ, the wrong mapping — pitch → X, roll → Z — no longer holds.
-
-The correction is a frame rotation. For small tilt angles, the world-frame acceleration demands `(ax_des, az_des)` map to body-frame pitch and roll as:
-
-```
-pitch_des = (−cos ψ · ax_des + sin ψ · az_des) / g
-roll_des  = ( sin ψ · ax_des + cos ψ · az_des) / g
-```
-
-At ψ = 0 this reduces to the standard `pitch_des = −ax/g`, `roll_des = az/g`. At ψ = π/2 (facing +Z) it swaps the axes: pitch now drives Z-acceleration and roll drives X-acceleration — which is correct for a drone pointing sideways.
-
-The derivation: the 2×2 matrix mapping `[θ, φ]` to `[ax, az]/g` under yaw ψ turns out to be its own inverse (determinant = −1), giving the closed-form expressions above directly.
-
-The **yaw setpoint** itself comes from the path planner. For gate steps it is fixed to the gate normal direction; for waypoint steps it tracks the direction to the current target:
-
-```
-// gate step:    yaw = atan2(normal.z, normal.x)  — 0 or π for this ladder
-// waypoint step: yaw = atan2(target.z − pos.z, target.x − pos.x)
-```
-
-Because all staging waypoints sit at z=0 and the ladder runs along X, the waypoint yaw is always near 0 or π — the same values used at the gates. Transitions are clean: the yaw setpoint barely moves between the staging waypoint and the next gate crossing, so the stabilizer has already settled before the drone arrives.
-
----
-
-## Watch it fly
-
-All three gates are visible as wireframe rectangles stacked along Y. The active gate (current or next) is green; completed gates fade to dark. Faint guide gates mark the exit constrainers at each level. The yellow carrot leads the drone through each arc and into each gate.
-
-Watch the drone weave through the ladder: front-left to M1, then arc right to approach M2 from the back, then arc left to approach M3 from the front again — a switchback spiral rather than a simple ascending loop.
 
 <SimVis />
 
 ---
 
-## Yaw tracking
+## Route structure
 
-The yaw setpoint from the planner (yellow) and the drone's actual yaw (purple). During the arcs the setpoint rotates continuously as the carrot direction changes. The actual yaw lags by the stabilizer's tracking bandwidth. The gap between them drives the yaw torque term in `fc_stabilizer`.
+The route in `quad-ladder/route.ts` is a 7-step sequence:
 
-<SimCharts varIds={[['planner.yawSetpoint','attitude.y']]} />
+| Step | Type | Purpose |
+|------|------|---------|
+| 0 | WP | pre-ladder staging |
+| 1 | CTURN | M1 → G1 arc |
+| 2 | CTURN | G1 → M2 arc |
+| 3 | CTURN | M2 → G2 arc |
+| 4 | CTURN | G2 → M3 arc |
+| 5 | WP | post-ladder staging |
+| 6 | CTURN | wide return arc back to entry side |
+
+Each cturn step contains three waypoints `[entry, mid, exit]`. The planner fits the arc in xz, while y progression follows the step endpoints.
 
 ---
 
-## Mission state
+## Debug mode versus coordinated mode
 
-`stepIdx` advances 0 → 1 → … → 8 as waypoints and gates are completed. Pattern repeats every three steps: `[0, 3, 6]` are staging waypoints, `[1, 4, 7]` are main gate crossings, `[2, 5, 8]` are exit guide crossings. `dist` shows the distance to the current target.
+This model supports two execution modes for cturn steps:
+
+1. Debug mode (`step.debug = 1`): planner sequences straight-leg targets (entry to mid, mid to exit), navigator flies line segments.
+2. Coordinated mode (`step.debug = 0`): planner outputs coordinated-turn commands and sampled arc targets for navigator tracking.
+
+The runtime toggle in `quad-ladder.config.ts` overrides route debug flags so you can switch behavior without editing route data.
+
+<SimCharts varIds={[['planner_cturn.active','planner_cturn.debug','planner_cturn.stepStatus']]} />
+
+---
+
+## Mission and trajectory state
+
+`mission.stepIdx` advances through the staging and weaving sequence. `mission.dist` shows active target distance for the current step.
 
 <SimCharts varIds={[['mission.phase','mission.stepIdx','mission.dist','mission.armed']]} />
-
----
-
-## Position
-
-X alternates between 5 (front staging) and 19 (back staging) as the drone weaves through the ladder. Y staircase-climbs 3 → 7 → 11 m. Z alternates between +7 and −7 as the drone swings left and right between gates.
-
 <SimCharts varIds={[['pos.x','pos.y','pos.z']]} />
 
 ---
 
-## Attitude
+## AETR and attitude
 
-Roll and pitch reflect the banked arcs. Yaw is no longer zero — it tracks the flight direction throughout. Compare to W1b where `attitude.y` flatlines at 0.
+The AETR bus is shared across both navigation stacks:
 
-<SimCharts varIds={[['attitude.x','attitude.z','attitude.y']]} />
+1. `aetr.throttle` is normalized thrust.
+2. `aetr.roll/pitch/yaw` are normalized desired body rates consumed by `fc_acro`.
+
+<SimCharts varIds={[['aetr.throttle','aetr.roll','aetr.pitch','aetr.yaw']]} />
+<SimCharts varIds={[['attitude.x','attitude.y','attitude.z']]} />
 
 ---
 
-## Mission step sequence
-
-The `STEPS` array in `mission.ts` fully defines the ladder. Try adjusting `APPROACH_Z` (lateral staging distance) or the gate Y positions, and restart to see the effect.
+## Source blocks
 
 <SimSource sourceIds={['mission']} autoHeight />
-
----
-
-## Path planner
-
-The planner uses pre-staging for gate steps (same as W1b) and simple carrot for waypoint steps. The yaw setpoint is computed from the carrot direction and persisted when the carrot is directly overhead.
-
-<SimSource sourceIds={['fc_path_planner']} autoHeight />
-
----
-
-## Yaw-aware navigator
-
-The key change from W1b: the roll/pitch commands are rotated into the body frame using the current yaw angle. Try reverting to the W1b version (replace `cp`/`sp` rotation with `pitch_des = -ax_des/g_eff`, `roll_des = az_des/g_eff`) and observe the drone losing lateral control authority when it yaws away from +X.
-
-<SimSource sourceIds={['fc_navigator']} autoHeight />
+<SimSource sourceIds={['planner_cturn']} autoHeight />
+<SimSource sourceIds={['navigator_cturn']} autoHeight />

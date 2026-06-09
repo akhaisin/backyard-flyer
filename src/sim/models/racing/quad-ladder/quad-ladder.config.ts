@@ -36,6 +36,9 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     CRUISE_ALT:    3,     // ladder flies at y=3 (vs default 5)
     REQUIRED_LAPS: 1,     // complete the full ladder run once
     MAX_RESTARTS:  -1,    // no gate-miss restart logic (time-based completion)
+    KP_POS:        2.25,
+    KD_POS:        1.2,
+    MAX_TILT:      0.36,
     MAX_TICKS:     3000,
     simDuration:   6000,
     ACC_ERR_LIMIT: 20000,
@@ -80,7 +83,7 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
         segEnd:       { ...vec0 },
       },
       planner_wp: { stepStatus: 0 },
-      planner_cturn: { throttle: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0, debug: 0, targetX: 0, targetY: 0, targetZ: 0 },
+      planner_cturn: { throttle: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0, debug: 0, targetX: 0, targetY: 0, targetZ: 0, targetYaw: 0 },
       validator: {
         prevPhase:        0,
         lapsTotal:        0,
@@ -248,6 +251,7 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
           planTargetX:  (s.planner_cturn as ModelState).targetX,
           planTargetY:  (s.planner_cturn as ModelState).targetY,
           planTargetZ:  (s.planner_cturn as ModelState).targetZ,
+          planTargetYaw:(s.planner_cturn as ModelState).targetYaw,
           pos:          (s.sensors as ModelState).pos,
           vel:          (s.sensors as ModelState).vel,
           attitude:     (s.sensors as ModelState).attitude,

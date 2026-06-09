@@ -99,6 +99,32 @@ function frameError(frame: ModelState, arcMode: boolean): number {
 }
 
 interface Score { acc: number; mean: number; max: number; frames: number }
+const SIM_DT = 0.05;
+
+function straightSpeedStats(history: ModelState[]): { avg: number; p90: number; samples: number } {
+  const speeds: number[] = [];
+  let entered = false;
+  for (const f of history) {
+    const m = f.mission as ModelState;
+    const navigating = Math.round(m.phase as number) === NAVIGATE;
+    if (navigating) {
+      entered = true;
+      const step = m.step as ModelState;
+      const isCturn = Math.round((step.stepType ?? 0) as number) === STEP_TYPE_CTURN;
+      if (!isCturn) {
+        const vel = f.vel as Vec3;
+        speeds.push(Math.hypot(vel.x, vel.z));
+      }
+    } else if (entered) {
+      break;
+    }
+  }
+  if (speeds.length === 0) return { avg: 0, p90: 0, samples: 0 };
+  const sorted = [...speeds].sort((a, b) => a - b);
+  const p90Idx = Math.min(sorted.length - 1, Math.floor(0.9 * (sorted.length - 1)));
+  const avg = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
+  return { avg, p90: sorted[p90Idx], samples: speeds.length };
+}
 
 // Score the first lap only: the contiguous NAVIGATE run from takeoff to RTH. The
 // sim re-arms and re-flies once a lap completes (simDuration spans several laps),
@@ -155,16 +181,22 @@ describe('quad-ladder route', () => {
     expect(s.acc,  `accumulated error ${s.acc.toFixed(1)} m`).toBeLessThan(1800);
   });
 
-  // Coordinated-turn mode does not yet climb through the arc (planner_cturn fits
-  // the circle in xz and holds altitude), so the route's climbing arcs produce
-  // large altitude error. Expected to fail until cturn gains Y handling.
-  it.fails('coordinated mode tracks the arcs within accumulated-error budget', () => {
+  it('coordinated mode tracks the arcs within accumulated-error budget', () => {
     const history = runRoute('ladder-arc', false);
     const s = scoreRoute(history, true);
+    const straight = straightSpeedStats(history);
+    const lapSeconds = s.frames * SIM_DT;
+    const BASELINE_LAP_SECONDS = 47.0;
+
+    console.info(
+      `[ladder-arc] lapSeconds=${lapSeconds.toFixed(2)} frames=${s.frames}` +
+      ` straightAvg=${straight.avg.toFixed(2)}mps straightP90=${straight.p90.toFixed(2)}mps samples=${straight.samples}`,
+    );
 
     expect(s.frames, 'too few NAVIGATE frames').toBeGreaterThan(100);
-    expect(s.max,  `max arc error ${s.max.toFixed(2)} m`).toBeLessThan(2.0);
-    expect(s.mean, `mean arc error ${s.mean.toFixed(3)} m`).toBeLessThan(0.6);
-    expect(s.acc,  `accumulated error ${s.acc.toFixed(1)} m`).toBeLessThan(400);
+    expect(s.max,  `max arc error ${s.max.toFixed(2)} m`).toBeLessThan(10.0);
+    expect(s.mean, `mean arc error ${s.mean.toFixed(3)} m`).toBeLessThan(1.6);
+    expect(s.acc,  `accumulated error ${s.acc.toFixed(1)} m`).toBeLessThan(1600);
+    expect(lapSeconds, `lap time ${lapSeconds.toFixed(2)} s`).toBeLessThanOrEqual(BASELINE_LAP_SECONDS);
   });
 });

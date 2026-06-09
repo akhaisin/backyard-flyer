@@ -8,59 +8,66 @@ import SimSource from '../../../widgets/SimSource.astro'
 import SimVis from '../../../widgets/SimVis.astro'
 import SimCharts from '../../../widgets/SimCharts.astro'
 
-# Quad Pole — acro-mode coordinated turn around a flagpole
+# Quad Pole — waypoint entry plus coordinated turn around a pole
 
-**Quad Pole** is a playground for FPV-style scripted maneuvers split along the real-world human/RC/FC boundary:
+Quad Pole is the smallest racing model that still exercises both navigation stacks:
 
-- **mission** ("human") — high-level: arm, fly to a waypoint, then run a named maneuver, then RTH and land.
-- **planner_wp + navigator_wp / planner_cturn + navigator_cturn** ("RC pilot") — convert intent to AETR (Aileron-Elevator-Throttle-Rudder) sticks. Two stacks, one active per mission type.
-- **fc_acro** ("flight controller") — single-mode rate loop. Thrust is a direct value; roll, pitch, and yaw are normalized body-rate commands.
+1. Waypoint navigation (`planner_wp` + `navigator_wp`) for approach and entry.
+2. Coordinated-turn navigation (`planner_cturn` + `navigator_cturn`) for the orbit segment.
+
+The same downstream flight-control chain is used throughout:
 
 ```
 mission ──► planner_wp     ──► navigator_wp     ─┐
         └─► planner_cturn ──► navigator_cturn ─┤
                                                   ├──► fc_acro ──► hw ──► world
-                                              (one writes aetr;
-                                               the other passes through)
+                                              (inactive stack passes through)
 ```
-
-The active stack is selected by `mission.missionType` (0 = WP, 1 = CTURN). Inactive blocks see the type, see it's not theirs, and pass `aetr` through unchanged.
 
 <SimVis />
 
 ---
 
-## Mission steps and type
+## Route definition
 
-The STEPS array has two entries; `missionType` flips when the active step changes:
+The route from `quad-pole/route.ts` has three NAVIGATE steps:
 
-| Step | Kind | missionType | Notes |
-|------|------|-------------|-------|
-| 0 | waypoint | WP (0) | (8, 3, +3) — staging east of pole |
-| 1 | maneuver | CTURN (1) | sweep-left, 5 s (100 ticks) |
+| Step | Type | Target | Purpose |
+|------|------|--------|---------|
+| 0 | WP | (4, 3, 0) | stage before entry |
+| 1 | WP | (8, 3, -3) | place the drone on the cturn start point |
+| 2 | CTURN | waypoints: (8,3,-3) → (12,3,0) → (8,3,3) | half-orbit around the pole |
 
-<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.missionType','mission.armed']]} />
+The mission advances WP steps by distance threshold and CTURN steps by `planner_cturn.stepStatus`.
 
----
-
-## AETR sticks
-
-The single bus between navigators and fc_acro. During the WP segments navigator_wp writes here via a cascade (position-PID → desired attitude → rate command → stick). During the CTURN segment navigator_cturn writes here from the sampled maneuver plan. `aetr.roll/pitch/yaw` are normalized desired body rates, so `aetr.yaw > 0` means yaw-right on the vehicle and in the stick overlay.
-
-<SimCharts varIds={[['aetr.thrust','aetr.roll','aetr.pitch','aetr.yaw']]} />
+<SimCharts varIds={[['mission.phase','mission.stepIdx','mission.dist','mission.armed']]} />
 
 ---
 
-## coordinated-turn planner
+## Coordinated-turn behavior
 
-Owns the maneuver library and the keyframe sampler. When `missionType !== CTURN` it emits zeros with `active = 0`. Edit the keyframe values here to change the maneuver shape.
+`planner_cturn` fits a circle through the three cturn waypoints in the xz plane, computes the signed sweep direction, and generates:
+
+1. coordinated roll and yaw-rate sticks (for the acro rate loop),
+2. sampled target position and heading for `navigator_cturn`.
+
+`navigator_cturn` tracks the sampled target with the same position-to-attitude cascade style used in waypoint navigation, then emits normalized AETR rate sticks.
+
+<SimCharts varIds={[['planner_cturn.active','planner_cturn.stepStatus','planner_cturn.roll','planner_cturn.yaw']]} />
+
+---
+
+## AETR and attitude
+
+`aetr.throttle` is direct normalized thrust in [0, 1]. Roll, pitch, and yaw are normalized desired body rates. During WP segments, `navigator_wp` drives this bus; during CTURN segments, `navigator_cturn` overwrites it.
+
+<SimCharts varIds={[['aetr.throttle','aetr.roll','aetr.pitch','aetr.yaw']]} />
+<SimCharts varIds={[['attitude.x','attitude.y','attitude.z']]} />
+
+---
+
+## Source blocks
 
 <SimSource sourceIds={['planner_cturn']} autoHeight />
-
----
-
-## fc_acro
-
-Single-mode, always rate-PID. No attitude memory. The `MAX_RATE_*` constants here define what "stick = 1" means in rad/s; upstream navigators use the same constants to normalize desired body rates onto the AETR bus.
-
+<SimSource sourceIds={['navigator_cturn']} autoHeight />
 <SimSource sourceIds={['fc_acro']} autoHeight />

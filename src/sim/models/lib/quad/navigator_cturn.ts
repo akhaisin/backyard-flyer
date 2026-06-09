@@ -40,6 +40,7 @@ type NavIn = {
   planTargetX: number;
   planTargetY: number;
   planTargetZ: number;
+  planTargetYaw: number;
   pos: Vec3; vel: Vec3; attitude: Vec3; angularVel: Vec3;
   K: NavConsts;
   aetr: Aetr;
@@ -63,24 +64,17 @@ export function navigator_cturn(state: NavIn): NavOut {
   }
 
   if (Math.round(state.planDebug) === 1) {
-    return { aetr: flyStraightTo(state) };
+    return { aetr: flyToTarget(state, false) };
   }
 
-  return {
-    aetr: {
-      throttle: state.planThrottle,
-      roll:     state.planRoll,
-      pitch:    state.planPitch,
-      yaw:      state.planYaw,
-    },
-  };
+  return { aetr: flyToTarget(state, true) };
 }
 
 // Straight-line position controller toward (planTargetX/Y/Z). Mirrors the L3
 // cascade folded into navigator_wp: position PID → desired accel → desired
 // attitude + thrust → desired torques → AETR rate sticks. Integral term omitted
 // (navigator_wp runs it with KI = 0).
-function flyStraightTo(state: NavIn): Aetr {
+function flyToTarget(state: NavIn, usePlannedHeading: boolean): Aetr {
   const K = state.K;
   const KP_ATT_L3 = 2.0;
   const KD_ATT_L3 = 0.2;
@@ -91,13 +85,12 @@ function flyStraightTo(state: NavIn): Aetr {
   const ey = state.planTargetY - state.pos.y;
   const ez = state.planTargetZ - state.pos.z;
 
-  // Face the direction of travel (velocity), not the target point. The vector to
-  // the target flips ~180° instantly at each short leg's waypoint handoff; yawing
-  // to follow it spins the aircraft fast enough to couple yaw into tilt and tumble
-  // it. Velocity direction rotates continuously as the drone rounds the corner, so
-  // the yaw rate stays bounded. Below a small speed the heading is ambiguous — hold.
+  // In debug legs, follow velocity heading to avoid waypoint-handoff spins.
+  // In arc mode, planner supplies the target tangent heading.
   const speed2 = state.vel.x * state.vel.x + state.vel.z * state.vel.z;
-  const yaw_des = speed2 > 0.25 ? Math.atan2(-state.vel.z, state.vel.x) : state.attitude.y;
+  const yaw_des = usePlannedHeading
+    ? state.planTargetYaw
+    : (speed2 > 0.25 ? Math.atan2(-state.vel.z, state.vel.x) : state.attitude.y);
 
   const ax_des = K.KP_POS * ex - K.KD_POS * state.vel.x;
   const ay_des = K.KP_POS * ey - K.KD_POS * state.vel.y;
