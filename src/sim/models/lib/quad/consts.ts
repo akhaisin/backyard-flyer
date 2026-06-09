@@ -83,6 +83,7 @@ export type CTurnStep = {
   pos: Vec3;
   waypoints: Vec3[];
   durationTicks: number;
+  debug?: number;      // 1 = fly the 3 waypoints as straight legs (no arc); default 0
   timeout?: number;
 };
 

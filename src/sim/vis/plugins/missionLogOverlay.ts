@@ -42,6 +42,7 @@ export interface MissionLogStep {
   // CTURN
   durationTicks?: number;
   waypoints?: Vec3[];
+  debug?: number;
   // W1A / W1B
   normal?: Vec3;
   width?: number;

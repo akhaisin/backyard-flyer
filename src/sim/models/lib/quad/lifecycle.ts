@@ -79,6 +79,7 @@ export function fmtStep(s: StepDef, cruiseAlt: number): string {
       const wps = cs.waypoints.map(w => `{ x: ${w.x}, y: ${fmtCoord(w.y, cruiseAlt, true)}, z: ${w.z} }`).join(', ');
       parts.push(`waypoints: [${wps}]`);
       parts.push(`durationTicks: ${cs.durationTicks}`);
+      if (cs.debug !== undefined) parts.push(`debug: ${cs.debug}`);
       if (s.timeout !== undefined) parts.push(`timeout: ${s.timeout}`);
       break;
     }

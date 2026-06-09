@@ -2,9 +2,14 @@
 //
 // Fits a circular arc through the three step.waypoints in the xz plane, then
 // derives the physical quantities of a coordinated horizontal turn:
-//   v   = arc_length / (durationTicks · DT)   tangential speed (m/s)
-//   φ   = atan(v² / (g · r))                  bank angle magnitude (rad)
-//   ω   = v / r                                yaw rate magnitude (rad/s)
+//   v_eff = max(‖vel_xz‖, vNom/4)              effective speed (avoids zero-divide)
+//   φ     = atan(accelIn / g)                   bank angle magnitude (rad), ≤ MAX_BANK
+//   ω     = |accelIn| / v_eff                   yaw rate magnitude (rad/s)
+// where accelIn = v_eff²/r + orbit-tracking feedback, clamped by g·tan(MAX_BANK).
+// Deriving ω from φ (not from v/r directly) keeps the roll and yaw commands
+// physically consistent: at MAX_BANK, ω = g·tan(MAX_BANK)/v, which prevents the
+// yaw stick from saturating the motor mixing at high entry speeds.
+//
 // Then it adds orbit-tracking feedback from the current position / velocity:
 //   • heading target = local tangent direction, tilted inward/outward by radial error
 //   • bank magnitude = coordinated-turn baseline plus radial-error damping
@@ -14,13 +19,18 @@
 //   throttle = HOVER_THROTTLE / cos(φ)           (maintain vertical thrust)
 //   pitch  = 0                                    (level turn; constant altitude)
 //
-// Sign convention: the internal AETR bus uses body-rate sign directly.
-// A positive arc sweep (CCW, dirSign=+1) needs a positive yaw rate at the drone,
-// which means a POSITIVE yaw stick on the bus. Hence yaw = dirSign · ω / MAX_RATE_YAW.
+// Sign convention: in this simulation attitude.y = -π/2 means "facing +z" (right).
+// A CCW arc (dirSign=+1) turns right (toward +z), which requires attitude.y to
+// DECREASE — i.e. a NEGATIVE yaw stick.  Hence yaw = −dirSign · ω / MAX_RATE_YAW.
 //
-// Reports STATUS_COMPLETED once ticksInPhase >= step.durationTicks.
+// Reports STATUS_COMPLETED when the drone has swept within 0.1 rad of the exit angle.
 // Returns idle (and STATUS_RUNNING) if not active, if waypoints aren't 3, if
 // the waypoints are collinear, or if durationTicks ≤ 0.
+//
+// Debug mode (step.debug === 1): skip the arc and fly the three waypoints as two
+// straight legs (w0→w1→w2). The planner only sequences the active leg target into
+// targetX/Y/Z and sets debug=1; navigator_cturn does the straight-line flying.
+// Use it to visually inspect a route's waypoint geometry without arc dynamics.
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -31,6 +41,7 @@ type Step = {
   stepType?: number;
   durationTicks: number;
   waypoints: Vec3[];
+  debug?: number;        // 1 = straight-leg debug mode (see below)
 };
 
 type PlannerConsts = {
@@ -60,6 +71,10 @@ type PlannerOut = {
   yaw: number;
   active: number;       // 1 when the maneuver is being executed this tick
   stepStatus: number;
+  debug: number;        // 1 → navigator flies straight to (targetX,targetY,targetZ)
+  targetX: number;      // active straight-leg target (debug mode only)
+  targetY: number;
+  targetZ: number;
 };
 
 const NAVIGATE       = 2;
@@ -122,14 +137,11 @@ function arcSweep(theta0: number, theta1: number, theta2: number): number {
   return m < dCcw ? dCcw : dCw;
 }
 
-function step_complete_check(ticks: number, step: Step): boolean {
-  return ticks >= step.durationTicks;
-}
-
 export function planner_cturn(state: PlannerIn): PlannerOut {
   const idle: PlannerOut = {
     throttle: 0, roll: 0, pitch: 0, yaw: 0,
     active: 0, stepStatus: STATUS_RUNNING,
+    debug: 0, targetX: 0, targetY: 0, targetZ: 0,
   };
 
   if (!state.armed) return idle;
@@ -139,6 +151,43 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const wps = state.step.waypoints;
   if (wps.length !== 3) return idle;
   if (state.step.durationTicks <= 0) return idle;
+
+  // ── Debug mode ────────────────────────────────────────────────────────────
+  // Skip the arc entirely and fly the three waypoints as two straight legs
+  // (w0→w1, w1→w2). The planner only sequences the active leg target and reports
+  // completion; navigator_cturn does the straight-line flying (active + debug).
+  // Leg select is a stateless half-plane test: once the drone passes the plane
+  // through w1 perpendicular to (w1−w0), switch the target from w1 to w2.
+  if (Math.round(state.step.debug ?? 0) === 1) {
+    const w0 = wps[0], w1 = wps[1], w2 = wps[2];
+    const pastW1 =
+      (state.pos.x - w1.x) * (w1.x - w0.x) +
+      (state.pos.y - w1.y) * (w1.y - w0.y) +
+      (state.pos.z - w1.z) * (w1.z - w0.z) >= 0;
+    const target = pastW1 ? w2 : w1;
+
+    // Complete on passing the w2 plane (perpendicular to w1→w2), arriving within
+    // 1 m, or the durationTicks·3 safety timeout. The geometric checks are gated
+    // on having finished leg 1 (pastW1): the entry approach can already sit on the
+    // far side of the w2 plane (e.g. cturn #1 entered from WP_STAGING_BEFORE on the
+    // −x side), which would otherwise fire completion on the first tick.
+    const pastW2 =
+      (state.pos.x - w2.x) * (w2.x - w1.x) +
+      (state.pos.y - w2.y) * (w2.y - w1.y) +
+      (state.pos.z - w2.z) * (w2.z - w1.z) >= 0;
+    const dx = w2.x - state.pos.x, dy = w2.y - state.pos.y, dz = w2.z - state.pos.z;
+    const nearW2 = dx * dx + dy * dy + dz * dz <= 1.0;
+    const ticks = Math.round(state.ticksInPhase);
+    const done = (pastW1 && (pastW2 || nearW2)) || ticks >= state.step.durationTicks * 3;
+
+    return {
+      throttle: 0, roll: 0, pitch: 0, yaw: 0,
+      active: 1,
+      stepStatus: done ? STATUS_COMPLETED : STATUS_RUNNING,
+      debug: 1,
+      targetX: target.x, targetY: target.y, targetZ: target.z,
+    };
+  }
 
   const circle = fitCircleXZ(wps[0], wps[1], wps[2]);
   if (!circle) return idle;
@@ -154,7 +203,11 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const arcLen   = Math.abs(sweep) * r;
   const duration = state.step.durationTicks * state.K.DT;
   const vNom     = arcLen / duration;
-  const omegaNom = vNom / r;
+
+  // Use actual horizontal speed for the centripetal-acceleration baseline.
+  // Floor at vNom/4 to avoid division by zero when nearly stationary.
+  const vH   = norm2(state.vel.x, state.vel.z);
+  const vEff = Math.max(vH, vNom * 0.25);
 
   const relX = state.pos.x - cx;
   const relZ = state.pos.z - cz;
@@ -179,12 +232,13 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const yawErr = wrapAngle(yawTarget - state.attitude.y);
 
   const inwardAccel = clamp(
-    vNom * vNom / r + KP_RADIAL_ACCEL * radialErr + KD_RADIAL_ACCEL * radialVel,
+    vEff * vEff / r + KP_RADIAL_ACCEL * radialErr + KD_RADIAL_ACCEL * radialVel,
     -state.K.GRAVITY * Math.tan(MAX_BANK),
     state.K.GRAVITY * Math.tan(MAX_BANK),
   );
-  const phi = clamp(Math.atan(inwardAccel / state.K.GRAVITY), -MAX_BANK, MAX_BANK);
-  const omega = dirSign * omegaNom + KP_YAW_TRACK * yawErr;
+  const phi       = clamp(Math.atan(inwardAccel / state.K.GRAVITY), -MAX_BANK, MAX_BANK);
+  const omegaBase = Math.abs(inwardAccel) / vEff;
+  const omega     = -dirSign * omegaBase + KP_YAW_TRACK * yawErr;
 
   // Roll: closed-loop on attitude.x. Same cascade structure as navigator_wp:
   // rate_des = KP × err; stick = rate_des / MAX_RATE; clamp.
@@ -198,8 +252,22 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
   const hoverThrottle = state.K.MASS * state.K.GRAVITY / (4 * state.K.MAX_THRUST_N);
   const thrustStick = clamp(hoverThrottle / Math.max(Math.cos(phi), 0.1), 0, 1);
 
-  const ticks      = Math.round(state.ticksInPhase);
-  const stepStatus = step_complete_check(ticks, state.step) ? STATUS_COMPLETED : STATUS_RUNNING;
+  // Complete when the drone has swept to within 0.1 rad of the exit angle.
+  // Angle-based (not time or distance) so completion is correct regardless of
+  // entry speed.  durationTicks * 3 is a safety timeout.
+  //
+  // Guard: the drone may be slightly behind theta0 when the step starts (WP
+  // threshold ≤ 1 m). In that case the modular arithmetic wraps rawSwept to
+  // ~2π (nearly a full circle), which would fire completion immediately.
+  // Any rawSwept * dirSign > |sweep| + 0.3 is a startup wrap-around; reset to 0.
+  const thetaCurrent = Math.atan2(state.pos.z - cz, state.pos.x - cx);
+  const rawSwept     = dirSign > 0
+    ? ((thetaCurrent - theta0 + 4 * Math.PI) % (2 * Math.PI))
+    : -((theta0 - thetaCurrent + 4 * Math.PI) % (2 * Math.PI));
+  const sweptSoFar   = rawSwept * dirSign <= Math.abs(sweep) + 0.3 ? rawSwept : 0;
+  const ticks        = Math.round(state.ticksInPhase);
+  const arcComplete  = sweptSoFar * dirSign >= Math.abs(sweep) - 0.1;
+  const stepStatus   = (arcComplete || ticks >= state.step.durationTicks * 3) ? STATUS_COMPLETED : STATUS_RUNNING;
 
   return {
     throttle: thrustStick,
@@ -208,5 +276,6 @@ export function planner_cturn(state: PlannerIn): PlannerOut {
     yaw:    yawStick,
     active: 1,
     stepStatus,
+    debug: 0, targetX: 0, targetY: 0, targetZ: 0,
   };
 }

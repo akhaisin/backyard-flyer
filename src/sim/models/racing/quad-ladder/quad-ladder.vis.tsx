@@ -3,6 +3,7 @@ import { composeScene } from '../../../vis/scenePlugin';
 import { baseScene } from '../../../vis/plugins/baseScene';
 import { homePad } from '../../../vis/plugins/homePad';
 import { trail } from '../../../vis/plugins/trail';
+import { waypointTracker } from '../../../vis/plugins/waypointTracker';
 import { windowGate } from '../../../vis/plugins/windowGate';
 import { quadMesh } from '../../../vis/plugins/quadMesh';
 import { textLabel } from '../../../vis/plugins/textLabel';
@@ -12,6 +13,7 @@ import { sticksOverlay } from '../../../vis/plugins/sticksOverlay';
 import { missionLogOverlay } from '../../../vis/plugins/missionLogOverlay';
 import { toggleOverlay } from '../../../vis/plugins/toggleOverlay';
 import { GATES, GUIDE_GATES } from './route';
+import { debugEnabled } from './quad-ladder.config';
 import { STEP_TYPE_CTURN } from '../../lib/quad/consts';
 import type { ModelState } from '../../../engine/types';
 
@@ -50,6 +52,7 @@ const num = (staticState: ModelState, key: string): number => {
 };
 
 const PHASE_LABELS = ['ARMING', 'TAKEOFF', 'NAVIGATE', 'RTH', 'LAND', 'DISARMING', 'DONE', 'RESTART'];
+const TOGGLE_LABEL_W = 78; // px — fits the widest label ("Waypoints") so switches align
 const PASS_GREEN   = '#44dd66';
 const FAIL_RED     = '#ff4444';
 const NEUTRAL_TEXT = 'rgba(255, 255, 255, 0.85)';
@@ -60,8 +63,15 @@ const NEUTRAL_TEXT = 'rgba(255, 255, 255, 0.85)';
 // Steps 5–7  → Level 3 (gate index 2: M3 / G3)
 const toGateIdx = (stepIdx: number): number => stepIdx < 2 ? 0 : stepIdx < 5 ? 1 : 2;
 
+const PHASE_NAVIGATE = 2;
+const isNavigateStep = (s: ModelState): boolean =>
+  Math.round(view(s).mission.phase) === PHASE_NAVIGATE;
+
 const sceneHandler = composeScene(() => {
-  const guidesRef = { enabled: true };
+  const guidesRef    = { enabled: true };
+  const trailRef     = { enabled: true };
+  const waypointsRef  = { enabled: true };
+  const numbersRef   = { enabled: true };
 
   return [
   baseScene({ bg: 0x080810, camera: { pos: [-10, 20, 25], lookAt: [12, 5, 0] } }),
@@ -70,7 +80,22 @@ const sceneHandler = composeScene(() => {
     const q = view(s);
     return { pos: q.pos, attitude: q.attitude, motors: q.motors.thrust, phase: q.mission.phase, phaseLabels: PHASE_LABELS };
   }, { frontIndicator: true }),
-  trail(s => view(s).pos),
+  trail(s => view(s).pos, { visible: trailRef }),
+  // Markers for route-step waypoints — WP steps drop one at step.pos, CTURN steps
+  // drop their 3 arc waypoints. Gated to NAVIGATE so takeoff/RTH/home and restart
+  // anchors don't scatter spheres along the whole track.
+  waypointTracker(
+    s => {
+      const m = view(s).mission;
+      return {
+        waypointIdx: m.stepIdx,
+        target:      m.step.pos,
+        waypoints:   m.step.waypoints,
+        phase:       m.phase,
+      };
+    },
+    { addWhen: isNavigateStep, doneColor: 0x335577, numbered: numbersRef, visible: waypointsRef },
+  ),
   windowGate(
     s => ({
       windowIdx: toGateIdx(view(s).mission.stepIdx),
@@ -96,7 +121,11 @@ const sceneHandler = composeScene(() => {
     fontSize: 36,
   }),
   cornerGroup('bottom-left', [
-    toggleOverlay('Guides', guidesRef),
+    toggleOverlay('Debug',     debugEnabled, { labelMinWidth: TOGGLE_LABEL_W }),
+    toggleOverlay('Trail',     trailRef,     { labelMinWidth: TOGGLE_LABEL_W }),
+    toggleOverlay('Guides',    guidesRef,    { labelMinWidth: TOGGLE_LABEL_W }),
+    toggleOverlay('Waypoints', waypointsRef, { labelMinWidth: TOGGLE_LABEL_W }),
+    toggleOverlay('Numbers',   numbersRef,   { labelMinWidth: TOGGLE_LABEL_W }),
     infoOverlay({
       rows: [
         {
@@ -127,11 +156,11 @@ const sceneHandler = composeScene(() => {
   ]),
   cornerGroup('top-right', [
     missionLogOverlay(s => view(s).mission, {
-      stepsEntries: 10,
+      stepsEntries: 8,
       handlers: {
         step: {
           [STEP_TYPE_CTURN]: (step) => [
-            `ticks ${step.durationTicks ?? '?'}`,
+            `ticks ${step.durationTicks ?? '?'}${step.debug === 1 ? ' DEBUG' : ''}`,
             ...(step.waypoints ?? []).map(
               p => `  (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`
             ),

@@ -26,6 +26,11 @@ import type { ModelConfig, ModelState } from '../../../engine/types';
 const motors0 = { m0: 0, m1: 0, m2: 0, m3: 0 };
 const vec0    = { x: 0, y: 0, z: 0 };
 
+// Runtime master switch for cturn debug mode (straight legs vs. arc). Shared by
+// reference with the vis 'Debug' toggle; planner_cturn's mapStateIn reads it each
+// tick and overrides every cturn step's debug flag. Same pattern as the c2a toggles.
+export const debugEnabled = { enabled: true };
+
 export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
   const modelOverrides: Partial<QuadConsts> = {
     CRUISE_ALT:    3,     // ladder flies at y=3 (vs default 5)
@@ -34,6 +39,9 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
     MAX_TICKS:     3000,
     simDuration:   6000,
     ACC_ERR_LIMIT: 20000,
+    // Racing model flies a deterministic, repeatable path — no sensor noise, no wind.
+    POS_STD: 0, VEL_STD: 0, ATT_STD: 0, ANG_VEL_STD: 0,
+    WIND_FORCE_MAX_PCT: 0, WIND_MAX_N: 0,
     ...overrides,
   };
 
@@ -72,7 +80,7 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
         segEnd:       { ...vec0 },
       },
       planner_wp: { stepStatus: 0 },
-      planner_cturn: { throttle: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0 },
+      planner_cturn: { throttle: 0, roll: 0, pitch: 0, yaw: 0, active: 0, stepStatus: 0, debug: 0, targetX: 0, targetY: 0, targetZ: 0 },
       validator: {
         prevPhase:        0,
         lapsTotal:        0,
@@ -129,21 +137,27 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
             K:            s.K,
           };
         },
-        mapStateOut: (out, s) => ({
-          ...s,
-          mission: {
-            ...(s.mission as ModelState),
-            phase:        out.phase,
-            stepIdx:      out.stepIdx,
-            ticksInPhase: out.ticksInPhase,
-            armed:        out.armed,
-            step:         out.step,
-            target:       out.target,
-            dist:         out.dist,
-            segStart:     out.segStart,
-            segEnd:       out.segEnd,
-          },
-        }),
+        mapStateOut: (out, s) => {
+          // Master Debug toggle overrides each cturn step's baked-in debug flag at
+          // the bus, so planner_cturn and the mission-log overlay stay in sync.
+          const step = out.step as ModelState;
+          const isCturn = Math.round((step.stepType as number) ?? 0) === STEP_TYPE_CTURN;
+          return {
+            ...s,
+            mission: {
+              ...(s.mission as ModelState),
+              phase:        out.phase,
+              stepIdx:      out.stepIdx,
+              ticksInPhase: out.ticksInPhase,
+              armed:        out.armed,
+              step:         isCturn ? { ...step, debug: debugEnabled.enabled ? 1 : 0 } : step,
+              target:       out.target,
+              dist:         out.dist,
+              segStart:     out.segStart,
+              segEnd:       out.segEnd,
+            },
+          };
+        },
         tickFrequency: 1,
       },
 
@@ -175,6 +189,7 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
         mapStateIn:  (s) => ({
           pos:          (s.sensors as ModelState).pos,
           vel:          (s.sensors as ModelState).vel,
+          // step.debug already reflects the Debug toggle (overridden in mission's mapStateOut).
           step:         (s.mission as ModelState).step,
           ticksInPhase: (s.mission as ModelState).ticksInPhase,
           armed:        (s.mission as ModelState).armed,
@@ -229,6 +244,15 @@ export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
           planPitch:    (s.planner_cturn as ModelState).pitch,
           planYaw:      (s.planner_cturn as ModelState).yaw,
           planActive:   (s.planner_cturn as ModelState).active,
+          planDebug:    (s.planner_cturn as ModelState).debug,
+          planTargetX:  (s.planner_cturn as ModelState).targetX,
+          planTargetY:  (s.planner_cturn as ModelState).targetY,
+          planTargetZ:  (s.planner_cturn as ModelState).targetZ,
+          pos:          (s.sensors as ModelState).pos,
+          vel:          (s.sensors as ModelState).vel,
+          attitude:     (s.sensors as ModelState).attitude,
+          angularVel:   (s.sensors as ModelState).angularVel,
+          K:            s.K,
           aetr:         s.aetr,
         }),
         mapStateOut: (out, s) => ({ ...s, aetr: out.aetr }),

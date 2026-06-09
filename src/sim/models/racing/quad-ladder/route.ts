@@ -3,27 +3,38 @@
 // (rendered as window gates by the windowGate plugin).
 //
 // Jacob's Ladder Switchback (Y=up, X=forward, Z=right).
-// Three pairs of gates stacked vertically. Each pair is a main gate (M) + a guide
-// gate (G) that constrains the exit arc. The drone weaves through the structure
-// climbing one level per pass:
+// Five gates stand at x=LADDER_X, spaced ±GUIDE_Z in Z and climbing in Y: three
+// main gates (M1/M2/M3 on the z=0 axis) interleaved with two guide gates (G1 on
+// the +z side, G2 on the −z side). The drone weaves through all five in one
+// continuous chain, flipping its heading between +x and −x at every gate:
 //
-//   Level 1 (y=3): M1 going +x, arc right, G1 going −x
-//   Level 2 (y=7): M2 going −x, arc left,  G2 going +x
-//   Level 3 (y=11):M3 going +x, arc right, G3 going −x
+//   M1 (12,  3,  0) going +x
+//   G1 (12,  5, +4) going −x
+//   M2 (12,  7,  0) going +x
+//   G2 (12,  9, −4) going −x
+//   M3 (12, 11,  0) going +x
 //
-// Each gate pair is flown as a coordinated half-circle turn:
-//   The arc fits a circle through [gate_entry, arc_midpoint, gate_exit].
-//   Center of circle is at the midpoint between the two gate centers in Z (radius = GUIDE_Z/2).
-//   CCW arcs in the XZ plane (positive sweep direction = atan increasing):
-//     M1/M3 arcs: rightward (+x),  center.x = LADDER_X,        midpoint at LADDER_X + ARC_R
-//     M2 arc:     leftward  (−x),  center.x = LADDER_X,        midpoint at LADDER_X − ARC_R
+// Gates climb GATE_SIZE/2 per transit (3→5→7→9→11), so each cturn rises while it
+// turns; its mid waypoint sits at the halfway altitude (entry.y + GATE_SIZE/4).
 //
-// Approach geometry (aligns drone on the correct axis before each CTURN entry):
-//   After takeoff:      HOME → M1  along z=0 axis (+x travel), approach is pure +x  ✓
-//   After Level-1 arc:  stage at (LADDER_X+APPROACH_X, GATE_Y2, 0) → M2 approach is pure −x ✓
-//   After Level-2 arc:  stage at (LADDER_X−APPROACH_X, GATE_Y3, 0) → M3 approach is pure +x ✓
+// Each gate-to-gate transit is a coordinated half-circle turn:
+//   The arc fits a circle in the XZ plane through [gate_entry, arc_midpoint, gate_exit].
+//   Consecutive gates are GUIDE_Z apart in Z at the same X, so the circle center
+//   sits at their Z-midpoint (radius = GUIDE_Z/2 = ARC_R) and the apex bulges
+//   ±ARC_R in X. The apex side alternates so the heading flips +x ↔ −x each turn:
+//     M1→G1 (+x exit), M2→G2 (+x exit): apex on the +x side  (LADDER_X + ARC_R)
+//     G1→M2 (−x exit), G2→M3 (−x exit): apex on the −x side  (LADDER_X − ARC_R)
 //
-// Route: 8 steps — [WP_entry, CTURN] × 3 levels, with inter-level staging WPs.
+// Route: 7 steps.
+//   0       WP    → WP_STAGING_BEFORE (line the drone up on the z=0 axis, +x bound)
+//   1–4     CTURN × 4 weaving M1 → G1 → M2 → G2 → M3
+//   5       WP    → WP_STAGING_AFTER  (clear of the ladder, past M3)
+//   6       CTURN return arc WP_STAGING_AFTER → WP_STAGING_AFTER_ARC → WP_STAGING_BEFORE,
+//          bowed wide in +z so the loop home flies around the ladder, not through it.
+//
+// NOTE: every CTURN below is currently flagged debug: 1 — flown as straight legs
+// (no arc) for visual inspection of the waypoint geometry. Drop the debug flags to
+// fly the real coordinated-turn arcs.
 
 import { STEP_TYPE_WP, STEP_TYPE_CTURN } from '../../lib/quad/consts';
 import type { StepDef } from '../../lib/quad/consts';
@@ -39,7 +50,6 @@ const GATE_Y3 = CRUISE_ALT + 2 * GATE_STEP; // 11
 
 const GUIDE_Z    = GATE_SIZE;             // guide gate offset = 4 m in Z
 const ARC_R      = GUIDE_Z / 2;          // half-circle radius = 2 m
-const APPROACH_X = 7;                    // staging distance from ladder face
 
 type Vec3    = { x: number; y: number; z: number };
 type GateDef = { center: Vec3; normal: Vec3; width: number; height: number; label?: string };
@@ -49,36 +59,44 @@ type GateDef = { center: Vec3; normal: Vec3; width: number; height: number; labe
 // Main gates: alternating normals for Jacob's Ladder Switchback.
 export const GATES: GateDef[] = [
   { center: { x: LADDER_X, y: GATE_Y1, z:  0 }, normal: { x: +1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'M1' },
-  { center: { x: LADDER_X, y: GATE_Y2, z:  0 }, normal: { x: -1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'M2' },
+  { center: { x: LADDER_X, y: GATE_Y2, z:  0 }, normal: { x: +1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'M2' },
   { center: { x: LADDER_X, y: GATE_Y3, z:  0 }, normal: { x: +1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'M3' },
 ];
 
 // Guide gates: exit constrainers offset in Z, opposite normals to their paired main gate.
 export const GUIDE_GATES: GateDef[] = [
-  { center: { x: LADDER_X, y: GATE_Y1, z: +GUIDE_Z }, normal: { x: -1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'G1' },
-  { center: { x: LADDER_X, y: GATE_Y2, z: -GUIDE_Z }, normal: { x: +1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'G2' },
-  { center: { x: LADDER_X, y: GATE_Y3, z: +GUIDE_Z }, normal: { x: -1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'G3' },
+  { center: { x: LADDER_X, y: GATE_Y1 + GATE_SIZE / 2, z: +GUIDE_Z }, normal: { x: -1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'G1' },
+  { center: { x: LADDER_X, y: GATE_Y2 + GATE_SIZE / 2, z: -GUIDE_Z }, normal: { x: -1, y: 0, z: 0 }, width: GATE_SIZE, height: GATE_SIZE, label: 'G2' },
 ];
 
+// Staging points before/after the ladder. WP_STAGING_AFTER_ARC is the apex of the
+// return arc: offset wide in +z so the loop home swings around the ladder (gate
+// structure spans z∈[−6,+6]) instead of cutting straight back through it.
+const WP_STAGING_BEFORE: Vec3 = { x: LADDER_X - GATE_SIZE, y: GATE_Y1, z:  0 };
+const WP_STAGING_AFTER: Vec3 = { x: LADDER_X + GATE_SIZE, y: GATE_Y3, z:  0 };
+const WP_STAGING_AFTER_ARC: Vec3 =  { x: LADDER_X, y: (GATE_Y1 + GATE_Y3) / 2, z: GUIDE_Z + GATE_SIZE }; // (12, 7, +8)
+
 // ── Gate waypoints (CTURN arc endpoints) ──────────────────────────────────────
+//
+// The drone climbs the ladder continuously: each gate sits GATE_SIZE/2 above the
+// previous one, so the five flight altitudes are a smooth staircase 3 → 5 → 7 →
+// 9 → 11. Main gates (M) stay on their level; guide-gate waypoints (G) sit at the
+// guide gate's center, GATE_SIZE/2 above their level's main gate.
+const M1: Vec3 = { x: LADDER_X, y: GATE_Y1,                  z:  0 };       // (12,  3, 0) — arc entry L1
+const G1: Vec3 = { x: LADDER_X, y: GATE_Y1 + GATE_SIZE / 2,  z: +GUIDE_Z }; // (12,  5, +4) — guide gate #1 center
+const M2: Vec3 = { x: LADDER_X, y: GATE_Y2,                  z:  0 };       // (12,  7, 0) — main gate #2 center
+const G2: Vec3 = { x: LADDER_X, y: GATE_Y2 + GATE_SIZE / 2,  z: -GUIDE_Z }; // (12,  9, -4) — guide gate #2 center
+const M3: Vec3 = { x: LADDER_X, y: GATE_Y3,                  z:  0 };       // (12, 11, 0) — main gate #3 center
 
-const M1: Vec3 = { x: LADDER_X, y: GATE_Y1, z:  0 };       // M1 center — arc entry L1
-const G1: Vec3 = { x: LADDER_X, y: GATE_Y1, z: +GUIDE_Z }; // G1 center — arc exit  L1
-const M2: Vec3 = { x: LADDER_X, y: GATE_Y2, z:  0 };       // M2 center — arc entry L2
-const G2: Vec3 = { x: LADDER_X, y: GATE_Y2, z: -GUIDE_Z }; // G2 center — arc exit  L2
-const M3: Vec3 = { x: LADDER_X, y: GATE_Y3, z:  0 };       // M3 center — arc entry L3
-const G3: Vec3 = { x: LADDER_X, y: GATE_Y3, z: +GUIDE_Z }; // G3 center — arc exit  L3
 
-// Arc midpoints: rightmost/leftmost point of each half-circle.
-// Circle center is at (LADDER_X, y, ±ARC_R); midpoint is at (LADDER_X ± ARC_R, y, ±ARC_R).
-const M1_MID: Vec3 = { x: LADDER_X + ARC_R, y: GATE_Y1, z: +ARC_R }; // (14, 3,  2)
-const M2_MID: Vec3 = { x: LADDER_X - ARC_R, y: GATE_Y2, z: -ARC_R }; // (10, 7, -2)
-const M3_MID: Vec3 = { x: LADDER_X + ARC_R, y: GATE_Y3, z: +ARC_R }; // (14, 11, 2)
-
-// Staging waypoints: align the drone on the gate approach axis (z=0 line) before
-// each WP_ENTRY, so the final leg into the CTURN entry is a clean axial approach.
-const STAGE_M2: Vec3 = { x: LADDER_X + APPROACH_X, y: GATE_Y2, z: 0 }; // right side (19, 7, 0)
-const STAGE_M3: Vec3 = { x: LADDER_X - APPROACH_X, y: GATE_Y3, z: 0 }; // left side  (5, 11, 0)
+// Arc apex midpoints: the X-extreme of each gate-to-gate half-circle, at the
+// halfway altitude of the cturn's climb (entry.y + GATE_SIZE/4). Only X/Z drive
+// the circle fit; Y carries the climb. Consecutive gates are GUIDE_Z apart in Z
+// at the same X, so the apex is at (LADDER_X ± ARC_R, ·, ±ARC_R).
+const MID_M1_G1: Vec3 = { x: LADDER_X + ARC_R, y: M1.y + GATE_SIZE / 4, z: +ARC_R }; // (14,  4,  2)
+const MID_G1_M2: Vec3 = { x: LADDER_X - ARC_R, y: G1.y + GATE_SIZE / 4, z: +ARC_R }; // (10,  6,  2)
+const MID_M2_G2: Vec3 = { x: LADDER_X + ARC_R, y: M2.y + GATE_SIZE / 4, z: -ARC_R }; // (14,  8, -2)
+const MID_G2_M3: Vec3 = { x: LADDER_X - ARC_R, y: G2.y + GATE_SIZE / 4, z: -ARC_R }; // (10, 10, -2)
 
 // Arc duration: semicircle of radius ARC_R = 2 m → arc length = π·2 ≈ 6.28 m.
 // At 40 ticks × 0.05 s/tick = 2 s → v ≈ 3.14 m/s → bank angle ≈ 27°.
@@ -86,42 +104,60 @@ const CTURN_TICKS = 40;
 
 // ── Route ─────────────────────────────────────────────────────────────────────
 //
-// Step pattern: [WP_entry → CTURN] × 3 levels, with inter-level staging WPs.
+// 7 steps: WP in, four weaving CTURNs through the five gates, WP out, return CTURN.
 //
-// Steps 0–1  → Level 1 (gate index 0: M1 / G1)
-// Steps 2–4  → Level 2 (gate index 1: M2 / G2)   (staging, entry, arc)
-// Steps 5–7  → Level 3 (gate index 2: M3 / G3)   (staging, entry, arc)
+//   0      WP    → WP_STAGING_BEFORE
+//   1      CTURN M1 → G1   (+x apex)
+//   2      CTURN G1 → M2   (−x apex)
+//   3      CTURN M2 → G2   (+x apex)
+//   4      CTURN G2 → M3   (−x apex)
+//   5      WP    → WP_STAGING_AFTER
+//   6      CTURN return arc back to WP_STAGING_BEFORE
 
 export const QUAD_LADDER_ROUTE: StepDef[] = [
-  // ── Level 1 (y = 3): M1 going +x → arc right → G1 going −x ──────────────
-  // Drone arrives at M1 straight from HOME (0,3,0) along the +x axis.
-  { type: STEP_TYPE_WP, pos: M1, threshold: 1.0 },
-  {
+
+  // Line up on the z=0 axis just short of M1, travelling +x.
+  { type: STEP_TYPE_WP, pos: WP_STAGING_BEFORE, threshold: 1.0 },
+
+  // ── Weave the five gates: M1 → G1 → M2 → G2 → M3 ───────────────────────
+  // Each CTURN is a half-circle flipping heading +x ↔ −x between two gates.
+  { // M1 (+x) → arc right → G1 (−x)
     type:          STEP_TYPE_CTURN,
     pos:           G1,
-    waypoints:     [M1, M1_MID, G1],
+    waypoints:     [M1, MID_M1_G1, G1],
     durationTicks: CTURN_TICKS,
+    debug:         1,
   },
-
-  // ── Level 2 (y = 7): M2 going −x → arc left → G2 going +x ───────────────
-  // After L1 arc exits at G1 (going −x), stage right to align the M2 approach.
-  { type: STEP_TYPE_WP, pos: STAGE_M2, threshold: 1.5 },
-  { type: STEP_TYPE_WP, pos: M2, threshold: 1.0 },
-  {
+  { // G1 (−x) → arc left → M2 (+x)
+    type:          STEP_TYPE_CTURN,
+    pos:           M2,
+    waypoints:     [G1, MID_G1_M2, M2],
+    durationTicks: CTURN_TICKS,
+    debug:         1,
+  },
+  { // M2 (+x) → arc right → G2 (−x)
     type:          STEP_TYPE_CTURN,
     pos:           G2,
-    waypoints:     [M2, M2_MID, G2],
+    waypoints:     [M2, MID_M2_G2, G2],
     durationTicks: CTURN_TICKS,
+    debug:         1,
+  },
+  { // G2 (−x) → arc left → M3 (+x)
+    type:          STEP_TYPE_CTURN,
+    pos:           M3,
+    waypoints:     [G2, MID_G2_M3, M3],
+    durationTicks: CTURN_TICKS,
+    debug:         1,
   },
 
-  // ── Level 3 (y = 11): M3 going +x → arc right → G3 going −x ─────────────
-  // After L2 arc exits at G2 (going +x), stage left to align the M3 approach.
-  { type: STEP_TYPE_WP, pos: STAGE_M3, threshold: 1.5 },
-  { type: STEP_TYPE_WP, pos: M3, threshold: 1.0 },
+  // ── Exit past the ladder, then loop home around it (apex bowed wide in +z) ──
+  { type: STEP_TYPE_WP, pos: WP_STAGING_AFTER, threshold: 1.0 },
   {
     type:          STEP_TYPE_CTURN,
-    pos:           G3,
-    waypoints:     [M3, M3_MID, G3],
-    durationTicks: CTURN_TICKS,
+    pos:           WP_STAGING_BEFORE,
+    waypoints:     [WP_STAGING_AFTER, WP_STAGING_AFTER_ARC, WP_STAGING_BEFORE],
+    durationTicks: CTURN_TICKS * 3,
+    debug:         1,
   },
+
 ];

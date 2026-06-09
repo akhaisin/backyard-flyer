@@ -34,7 +34,7 @@ type WpStep    = { type: 0; pos: Vec3; threshold: number; timeout?: number };
 type W1aStep   = { type: 1; pos: Vec3; normal: Vec3; width: number; height: number; timeout?: number };
 type W1bStep   = { type: 2; pos: Vec3; normal: Vec3; width: number; height: number; preStageDist: number; timeout?: number };
 type RatesStep = { type: 3; pos: Vec3; duration: number; throttle: RateRange; yaw: RateRange; pitch: RateRange; roll: RateRange; timeout?: number };
-type CTurnStep = { type: 4; pos: Vec3; waypoints: Vec3[]; durationTicks: number; timeout?: number };
+type CTurnStep = { type: 4; pos: Vec3; waypoints: Vec3[]; durationTicks: number; debug?: number; timeout?: number };
 type C1aStep   = { type: 5; pos: Vec3; dest: Vec3; speed: number; threshold: number; preStageDist?: number; timeout?: number };
 type C2aStep   = { type: 6; pos: Vec3; threshold: number; timeout?: number };
 type StepDef = WpStep | W1aStep | W1bStep | RatesStep | CTurnStep | C1aStep | C2aStep;
@@ -79,6 +79,7 @@ type StepBus = {
   roll?: RateRange;
   durationTicks?: number; // cturn: maneuver duration in ticks
   waypoints?: Vec3[];     // cturn: arc waypoints
+  debug?: number;         // cturn: 1 = fly waypoints as straight legs (no arc)
   dest?: Vec3;            // c1a: target destination
   speed?: number;         // c1a: target speed (m/s)
   timeout?: number;
@@ -123,7 +124,7 @@ function stepToBus(step: StepDef): StepBus {
     case STEP_TYPE_W1A:   return { stepType: step.type, pos: step.pos, normal: step.normal, width: step.width, height: step.height, timeout: step.timeout };
     case STEP_TYPE_W1B:   return { stepType: step.type, pos: step.pos, normal: step.normal, width: step.width, height: step.height, preStageDist: step.preStageDist, timeout: step.timeout };
     case STEP_TYPE_RATES: return { stepType: step.type, pos: step.pos, duration: step.duration, throttle: step.throttle, yaw: step.yaw, pitch: step.pitch, roll: step.roll, timeout: step.timeout };
-    case STEP_TYPE_CTURN: return { stepType: step.type, pos: step.pos, durationTicks: step.durationTicks, waypoints: step.waypoints, timeout: step.timeout };
+    case STEP_TYPE_CTURN: return { stepType: step.type, pos: step.pos, durationTicks: step.durationTicks, waypoints: step.waypoints, debug: step.debug, timeout: step.timeout };
     case STEP_TYPE_C1A:   return { stepType: step.type, pos: step.pos, dest: step.dest, speed: step.speed, threshold: step.threshold, preStageDist: step.preStageDist, timeout: step.timeout };
     case STEP_TYPE_C2A:   return { stepType: step.type, pos: step.pos, threshold: step.threshold, timeout: step.timeout };
   }
