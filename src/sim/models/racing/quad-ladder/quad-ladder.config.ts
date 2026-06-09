@@ -29,7 +29,7 @@ const vec0    = { x: 0, y: 0, z: 0 };
 // Runtime master switch for cturn debug mode (straight legs vs. arc). Shared by
 // reference with the vis 'Debug' toggle; planner_cturn's mapStateIn reads it each
 // tick and overrides every cturn step's debug flag. Same pattern as the c2a toggles.
-export const debugEnabled = { enabled: true };
+export const debugEnabled = { enabled: false };
 
 export function quadLadderConfig(overrides?: Partial<QuadConsts>): ModelConfig {
   const modelOverrides: Partial<QuadConsts> = {
