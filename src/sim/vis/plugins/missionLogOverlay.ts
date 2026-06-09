@@ -210,6 +210,7 @@ export function missionLogOverlay(
   const entries: LogEntry[] = [];
   let prevPhase   = -1;
   let prevStepIdx = -1;
+  let prevTick    = -1;
 
   function closeLastEntry(
     fromPhase: number, toPhase: number, fromStepIdx: number, totalSteps: number,
@@ -322,40 +323,46 @@ export function missionLogOverlay(
       renderEntries();
     },
 
-    update(state, _tick, _history, staticState) {
-      const ms      = getState(state);
-      const phase   = Math.round(ms.phase);
-      const stepIdx = Math.round(ms.stepIdx);
-
-      const isTransition =
-        phase !== prevPhase ||
-        (phase === PHASE_NAVIGATE && stepIdx !== prevStepIdx);
-      if (!isTransition) return;
-
+    update(state, tick, history, staticState) {
       const K = (staticState.K ?? {}) as ModelState;
       const totalSteps = getStepsCount
         ? getStepsCount(K)
         : Array.isArray(K.steps) ? (K.steps as unknown[]).length : 8;
 
-      if (prevPhase >= 0 && prevPhase !== PHASE_RESTART) {
-        closeLastEntry(prevPhase, phase, prevStepIdx, totalSteps);
+      function processState(ms: MissionLogState): boolean {
+        const phase   = Math.round(ms.phase);
+        const stepIdx = Math.round(ms.stepIdx);
+        if (phase === prevPhase && !(phase === PHASE_NAVIGATE && stepIdx !== prevStepIdx)) return false;
+        if (prevPhase >= 0 && prevPhase !== PHASE_RESTART) {
+          closeLastEntry(prevPhase, phase, prevStepIdx, totalSteps);
+        }
+        if (phase !== PHASE_RESTART) {
+          entries.push({
+            phase, stepIdx,
+            stepType:  Math.round((ms.step.stepType ?? 0) as number),
+            status:    'running',
+            bodyLines: resolveBody(phase, ms.step, K, phaseHandlers, stepHandlers, defaultStep),
+          });
+        }
+        prevPhase   = phase;
+        prevStepIdx = stepIdx;
+        return true;
       }
 
-      // RESTART modifies the previous entry's icon rather than adding its own.
-      if (phase !== PHASE_RESTART) {
-        const stepType = Math.round((ms.step.stepType ?? 0) as number);
-        entries.push({
-          phase,
-          stepIdx,
-          stepType,
-          status:    'running',
-          bodyLines: resolveBody(phase, ms.step, K, phaseHandlers, stepHandlers, defaultStep),
-        });
+      if (tick !== prevTick + 1) {
+        entries.length = 0;
+        prevPhase   = -1;
+        prevStepIdx = -1;
+        for (let i = 0; i <= tick && i < history.length; i++) {
+          processState(getState(history[i]));
+        }
+        prevTick = tick;
+        renderEntries();
+        return;
       }
 
-      prevPhase   = phase;
-      prevStepIdx = stepIdx;
-      renderEntries();
+      prevTick = tick;
+      if (processState(getState(state))) renderEntries();
     },
 
     dispose(_scene: Scene) {
@@ -366,6 +373,7 @@ export function missionLogOverlay(
       entries.length = 0;
       prevPhase   = -1;
       prevStepIdx = -1;
+      prevTick    = -1;
     },
   };
 }
