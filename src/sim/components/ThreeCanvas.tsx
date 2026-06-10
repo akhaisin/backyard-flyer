@@ -5,6 +5,8 @@ import { subscribe, getState, getTick, getHistory, getStatic } from '../engine/e
 import { useSimVis } from './SimVisContext';
 import type { SceneHandler } from '../engine/types';
 
+let activeWebGLContexts = 0;
+
 interface Props {
   sceneHandler: () => SceneHandler;
 }
@@ -20,55 +22,84 @@ export default function ThreeCanvas({ sceneHandler }: Props) {
   const rafRef = useRef<number>(0);
   const prevRewindRef = useRef<number | null>(null);
 
-  // Three.js setup — runs once per (simId, sceneHandler) mount
+  // Three.js setup — deferred until canvas is first visible (non-zero size).
+  // All pages mount at app load into the hidden #page-store; creating a WebGLRenderer
+  // there would exhaust the browser's context limit (~8-16) before the user sees anything.
+  // ResizeObserver fires with real dimensions once PageShell moves this page into view.
+  // The RAF loop is never paused for tab switches — only cleaned up on unmount.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, el.clientWidth / el.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.domElement.tabIndex = -1;
-    renderer.domElement.style.outline = 'none';
-    el.appendChild(renderer.domElement);
+    let unmounted = false;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    function initRenderer(width: number, height: number) {
+      if (!el || rendererRef.current || unmounted) return;
 
-    sceneRef.current = scene;
-    cameraRef.current = camera;
-    rendererRef.current = renderer;
-    controlsRef.current = controls;
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      activeWebGLContexts++;
+      console.log(`[ThreeCanvas] context created — active: ${activeWebGLContexts}`, simId);
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.domElement.tabIndex = -1;
+      renderer.domElement.style.outline = 'none';
+      el.appendChild(renderer.domElement);
 
-    const handler = sceneHandler();
-    handlerRef.current = handler;
-    handler.init(scene, camera, el);
-    handler.update(getState(simId), getTick(simId), getHistory(simId), getStatic(simId));
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
 
-    const animate = () => {
-      rafRef.current = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
+      sceneRef.current = scene;
+      cameraRef.current = camera;
+      rendererRef.current = renderer;
+      controlsRef.current = controls;
+
+      const handler = sceneHandler();
+      handlerRef.current = handler;
+      handler.init(scene, camera, el);
+      handler.update(getState(simId), getTick(simId), getHistory(simId), getStatic(simId));
+
+      const animate = () => {
+        rafRef.current = requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      };
+      animate();
+    }
 
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      renderer.setSize(width, height);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      if (width === 0 || height === 0) return;
+      if (!rendererRef.current) {
+        initRenderer(width, height);
+      } else {
+        rendererRef.current.setSize(width, height);
+        cameraRef.current!.aspect = width / height;
+        cameraRef.current!.updateProjectionMatrix();
+      }
     });
     ro.observe(el);
 
+    // Initialize immediately if already visible (e.g. direct deep-link to Vis tab)
+    if (el.clientWidth > 0 && el.clientHeight > 0) {
+      initRenderer(el.clientWidth, el.clientHeight);
+    }
+
     return () => {
+      unmounted = true;
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      handler.dispose(scene);
-      controls.dispose();
-      renderer.dispose();
-      el.removeChild(renderer.domElement);
+      const scene = sceneRef.current;
+      const renderer = rendererRef.current;
+      if (scene && renderer) {
+        handlerRef.current?.dispose(scene);
+        controlsRef.current?.dispose();
+        renderer.dispose();
+        if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
+        activeWebGLContexts--;
+        console.log(`[ThreeCanvas] context disposed — active: ${activeWebGLContexts}`, simId);
+      }
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
