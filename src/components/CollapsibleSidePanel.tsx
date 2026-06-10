@@ -1,6 +1,6 @@
 import { Panel, usePanelRef } from 'react-resizable-panels';
 import type { PanelSize } from 'react-resizable-panels';
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import styles from './CollapsibleSidePanel.module.css';
 
 export type PanelPosition = 'left' | 'right' | 'bottom';
@@ -29,19 +29,24 @@ export default function CollapsibleSidePanel({
 }: Props) {
   const panelRef = usePanelRef();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-
-  useEffect(() => {
-    if (defaultCollapsed) panelRef.current?.collapse();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // expand() restores the size recorded by collapse(); when the panel starts
+  // collapsed there is no recorded size, so the first expand targets defaultSize.
+  const hasExpandedRef = useRef(!defaultCollapsed);
 
   function toggle() {
-    panelRef.current?.isCollapsed()
-      ? panelRef.current.expand()
-      : panelRef.current?.collapse();
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) {
+      hasExpandedRef.current ? panel.expand() : panel.resize(defaultSize);
+    } else {
+      panel.collapse();
+    }
   }
 
   function handleResize(_size: PanelSize) {
-    setCollapsed(panelRef.current?.isCollapsed() ?? false);
+    const isCollapsed = panelRef.current?.isCollapsed() ?? false;
+    if (!isCollapsed) hasExpandedRef.current = true;
+    setCollapsed(isCollapsed);
   }
 
   const arrow = collapsed ? EXPAND_ARROW[position] : COLLAPSE_ARROW[position];
@@ -50,7 +55,7 @@ export default function CollapsibleSidePanel({
   return (
     <Panel
       panelRef={panelRef}
-      defaultSize={defaultSize}
+      defaultSize={defaultCollapsed ? COLLAPSED_SIZE : defaultSize}
       minSize={minSize}
       collapsible
       collapsedSize={COLLAPSED_SIZE}
