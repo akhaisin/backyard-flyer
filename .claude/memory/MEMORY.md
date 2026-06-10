@@ -11,5 +11,6 @@
 - [Adding a new model](adding-new-model.md) — step-by-step generator: config, blocks, vis, registry, MDX page
 
 ## Cold — load on demand
+- [Improvement backlog](improvement-backlog.md) — proposed-but-unbuilt improvements across docs, testing, UX, model authoring, engine, lib blocks; top picks: test harness + headless runner, seeded RNG, tuning panel
 - [On-the-fly tuning plan](quad-on-the-fly-tuning-plan.md) — agreed-but-unbuilt tuner design (state.tuning overlay)
 - [Use pnpm exec for Node tools](use-pnpm-exec-for-node-tools.md) — always pnpm exec tsc, never plain/global binaries
