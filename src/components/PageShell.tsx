@@ -286,6 +286,7 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
                   ContentComponent={() => <ChartsPanel simId={simId} modelId={modelId} />}
                   defaultSize="35%"
                   minSize="10%"
+                  defaultCollapsed={true}
                 />
               </>
             )}
