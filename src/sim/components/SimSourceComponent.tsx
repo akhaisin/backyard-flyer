@@ -5,7 +5,6 @@ import {
 } from '../engine/engine';
 import type { SimContext } from '../useSim';
 import { useResolvedSimContext } from '../useResolvedSimContext';
-import { subscribeSourceSelection, clearSourceSelection } from '../sourceSelectStore';
 import OverflowTabs from './OverflowTabs';
 import './sim.css';
 
@@ -43,7 +42,13 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
     [config.blocks, sourceIds],
   );
 
-  const [activeSourceId, setActiveSourceId] = useState(visibleBlocks[0]?.sourceId ?? '');
+  const [activeSourceId, setActiveSourceId] = useState(() => {
+    const qs = window.location.hash.split('?')[1] ?? '';
+    const fromUrl = new URLSearchParams(qs).get('src') ?? '';
+    return (fromUrl && visibleBlocks.some(b => b.sourceId === fromUrl))
+      ? fromUrl
+      : (visibleBlocks[0]?.sourceId ?? '');
+  });
   const [blockStates, setBlockStates] = useState<Record<string, BlockEditorState>>(() => {
     const init: Record<string, BlockEditorState> = {};
     for (const block of visibleBlocks) {
@@ -59,13 +64,28 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
   const [status, setStatus] = useState(() => getStatus(simId));
 
   useEffect(() => {
-    return subscribeSourceSelection(sel => {
-      if (sel?.simId === simId && visibleBlocks.some(b => b.sourceId === sel.sourceId)) {
-        setActiveSourceId(sel.sourceId);
-        clearSourceSelection();
+    function onHashChange() {
+      const qs = window.location.hash.split('?')[1] ?? '';
+      const fromUrl = new URLSearchParams(qs).get('src') ?? '';
+      if (fromUrl && visibleBlocks.some(b => b.sourceId === fromUrl)) {
+        setActiveSourceId(fromUrl);
       }
-    });
-  }, [simId, visibleBlocks]);
+    }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [visibleBlocks]);
+
+  const selectTab = useCallback((sourceId: string) => {
+    setActiveSourceId(sourceId);
+    const hash = window.location.hash;
+    const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+    const qIdx = raw.indexOf('?');
+    const pageId = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    const qs = qIdx >= 0 ? raw.slice(qIdx + 1) : '';
+    const params = new URLSearchParams(qs);
+    params.set('src', sourceId);
+    history.replaceState(null, '', `#${pageId}?${params.toString()}`);
+  }, []);
 
   useEffect(() => {
     return subscribeStatus(simId, (next) => {
@@ -133,7 +153,7 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
   return (
     <div className={`sim-source${autoHeight ? ' sim-source--auto-height' : ''}`}>
       {visibleBlocks.length > 1 && (
-        <OverflowTabs tabs={tabs} activeId={activeSourceId} onSelect={setActiveSourceId} />
+        <OverflowTabs tabs={tabs} activeId={activeSourceId} onSelect={selectTab} />
       )}
 
       <div className="sim-source__toolbar">

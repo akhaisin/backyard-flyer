@@ -15,7 +15,6 @@ import {
   analyzeConnections, buildLayout, buildEdges, nodeCenter, borderPoint,
   type Waypoint, type EdgeData, type SetWaypoint,
 } from './SimBlocksDiagram';
-import { selectSource } from '../sourceSelectStore';
 import './sim.css';
 
 function BlocksHints() {
@@ -195,10 +194,10 @@ function SimBlocksInner({ ctx }: { ctx: SimContext }) {
   const onNodeDoubleClick = useCallback((_e: React.MouseEvent, node: Node) => {
     const hash = window.location.hash;
     const raw = hash.startsWith('#') ? hash.slice(1) : hash;
-    const pageId = raw.split('?')[0];
-    selectSource(ctx.simId, node.id);
-    window.location.hash = `#${pageId}?view=src`;
-  }, [ctx.simId]);
+    const qIdx = raw.indexOf('?');
+    const pageId = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    window.location.hash = `#${pageId}?view=src&src=${encodeURIComponent(node.id)}`;
+  }, []);
 
   return (
     <WaypointCtx.Provider value={setWaypoint}>
