@@ -119,10 +119,13 @@ export default function PageShell({ pageIds, pageSimIds, pageModelIds, pageTocNa
     function onHashChange() {
       const { pageId: id, view } = parseHash(window.location.hash);
       setRoute({ pageId: id || pageIds[0] || '', view });
+      if (isEmbedded) {
+        window.parent.postMessage({ type: 'HASH_CHANGED', hash: window.location.hash }, '*');
+      }
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
+  }, [isEmbedded]);
 
   // Receive NAVIGATE_TO_HASH from host
   useEffect(() => {

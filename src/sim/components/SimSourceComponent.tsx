@@ -84,7 +84,7 @@ function SimSourceInner({ ctx, sourceIds, autoHeight }: InnerProps) {
     const qs = qIdx >= 0 ? raw.slice(qIdx + 1) : '';
     const params = new URLSearchParams(qs);
     params.set('src', sourceId);
-    history.replaceState(null, '', `#${pageId}?${params.toString()}`);
+    window.location.replace(`#${pageId}?${params.toString()}`);
   }, []);
 
   useEffect(() => {
