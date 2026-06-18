@@ -15,8 +15,8 @@
 //   M3(CW)  · M2(CCW)    M3: rear-left   (-X, -Z)
 //
 // Torque mixing:
-//   τ_roll  = ARM · (F0 - F1 - F2 + F3)
-//   τ_pitch = ARM · (F0 + F1 - F2 - F3)
+//   τ_roll  = ARM_LENGTH · (F0 - F1 - F2 + F3)
+//   τ_pitch = ARM_LENGTH · (F0 + F1 - F2 - F3)
 //   τ_yaw   = K_DRAG · (-F0 + F1 - F2 + F3)
 
 type Vec3 = { x: number; y: number; z: number };
@@ -34,7 +34,7 @@ const KI_ATT = 0;    // zero: motors are symmetric and balanced; tune when imbal
 const KD_ATT = 0.2;
 
 const MAX_THRUST_N = 10;   // per motor; total max = 40 N
-const ARM = 0.2;           // motor arm length (m)
+const ARM_LENGTH = 0.2;    // motor arm length (m)
 const K_DRAG = 0.02;       // yaw reactive torque coefficient (N·m / N)
 const DT = 0.05;
 
@@ -57,8 +57,8 @@ export function fc_stabilizer(state: FcStabIn): FcStabOut {
 
   // Motor mixing (inverse of torque equations)
   const base = state.thrust / 4;
-  const dr   = tau_roll  / (4 * ARM);
-  const dp   = tau_pitch / (4 * ARM);
+  const dr   = tau_roll  / (4 * ARM_LENGTH);
+  const dp   = tau_pitch / (4 * ARM_LENGTH);
   const dy   = tau_yaw   / (4 * K_DRAG);
 
   const k = 1 / MAX_THRUST_N;

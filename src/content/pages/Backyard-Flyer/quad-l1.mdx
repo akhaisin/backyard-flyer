@@ -42,8 +42,8 @@ The quad uses an **X configuration** with four fixed-direction motors, all point
 
 | Axis | Torque equation |
 |------|----------------|
-| Roll  (X) | `ARM · (M0 − M1 − M2 + M3)` |
-| Pitch (Z) | `ARM · (M0 + M1 − M2 − M3)` |
+| Roll  (X) | `ARM_LENGTH · (M0 − M1 − M2 + M3)` |
+| Pitch (Z) | `ARM_LENGTH · (M0 + M1 − M2 − M3)` |
 | Yaw   (Y) | `K_DRAG · (−M0 + M1 − M2 + M3)` |
 
 ---
@@ -86,13 +86,13 @@ attitude error → desired torques
 | 3 | RTH | Return to home position at cruise altitude |
 | 4 | LAND | Descend to ground |
 | 5 | DISARMING | Motors spool down (1 s) |
-| 6 | DONE | Simulation complete |
+| 6 | DONE | Mission complete — holds 1 s, then restarts from ARMING |
 
 ---
 
 ## Watch it fly
 
-Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown. The drone body rotates with the actual simulated attitude.
+Press **Start**. The quad arms, climbs, flies the rectangle, returns, and lands — then, one second after reaching DONE, it rearms and flies the whole mission again on a loop. Orange spheres are unvisited waypoints; green is the active target; grey marks completed ones. The blue trail shows the path flown. The drone body rotates with the actual simulated attitude.
 
 <SimVis />
 
@@ -135,7 +135,8 @@ Try changing `CRUISE_ALT` or the `WAYPOINTS` array to reshape the route.
 `world.ts` uses a simple ground-contact rule. Every tick where the quad is at or below `y = 0`:
 
 - Vertical velocity is zeroed if downward (no bounce).
-- Horizontal velocities **vx** and **vz** are multiplied by **0.7** — roughly 30 % lost per tick.
+- Horizontal velocities **vx** and **vz** are multiplied by `GROUND_DAMP` (**0.7**) — roughly 30 % lost per tick.
+- The same `GROUND_DAMP` factor is applied to the **angular velocities** (`wx, wy, wz`) and the **attitude angles** (`phi, psi, theta`), so the drone bleeds off rotation and settles flat after a few ticks regardless of armed state.
 
 At 20 Hz that bleeds off nearly all lateral inertia in about half a second, standing in for ground friction without needing a full contact-dynamics model. Increase the factor toward 1.0 for an icy surface; drop it toward 0 for an instant stop.
 

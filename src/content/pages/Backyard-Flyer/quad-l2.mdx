@@ -95,8 +95,8 @@ attitude error → desired torques → motor mixing → M0, M1, M2, M3 (0–1)
 **Step 2 — Motor mixing.** The torque equations are inverted to find the individual motor force that produces those torques while also delivering the total thrust commanded by the navigator:
 
 ```
-τ_roll  = ARM · (F0 − F1 − F2 + F3)
-τ_pitch = ARM · (F0 + F1 − F2 − F3)
+τ_roll  = ARM_LENGTH · (F0 − F1 − F2 + F3)
+τ_pitch = ARM_LENGTH · (F0 + F1 − F2 − F3)
 τ_yaw   = K_DRAG · (−F0 + F1 − F2 + F3)
 ```
 

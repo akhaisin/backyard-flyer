@@ -46,7 +46,7 @@ const MASS = 1.0;
 const GRAVITY = 9.81;
 const DT = 0.05;
 const MAX_THRUST_N = 10;   // per motor; total max = 40 N
-const ARM = 0.2;           // motor arm length (m)
+const ARM_LENGTH = 0.2;    // motor arm length (m)
 const K_DRAG = 0.02;       // yaw reactive torque coefficient (N·m / N)
 const MAX_TILT = 0.3;      // max desired roll/pitch (rad, ~17°) — keeps motors out of saturation
 
@@ -94,8 +94,8 @@ export function fc(state: FcIn): FcOut {
 
   // --- Motor mixing (inverse of torque equations) ---
   const base = f_total / 4;
-  const dr   = tau_roll  / (4 * ARM);
-  const dp   = tau_pitch / (4 * ARM);
+  const dr   = tau_roll  / (4 * ARM_LENGTH);
+  const dp   = tau_pitch / (4 * ARM_LENGTH);
   const dy   = tau_yaw   / (4 * K_DRAG);
 
   const k = 1 / MAX_THRUST_N;

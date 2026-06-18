@@ -13,7 +13,7 @@
 // No attitude memory — drone holds attitude only because the upstream navigator
 // stops commanding rate. Canonical FPV "acro mode".
 //
-// Tunables (MAX_RATE_*, KP_*, MAX_THRUST_N, ARM, K_DRAG) arrive via state.K from
+// Tunables (MAX_RATE_*, KP_*, MAX_THRUST_N, ARM_LENGTH, K_DRAG) arrive via state.K from
 // the params block. Upstream navigators normalize desired body rates with the
 // same K, so the bus and controller stay in sync by construction.
 
@@ -25,7 +25,7 @@ type FcConsts = {
   KP_RATE: number;
   KP_RATE_YAW: number;
   MAX_THRUST_N: number;
-  ARM: number;
+  ARM_LENGTH: number;
   K_DRAG: number;
 };
 
@@ -56,8 +56,8 @@ export function fc_acro(state: FcIn): FcOut {
   const tau_yaw   = K.KP_RATE_YAW * (rate_yaw_des   - state.angularVel.y);
 
   const base = state.aetrThrottle * K.MAX_THRUST_N;
-  const dr = tau_roll  / (4 * K.ARM);
-  const dp = tau_pitch / (4 * K.ARM);
+  const dr = tau_roll  / (4 * K.ARM_LENGTH);
+  const dp = tau_pitch / (4 * K.ARM_LENGTH);
   const dy = tau_yaw   / (4 * K.K_DRAG);
 
   const k = 1 / K.MAX_THRUST_N;

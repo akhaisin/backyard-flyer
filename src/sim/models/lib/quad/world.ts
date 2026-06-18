@@ -16,7 +16,7 @@
 type Vec3 = { x: number; y: number; z: number };
 type Motors4 = { m0: number; m1: number; m2: number; m3: number };
 type WorldConsts = {
-  ARM: number;
+  ARM_LENGTH: number;
   K_DRAG: number;
   I_XX: number;
   I_YY: number;
@@ -40,9 +40,9 @@ export function world(state: WorldIn): WorldOut {
   const windFx = state.windFx ?? 0;
   const windFz = state.windFz ?? 0;
 
-  const tau_roll  = K.ARM    * ( m0 - m1 - m2 + m3);
-  const tau_pitch = K.ARM    * ( m0 + m1 - m2 - m3);
-  const tau_yaw   = K.K_DRAG * (-m0 + m1 - m2 + m3);
+  const tau_roll  = K.ARM_LENGTH * ( m0 - m1 - m2 + m3);
+  const tau_pitch = K.ARM_LENGTH * ( m0 + m1 - m2 - m3);
+  const tau_yaw   = K.K_DRAG     * (-m0 + m1 - m2 + m3);
 
   let wx = state.angularVel.x + (tau_roll  / K.I_XX) * K.DT;
   let wy = state.angularVel.y + (tau_yaw   / K.I_YY) * K.DT;

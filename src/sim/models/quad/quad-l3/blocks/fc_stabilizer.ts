@@ -19,8 +19,8 @@
 //   M3(CW)  · M2(CCW)    M3: rear-left   (-X, -Z)
 //
 // Torque mixing:
-//   τ_roll  = ARM · (F0 - F1 - F2 + F3)
-//   τ_pitch = ARM · (F0 + F1 - F2 - F3)
+//   τ_roll  = ARM_LENGTH · (F0 - F1 - F2 + F3)
+//   τ_pitch = ARM_LENGTH · (F0 + F1 - F2 - F3)
 //   τ_yaw   = K_DRAG · (-F0 + F1 - F2 + F3)
 
 type Vec3 = { x: number; y: number; z: number };
@@ -42,7 +42,7 @@ const KI_ATT_YAW = 0;
 const KD_ATT_YAW = 0.15;
 
 const MAX_THRUST_N = 10;
-const ARM    = 0.2;
+const ARM_LENGTH = 0.2;
 const K_DRAG = 0.02;
 const DT     = 0.05;
 
@@ -70,8 +70,8 @@ export function fc_stabilizer(state: FcStabIn): FcStabOut {
   const tau_yaw   = KP_ATT_YAW * err_yaw   + KI_ATT_YAW * state.integralAtt.y - KD_ATT_YAW * state.angularVel.y;
 
   const base = state.thrust / 4;
-  const dr   = tau_roll  / (4 * ARM);
-  const dp   = tau_pitch / (4 * ARM);
+  const dr   = tau_roll  / (4 * ARM_LENGTH);
+  const dp   = tau_pitch / (4 * ARM_LENGTH);
   const dy   = tau_yaw   / (4 * K_DRAG);
 
   const k = 1 / MAX_THRUST_N;

@@ -118,7 +118,7 @@ export type QuadConsts = {
   MASS: number;                // airframe mass (kg)
   GRAVITY: number;             // m/s²
   MAX_THRUST_N: number;        // per-motor max thrust (N); FC, hw and nav must agree
-  ARM: number;                 // motor moment arm (m)
+  ARM_LENGTH: number;          // motor moment arm (m)
   K_DRAG: number;              // yaw drag coefficient
   I_XX: number;                // roll inertia
   I_YY: number;                // yaw inertia
@@ -198,7 +198,7 @@ export const QUAD_DEFAULTS: QuadConsts = {
   MASS: 1.0,
   GRAVITY: 9.81,
   MAX_THRUST_N: 10,
-  ARM: 0.2,
+  ARM_LENGTH: 0.2,
   K_DRAG: 0.02,
   I_XX: 0.01,
   I_YY: 0.02,

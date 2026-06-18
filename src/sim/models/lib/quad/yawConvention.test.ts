@@ -10,7 +10,7 @@ describe('quad yaw convention', () => {
       KP_RATE: 0.2,
       KP_RATE_YAW: 0.5,
       MAX_THRUST_N: 10,
-      ARM: 0.2,
+      ARM_LENGTH: 0.2,
       K_DRAG: 0.25,
     };
 

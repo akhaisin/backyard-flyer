@@ -12,8 +12,8 @@
 //   attitude.y = yaw   ψ: around Y (up);      positive → turn left (CCW from above)
 //
 // Torque equations (body frame):
-//   τ_roll  = ARM · (F0 - F1 - F2 + F3)
-//   τ_pitch = ARM · (F0 + F1 - F2 - F3)
+//   τ_roll  = ARM_LENGTH · (F0 - F1 - F2 + F3)
+//   τ_pitch = ARM_LENGTH · (F0 + F1 - F2 - F3)
 //   τ_yaw   = K_DRAG · (-F0 + F1 - F2 + F3)
 
 type Vec3 = { x: number; y: number; z: number };
@@ -24,7 +24,7 @@ type WorldOut = { pos: Vec3; vel: Vec3; acc: Vec3; attitude: Vec3; angularVel: V
 const DT = 0.05;
 const MASS = 1.0;
 const GRAVITY = 9.81;
-const ARM = 0.2;
+const ARM_LENGTH = 0.2;
 const K_DRAG = 0.02;
 const I_XX = 0.01;  // roll  moment of inertia (kg·m²)
 const I_ZZ = 0.01;  // pitch moment of inertia
@@ -35,9 +35,9 @@ export function world(state: WorldIn): WorldOut {
   const { m0, m1, m2, m3 } = state.thrust;
 
   // Torques in body frame
-  const tau_roll  = ARM    * ( m0 - m1 - m2 + m3);
-  const tau_pitch = ARM    * ( m0 + m1 - m2 - m3);
-  const tau_yaw   = K_DRAG * (-m0 + m1 - m2 + m3);
+  const tau_roll  = ARM_LENGTH * ( m0 - m1 - m2 + m3);
+  const tau_pitch = ARM_LENGTH * ( m0 + m1 - m2 - m3);
+  const tau_yaw   = K_DRAG     * (-m0 + m1 - m2 + m3);
 
   // Angular acceleration → integrate angular velocity
   let wx = state.angularVel.x + (tau_roll  / I_XX) * DT;
