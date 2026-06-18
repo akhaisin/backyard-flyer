@@ -1,0 +1,1227 @@
+{
+  "/home/ak/projects/backyard-flyer/.vscode/settings.json": {
+    "mtime": 1781431652.415796,
+    "ast_hash": "e3a836f2373e0c29d33d5269cc9405fb",
+    "semantic_hash": "e3a836f2373e0c29d33d5269cc9405fb"
+  },
+  "/home/ak/projects/backyard-flyer/astro.config.mjs": {
+    "mtime": 1778589207.7809675,
+    "ast_hash": "78e9e3036cb50d3564e53e8d2d663f20",
+    "semantic_hash": "78e9e3036cb50d3564e53e8d2d663f20"
+  },
+  "/home/ak/projects/backyard-flyer/package.json": {
+    "mtime": 1780650396.2459626,
+    "ast_hash": "4f1b7ed430c7130274af410f53351556",
+    "semantic_hash": "4f1b7ed430c7130274af410f53351556"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/Accordion.tsx": {
+    "mtime": 1780480824.2810752,
+    "ast_hash": "b653544e4fc93259930c70c4aedccd6e",
+    "semantic_hash": "b653544e4fc93259930c70c4aedccd6e"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/BlocksTab.tsx": {
+    "mtime": 1779742553.1122468,
+    "ast_hash": "4590f9c6a94c237c38f557d8f1c5b799",
+    "semantic_hash": "4590f9c6a94c237c38f557d8f1c5b799"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/CollapsibleSidePanel.tsx": {
+    "mtime": 1781117971.5170176,
+    "ast_hash": "c8541165e6892cbd65d41f00515445b5",
+    "semantic_hash": "c8541165e6892cbd65d41f00515445b5"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/MeflyNavReceiver.tsx": {
+    "mtime": 1778670693.3076146,
+    "ast_hash": "bb435e1662dca54f5e16a2bb13baff7a",
+    "semantic_hash": "bb435e1662dca54f5e16a2bb13baff7a"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/PageShell.tsx": {
+    "mtime": 1781431633.7272115,
+    "ast_hash": "fd61eb818b40fb18798dd95f19e6d629",
+    "semantic_hash": "fd61eb818b40fb18798dd95f19e6d629"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/SourceTab.tsx": {
+    "mtime": 1780529129.3058784,
+    "ast_hash": "b05ba54b69b20de69aa293894e9f387f",
+    "semantic_hash": "b05ba54b69b20de69aa293894e9f387f"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/TableOfContents.tsx": {
+    "mtime": 1778733319.0706203,
+    "ast_hash": "f00973fd3b6556d8a8c642ce4f913f54",
+    "semantic_hash": "f00973fd3b6556d8a8c642ce4f913f54"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/VisualizationTab.tsx": {
+    "mtime": 1780529127.290162,
+    "ast_hash": "d9e403bb418f137ddf61d08be8099bc3",
+    "semantic_hash": "d9e403bb418f137ddf61d08be8099bc3"
+  },
+  "/home/ak/projects/backyard-flyer/src/components/tour.ts": {
+    "mtime": 1779812846.6420355,
+    "ast_hash": "78679b7ae7fd798291e3ec6d88b981c3",
+    "semantic_hash": "78679b7ae7fd798291e3ec6d88b981c3"
+  },
+  "/home/ak/projects/backyard-flyer/src/hooks/useLocalStorage.test.ts": {
+    "mtime": 1779864199.026645,
+    "ast_hash": "675ac5b8bc8b1f00986566d4cca0f0b6",
+    "semantic_hash": "675ac5b8bc8b1f00986566d4cca0f0b6"
+  },
+  "/home/ak/projects/backyard-flyer/src/hooks/useLocalStorage.ts": {
+    "mtime": 1778665245.030933,
+    "ast_hash": "e0b01c67c0d3b13d23db606ad77210a3",
+    "semantic_hash": "e0b01c67c0d3b13d23db606ad77210a3"
+  },
+  "/home/ak/projects/backyard-flyer/src/pages/index.astro": {
+    "mtime": 1779948026.7208247,
+    "ast_hash": "db28a712208bb3cbf9a9e82518393afe",
+    "semantic_hash": "db28a712208bb3cbf9a9e82518393afe"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/catalogStore.ts": {
+    "mtime": 1780474257.497237,
+    "ast_hash": "1dde6ddb4877273884dd323dc875bb49",
+    "semantic_hash": "1dde6ddb4877273884dd323dc875bb49"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/OverflowTabs.tsx": {
+    "mtime": 1779872190.8403769,
+    "ast_hash": "fafc5ec05105591a585b02d03c0e8ddb",
+    "semantic_hash": "fafc5ec05105591a585b02d03c0e8ddb"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimBlocks.tsx": {
+    "mtime": 1781428625.6913724,
+    "ast_hash": "219a46246f78f37f959e5f7467caa691",
+    "semantic_hash": "219a46246f78f37f959e5f7467caa691"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimBlocksDiagram.test.ts": {
+    "mtime": 1780856511.9061186,
+    "ast_hash": "8bf67b6a2c1cfb260b2b29fe9a15cf57",
+    "semantic_hash": "8bf67b6a2c1cfb260b2b29fe9a15cf57"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimBlocksDiagram.ts": {
+    "mtime": 1780856490.7972527,
+    "ast_hash": "509dc9930c8b5fc9c55b82d6011ceb68",
+    "semantic_hash": "509dc9930c8b5fc9c55b82d6011ceb68"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimCatalogComponent.tsx": {
+    "mtime": 1780529685.1759653,
+    "ast_hash": "b224b45d1fbd77e88536ef867b4aa797",
+    "semantic_hash": "b224b45d1fbd77e88536ef867b4aa797"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimChartsComponent.tsx": {
+    "mtime": 1780529115.062205,
+    "ast_hash": "fed586bc50ccd404eed296364ee46b07",
+    "semantic_hash": "fed586bc50ccd404eed296364ee46b07"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimSourceComponent.tsx": {
+    "mtime": 1781429414.4491868,
+    "ast_hash": "6d8356f719c6a4b41f1bfabce7574764",
+    "semantic_hash": "6d8356f719c6a4b41f1bfabce7574764"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimStatePanel.tsx": {
+    "mtime": 1780480762.985381,
+    "ast_hash": "68f7f4696a0c64eb733a3c43fb469e88",
+    "semantic_hash": "68f7f4696a0c64eb733a3c43fb469e88"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimVisComponent.tsx": {
+    "mtime": 1780712833.7518942,
+    "ast_hash": "472e2d0d35ab8ee28964f3e8e21769cc",
+    "semantic_hash": "472e2d0d35ab8ee28964f3e8e21769cc"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/SimVisContext.ts": {
+    "mtime": 1779960485.6139748,
+    "ast_hash": "c05aac405300e83f481861d5ef9aef74",
+    "semantic_hash": "c05aac405300e83f481861d5ef9aef74"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/components/ThreeCanvas.tsx": {
+    "mtime": 1781051728.7114375,
+    "ast_hash": "63320bc289aaca29126ab496d74ed6b4",
+    "semantic_hash": "63320bc289aaca29126ab496d74ed6b4"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/engine/compile.ts": {
+    "mtime": 1780293196.0866146,
+    "ast_hash": "3b01b656b4b5d4d31548466812c12986",
+    "semantic_hash": "3b01b656b4b5d4d31548466812c12986"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/engine/engine.test.ts": {
+    "mtime": 1780314633.1855023,
+    "ast_hash": "9498194c2956a5030a2a46d01af42dd1",
+    "semantic_hash": "9498194c2956a5030a2a46d01af42dd1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/engine/engine.ts": {
+    "mtime": 1780538187.8025153,
+    "ast_hash": "ad39f58f9ba13e6c8ee8dc17eb3cc3aa",
+    "semantic_hash": "ad39f58f9ba13e6c8ee8dc17eb3cc3aa"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/engine/stripTypes.ts": {
+    "mtime": 1780006813.9726737,
+    "ast_hash": "0c26bd4a35ffa6e371a12eb9cfc8933b",
+    "semantic_hash": "0c26bd4a35ffa6e371a12eb9cfc8933b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/engine/types.ts": {
+    "mtime": 1780293583.8753922,
+    "ast_hash": "3b1aaa3cd85f88b57cf71f7158cc8aa6",
+    "semantic_hash": "3b1aaa3cd85f88b57cf71f7158cc8aa6"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/PidPrimitives.tsx": {
+    "mtime": 1779872991.9950497,
+    "ast_hash": "5ad6063912c87658cbfa58d4f0372af7",
+    "semantic_hash": "5ad6063912c87658cbfa58d4f0372af7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/blocks/controller.ts": {
+    "mtime": 1779184906.494735,
+    "ast_hash": "ee5e8811de2ebd413ee6f21c7641830c",
+    "semantic_hash": "ee5e8811de2ebd413ee6f21c7641830c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/blocks/plant.ts": {
+    "mtime": 1779184906.4955328,
+    "ast_hash": "91f8355f70fdd807d1b3524ea22803e9",
+    "semantic_hash": "91f8355f70fdd807d1b3524ea22803e9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/blocks/setpoint.ts": {
+    "mtime": 1779184906.4939404,
+    "ast_hash": "e07de8bfdf21211b2b461a48b8b7e11c",
+    "semantic_hash": "e07de8bfdf21211b2b461a48b8b7e11c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/blocks/tuner.ts": {
+    "mtime": 1779184933.1405625,
+    "ast_hash": "d744d8601dcada8fd8d92a5aa3673693",
+    "semantic_hash": "d744d8601dcada8fd8d92a5aa3673693"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/pid-tune-relay.config.ts": {
+    "mtime": 1780135510.1612182,
+    "ast_hash": "d38d9be9658a0071e42b33033081f839",
+    "semantic_hash": "d38d9be9658a0071e42b33033081f839"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-relay/pid-tune-relay.vis.tsx": {
+    "mtime": 1779960527.094876,
+    "ast_hash": "775ed90aceb5e7ad9c8f42162d59fd46",
+    "semantic_hash": "775ed90aceb5e7ad9c8f42162d59fd46"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/blocks/controller.ts": {
+    "mtime": 1779163237.8924532,
+    "ast_hash": "ee5e8811de2ebd413ee6f21c7641830c",
+    "semantic_hash": "ee5e8811de2ebd413ee6f21c7641830c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/blocks/plant.ts": {
+    "mtime": 1779163237.8933737,
+    "ast_hash": "91f8355f70fdd807d1b3524ea22803e9",
+    "semantic_hash": "91f8355f70fdd807d1b3524ea22803e9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/blocks/setpoint.ts": {
+    "mtime": 1779163237.8915186,
+    "ast_hash": "e07de8bfdf21211b2b461a48b8b7e11c",
+    "semantic_hash": "e07de8bfdf21211b2b461a48b8b7e11c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/blocks/tuner.ts": {
+    "mtime": 1779184311.178223,
+    "ast_hash": "2fa6f6fb026c8aedc47fbd617de52a14",
+    "semantic_hash": "2fa6f6fb026c8aedc47fbd617de52a14"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/pid-tune-str.config.ts": {
+    "mtime": 1780135511.3939726,
+    "ast_hash": "e3bdb1cbbaacfd29c91c326e67ceb3b8",
+    "semantic_hash": "e3bdb1cbbaacfd29c91c326e67ceb3b8"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tune-str/pid-tune-str.vis.tsx": {
+    "mtime": 1779960527.095062,
+    "ast_hash": "c6a5d1f5e6bf77265fdab6300052279a",
+    "semantic_hash": "c6a5d1f5e6bf77265fdab6300052279a"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tutorial/blocks/controller.ts": {
+    "mtime": 1779060570.211598,
+    "ast_hash": "ee5e8811de2ebd413ee6f21c7641830c",
+    "semantic_hash": "ee5e8811de2ebd413ee6f21c7641830c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tutorial/blocks/plant.ts": {
+    "mtime": 1779060572.8945382,
+    "ast_hash": "91f8355f70fdd807d1b3524ea22803e9",
+    "semantic_hash": "91f8355f70fdd807d1b3524ea22803e9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tutorial/blocks/setpoint.ts": {
+    "mtime": 1779060567.3656619,
+    "ast_hash": "e07de8bfdf21211b2b461a48b8b7e11c",
+    "semantic_hash": "e07de8bfdf21211b2b461a48b8b7e11c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tutorial/pid-tutorial.config.ts": {
+    "mtime": 1780135494.0177872,
+    "ast_hash": "961356a0cd35a75d29d6f8a87d40a76a",
+    "semantic_hash": "961356a0cd35a75d29d6f8a87d40a76a"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/pid-tutorial/pid-tutorial.vis.tsx": {
+    "mtime": 1779960527.09521,
+    "ast_hash": "474ae60a4e08ea0b8a57fc4a9ec8a781",
+    "semantic_hash": "474ae60a4e08ea0b8a57fc4a9ec8a781"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/control/usePidSimState.ts": {
+    "mtime": 1780135500.9601703,
+    "ast_hash": "e5e34e1a4afc3436f92cd5ffeb4ef2ce",
+    "semantic_hash": "e5e34e1a4afc3436f92cd5ffeb4ef2ce"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/demo/inc/blocks/inc.ts": {
+    "mtime": 1778568136.742402,
+    "ast_hash": "19515be33ef6a8ff50bcc1ea29c840c4",
+    "semantic_hash": "19515be33ef6a8ff50bcc1ea29c840c4"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/demo/inc/inc.config.ts": {
+    "mtime": 1779655658.650411,
+    "ast_hash": "fb0800a21ae28f3ba6c6d430be85e760",
+    "semantic_hash": "fb0800a21ae28f3ba6c6d430be85e760"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/demo/inc/inc.vis.tsx": {
+    "mtime": 1779655683.6941047,
+    "ast_hash": "d7fab091eda7d5313fdc65f3a23e02aa",
+    "semantic_hash": "d7fab091eda7d5313fdc65f3a23e02aa"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/consts.ts": {
+    "mtime": 1780997181.022639,
+    "ast_hash": "75671f075178fe57a0de37d50b3908fa",
+    "semantic_hash": "75671f075178fe57a0de37d50b3908fa"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/fc_acro.ts": {
+    "mtime": 1780577622.4767666,
+    "ast_hash": "a4c15476be62468b8fcf7a512871b3ef",
+    "semantic_hash": "a4c15476be62468b8fcf7a512871b3ef"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/hw.ts": {
+    "mtime": 1780311180.1648047,
+    "ast_hash": "cfa2f7d49833155eee856f231cd84cd5",
+    "semantic_hash": "cfa2f7d49833155eee856f231cd84cd5"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/lifecycle.ts": {
+    "mtime": 1780998069.4526246,
+    "ast_hash": "352ae6070446740456d81ededb9c000b",
+    "semantic_hash": "352ae6070446740456d81ededb9c000b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/mission.ts": {
+    "mtime": 1780997761.6454117,
+    "ast_hash": "3f977f67a5f11b3bef6c099b97920799",
+    "semantic_hash": "3f977f67a5f11b3bef6c099b97920799"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/navigator_c2.ts": {
+    "mtime": 1780830053.0085866,
+    "ast_hash": "acd4e704ff559563640c1475603ed498",
+    "semantic_hash": "acd4e704ff559563640c1475603ed498"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/navigator_cturn.ts": {
+    "mtime": 1781006313.319398,
+    "ast_hash": "c0beef0df06c6d5670a4372350dbe1f1",
+    "semantic_hash": "c0beef0df06c6d5670a4372350dbe1f1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/navigator_rates.ts": {
+    "mtime": 1780491272.9067848,
+    "ast_hash": "86ed81e36ac8f12c21622be78d5469f9",
+    "semantic_hash": "86ed81e36ac8f12c21622be78d5469f9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/navigator_w1.ts": {
+    "mtime": 1780577782.6500273,
+    "ast_hash": "aafc143626eaf0c41f22a6b47e3c8ab8",
+    "semantic_hash": "aafc143626eaf0c41f22a6b47e3c8ab8"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/navigator_wp.ts": {
+    "mtime": 1780577622.476958,
+    "ast_hash": "9cbdb042548375ad21827bdf737d440c",
+    "semantic_hash": "9cbdb042548375ad21827bdf737d440c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/noise.ts": {
+    "mtime": 1780394333.3220465,
+    "ast_hash": "2ff4a5f664fee995a2450d061441e60c",
+    "semantic_hash": "2ff4a5f664fee995a2450d061441e60c"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_c1a.ts": {
+    "mtime": 1780818455.4526749,
+    "ast_hash": "2fdcf6dd20f017106e4405ab9244f79e",
+    "semantic_hash": "2fdcf6dd20f017106e4405ab9244f79e"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_c1b.ts": {
+    "mtime": 1780818990.4796443,
+    "ast_hash": "59e97500f691b7ff1fd0acea66ceef24",
+    "semantic_hash": "59e97500f691b7ff1fd0acea66ceef24"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_c2a.ts": {
+    "mtime": 1780949130.393311,
+    "ast_hash": "db88ff911102e6099ee2cc906424b390",
+    "semantic_hash": "db88ff911102e6099ee2cc906424b390"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_cturn.ts": {
+    "mtime": 1781043054.2837257,
+    "ast_hash": "6f47cc9740010c3bdc72e579bfbb04c7",
+    "semantic_hash": "6f47cc9740010c3bdc72e579bfbb04c7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_rates.ts": {
+    "mtime": 1780473186.3148005,
+    "ast_hash": "73d621f805db4cd0dd65a2d62f63e0ed",
+    "semantic_hash": "73d621f805db4cd0dd65a2d62f63e0ed"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_w1a.ts": {
+    "mtime": 1780395783.4798527,
+    "ast_hash": "3eaf8260567b6ceeb7cca9054e26b557",
+    "semantic_hash": "3eaf8260567b6ceeb7cca9054e26b557"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_w1b.ts": {
+    "mtime": 1780396284.1918163,
+    "ast_hash": "ccfe94c049fb6ae095a3dc4ea22e0a04",
+    "semantic_hash": "ccfe94c049fb6ae095a3dc4ea22e0a04"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/planner_wp.ts": {
+    "mtime": 1780390777.6411762,
+    "ast_hash": "11bedf889f6b0b33cab970c6c1e950fb",
+    "semantic_hash": "11bedf889f6b0b33cab970c6c1e950fb"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/target_c1.ts": {
+    "mtime": 1780818446.2447314,
+    "ast_hash": "1509894abb9d917adad2d12bb01e7caa",
+    "semantic_hash": "1509894abb9d917adad2d12bb01e7caa"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/wind.ts": {
+    "mtime": 1780311498.0003786,
+    "ast_hash": "16dd999c0b1d0ce615689d020d13be06",
+    "semantic_hash": "16dd999c0b1d0ce615689d020d13be06"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/world.ts": {
+    "mtime": 1780312953.9932086,
+    "ast_hash": "aae3d592f09e0315936635e4450ab1a5",
+    "semantic_hash": "aae3d592f09e0315936635e4450ab1a5"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/lib/quad/yawConvention.test.ts": {
+    "mtime": 1780578041.5622795,
+    "ast_hash": "1cc22d1e48a8ae0ae47719ad9cb696b6",
+    "semantic_hash": "1cc22d1e48a8ae0ae47719ad9cb696b6"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/fc_pd.ts": {
+    "mtime": 1778941793.6209905,
+    "ast_hash": "cbfba357facb738edb62d359189a8c43",
+    "semantic_hash": "cbfba357facb738edb62d359189a8c43"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/fc_pid.ts": {
+    "mtime": 1778941799.895576,
+    "ast_hash": "e4bc4c40d88f74204a902ecc2dd18548",
+    "semantic_hash": "e4bc4c40d88f74204a902ecc2dd18548"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/hw.ts": {
+    "mtime": 1779818500.1216004,
+    "ast_hash": "88d11f6a5ae1a9f2b8d52b833b5c9a32",
+    "semantic_hash": "88d11f6a5ae1a9f2b8d52b833b5c9a32"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/mission_pd.ts": {
+    "mtime": 1778931544.9719849,
+    "ast_hash": "aefe84986c15f0bfb1ed0517ce8da89b",
+    "semantic_hash": "aefe84986c15f0bfb1ed0517ce8da89b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/mission_pid.ts": {
+    "mtime": 1778931550.3974478,
+    "ast_hash": "675a10542522d1d90d50bccc62708af1",
+    "semantic_hash": "675a10542522d1d90d50bccc62708af1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/wind.ts": {
+    "mtime": 1778941780.3420887,
+    "ast_hash": "eedcbbd2850f93ce00b6c4a59e490471",
+    "semantic_hash": "eedcbbd2850f93ce00b6c4a59e490471"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/blocks/world.ts": {
+    "mtime": 1779817418.86256,
+    "ast_hash": "06ef92c4c4ed513e2f93586c1e7c36cf",
+    "semantic_hash": "06ef92c4c4ed513e2f93586c1e7c36cf"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/floater-pid.config.ts": {
+    "mtime": 1779818527.4285555,
+    "ast_hash": "edb05968a214ab46947c98d28e46c97b",
+    "semantic_hash": "edb05968a214ab46947c98d28e46c97b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater-pid/floater-pid.vis.tsx": {
+    "mtime": 1779945106.8612895,
+    "ast_hash": "88bda67635c09527a065c76b239fea7d",
+    "semantic_hash": "88bda67635c09527a065c76b239fea7d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/blocks/fc.ts": {
+    "mtime": 1778923000.881961,
+    "ast_hash": "da1de9827aa76961288ad2dab67ef917",
+    "semantic_hash": "da1de9827aa76961288ad2dab67ef917"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/blocks/hw.ts": {
+    "mtime": 1778923010.8707826,
+    "ast_hash": "336c763dcc464e53cd22aea337045a84",
+    "semantic_hash": "336c763dcc464e53cd22aea337045a84"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/blocks/mission.ts": {
+    "mtime": 1779679721.9024854,
+    "ast_hash": "7d841cc2c96f7b7085b627e6bb7ab0e9",
+    "semantic_hash": "7d841cc2c96f7b7085b627e6bb7ab0e9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/blocks/world.ts": {
+    "mtime": 1778923015.6177857,
+    "ast_hash": "c3bbe05c32d408a861c44f611b4bca77",
+    "semantic_hash": "c3bbe05c32d408a861c44f611b4bca77"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/floater.config.ts": {
+    "mtime": 1779805281.265465,
+    "ast_hash": "1de7c7f6d745654e1037462770bf24fa",
+    "semantic_hash": "1de7c7f6d745654e1037462770bf24fa"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/floater/floater.vis.tsx": {
+    "mtime": 1779945104.915814,
+    "ast_hash": "b2e81b004d5c06eebf51ec3815e887b7",
+    "semantic_hash": "b2e81b004d5c06eebf51ec3815e887b7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1a/quad-c1a.config.ts": {
+    "mtime": 1780835776.374695,
+    "ast_hash": "e8fcd15472a6418b8a1ecd9e8e345d61",
+    "semantic_hash": "e8fcd15472a6418b8a1ecd9e8e345d61"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1a/quad-c1a.test.ts": {
+    "mtime": 1780810786.3776362,
+    "ast_hash": "5f353c0a1ccab7351503dc58c459bddb",
+    "semantic_hash": "5f353c0a1ccab7351503dc58c459bddb"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1a/quad-c1a.vis.tsx": {
+    "mtime": 1780973001.080651,
+    "ast_hash": "e75cf6a2d664a2d990b5cc9720f5258d",
+    "semantic_hash": "e75cf6a2d664a2d990b5cc9720f5258d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1a/route.ts": {
+    "mtime": 1780820395.776346,
+    "ast_hash": "a8a06ac14b8bdcc639e75e49453dd2d1",
+    "semantic_hash": "a8a06ac14b8bdcc639e75e49453dd2d1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1b/quad-c1b.config.ts": {
+    "mtime": 1780835777.74742,
+    "ast_hash": "6d1fdc8d0e2611b5419e6e4b1077823b",
+    "semantic_hash": "6d1fdc8d0e2611b5419e6e4b1077823b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1b/quad-c1b.test.ts": {
+    "mtime": 1780819116.752192,
+    "ast_hash": "ff1d9e809845627392aef61b74ffab41",
+    "semantic_hash": "ff1d9e809845627392aef61b74ffab41"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1b/quad-c1b.vis.tsx": {
+    "mtime": 1780973005.5234823,
+    "ast_hash": "de8a661c5c8fb0e107d16035f8af12ad",
+    "semantic_hash": "de8a661c5c8fb0e107d16035f8af12ad"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c1b/route.ts": {
+    "mtime": 1780820410.4867415,
+    "ast_hash": "494e4d06840fc67088c89f86a3457287",
+    "semantic_hash": "494e4d06840fc67088c89f86a3457287"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c2a/lifecycle.ts": {
+    "mtime": 1780834135.634096,
+    "ast_hash": "548976320f29446849f12a2652814096",
+    "semantic_hash": "548976320f29446849f12a2652814096"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c2a/quad-c2a.config.ts": {
+    "mtime": 1780959432.9174619,
+    "ast_hash": "fe03c5ffb49f9a785fff2a55b1d75d46",
+    "semantic_hash": "fe03c5ffb49f9a785fff2a55b1d75d46"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c2a/quad-c2a.vis.tsx": {
+    "mtime": 1780973643.3183668,
+    "ast_hash": "d24f9f74420a0ef970b9edbf320b96b3",
+    "semantic_hash": "d24f9f74420a0ef970b9edbf320b96b3"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-c2a/route.ts": {
+    "mtime": 1780959384.795889,
+    "ast_hash": "03aee7c4c89e84ff125fe6d7c550a055",
+    "semantic_hash": "03aee7c4c89e84ff125fe6d7c550a055"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/blocks/fc.ts": {
+    "mtime": 1779670663.810577,
+    "ast_hash": "e0a4ecfb2cdf341918ee6e6df2ce28f3",
+    "semantic_hash": "e0a4ecfb2cdf341918ee6e6df2ce28f3"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/blocks/hw.ts": {
+    "mtime": 1779656247.588496,
+    "ast_hash": "df8e3491412f89d4452b59721427be06",
+    "semantic_hash": "df8e3491412f89d4452b59721427be06"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/blocks/mission.ts": {
+    "mtime": 1779946773.6695464,
+    "ast_hash": "bab4ccbe501d77041fb0f7d068a5ef63",
+    "semantic_hash": "bab4ccbe501d77041fb0f7d068a5ef63"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/blocks/world.ts": {
+    "mtime": 1779860254.7458203,
+    "ast_hash": "93ab0395c54fb95740c46dc3c646d428",
+    "semantic_hash": "93ab0395c54fb95740c46dc3c646d428"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/quad-l1.config.ts": {
+    "mtime": 1779944694.297278,
+    "ast_hash": "8756eb8670513103ae0fb7b255949500",
+    "semantic_hash": "8756eb8670513103ae0fb7b255949500"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l1/quad-l1.vis.tsx": {
+    "mtime": 1779945571.082412,
+    "ast_hash": "3f33041f8101bd4444899d25bdbb5c6a",
+    "semantic_hash": "3f33041f8101bd4444899d25bdbb5c6a"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/blocks/fc_navigator.ts": {
+    "mtime": 1779670718.6953611,
+    "ast_hash": "58558ee0dc1f86f5924b1678e76836ee",
+    "semantic_hash": "58558ee0dc1f86f5924b1678e76836ee"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/blocks/fc_stabilizer.ts": {
+    "mtime": 1779670738.2339952,
+    "ast_hash": "7a28f08d7105ce7afddeae61f6a67aeb",
+    "semantic_hash": "7a28f08d7105ce7afddeae61f6a67aeb"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/blocks/hw.ts": {
+    "mtime": 1779666223.7195857,
+    "ast_hash": "df8e3491412f89d4452b59721427be06",
+    "semantic_hash": "df8e3491412f89d4452b59721427be06"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/blocks/mission.ts": {
+    "mtime": 1779946786.3306336,
+    "ast_hash": "bab4ccbe501d77041fb0f7d068a5ef63",
+    "semantic_hash": "bab4ccbe501d77041fb0f7d068a5ef63"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/blocks/world.ts": {
+    "mtime": 1779860278.8506935,
+    "ast_hash": "93ab0395c54fb95740c46dc3c646d428",
+    "semantic_hash": "93ab0395c54fb95740c46dc3c646d428"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/quad-l2.config.ts": {
+    "mtime": 1779944695.3186946,
+    "ast_hash": "11e5d206dec134eda066a852b7e582df",
+    "semantic_hash": "11e5d206dec134eda066a852b7e582df"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l2/quad-l2.vis.tsx": {
+    "mtime": 1779945610.2247953,
+    "ast_hash": "9edb0b6c33a9d464d2c53cfb8bfb6ccc",
+    "semantic_hash": "9edb0b6c33a9d464d2c53cfb8bfb6ccc"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/fc_navigator.ts": {
+    "mtime": 1779925740.633194,
+    "ast_hash": "9654827b481f721353f52f6dda8e56b0",
+    "semantic_hash": "9654827b481f721353f52f6dda8e56b0"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/fc_stabilizer.ts": {
+    "mtime": 1779920956.1686764,
+    "ast_hash": "c5b4caf0c19c6987c163d7d613e4fdc1",
+    "semantic_hash": "c5b4caf0c19c6987c163d7d613e4fdc1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/hw.ts": {
+    "mtime": 1779920970.7651844,
+    "ast_hash": "df8e3491412f89d4452b59721427be06",
+    "semantic_hash": "df8e3491412f89d4452b59721427be06"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/mission.ts": {
+    "mtime": 1780090956.7608047,
+    "ast_hash": "8c12f6604f61ac3aa05741dc539cf4bb",
+    "semantic_hash": "8c12f6604f61ac3aa05741dc539cf4bb"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/validator.ts": {
+    "mtime": 1780093780.5705435,
+    "ast_hash": "877dafb63ced93cb69ada5e8b04cdd1e",
+    "semantic_hash": "877dafb63ced93cb69ada5e8b04cdd1e"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/blocks/world.ts": {
+    "mtime": 1779921015.91464,
+    "ast_hash": "93ab0395c54fb95740c46dc3c646d428",
+    "semantic_hash": "93ab0395c54fb95740c46dc3c646d428"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/quad-l3.config.ts": {
+    "mtime": 1780093799.7451584,
+    "ast_hash": "3f02e7fadb1cfdbff268de89b873af53",
+    "semantic_hash": "3f02e7fadb1cfdbff268de89b873af53"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l3/quad-l3.vis.tsx": {
+    "mtime": 1780093847.226933,
+    "ast_hash": "8750c3f25ec7e31ae1718f8944d4b18b",
+    "semantic_hash": "8750c3f25ec7e31ae1718f8944d4b18b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l4/quad-l4.config.ts": {
+    "mtime": 1780635455.1660967,
+    "ast_hash": "7485471327106a7d81c49dfdcba82e2d",
+    "semantic_hash": "7485471327106a7d81c49dfdcba82e2d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l4/quad-l4.test.ts": {
+    "mtime": 1780730516.1177683,
+    "ast_hash": "9cdba39a34fc7d70ba338104dad993b8",
+    "semantic_hash": "9cdba39a34fc7d70ba338104dad993b8"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-l4/quad-l4.vis.tsx": {
+    "mtime": 1780972975.6456382,
+    "ast_hash": "e929f16547c9c388b2b5de1131d197d1",
+    "semantic_hash": "e929f16547c9c388b2b5de1131d197d1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-noise/quad-noise.config.ts": {
+    "mtime": 1780490369.6267107,
+    "ast_hash": "6f7fb80ec5e989a00ddea8df0435c350",
+    "semantic_hash": "6f7fb80ec5e989a00ddea8df0435c350"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-noise/quad-noise.test.ts": {
+    "mtime": 1780636233.8389118,
+    "ast_hash": "7d49e2d9cab193e599653d99336ad704",
+    "semantic_hash": "7d49e2d9cab193e599653d99336ad704"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-noise/quad-noise.vis.tsx": {
+    "mtime": 1780972977.6395118,
+    "ast_hash": "8e60464bea332d6057bcdcaa35dc179d",
+    "semantic_hash": "8e60464bea332d6057bcdcaa35dc179d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1-combined/lifecycle.ts": {
+    "mtime": 1780653064.2177057,
+    "ast_hash": "38b38c33ac2cabf88ecb79d2989564f7",
+    "semantic_hash": "38b38c33ac2cabf88ecb79d2989564f7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1-combined/quad-w1-combined.config.ts": {
+    "mtime": 1780490386.8260348,
+    "ast_hash": "0131c27b3546772e336d07148c5b8043",
+    "semantic_hash": "0131c27b3546772e336d07148c5b8043"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1-combined/quad-w1-combined.vis.tsx": {
+    "mtime": 1780651329.4143877,
+    "ast_hash": "7aa7efc79982cb14e9566fcc93f85b3d",
+    "semantic_hash": "7aa7efc79982cb14e9566fcc93f85b3d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1-combined/route.ts": {
+    "mtime": 1780488142.1797333,
+    "ast_hash": "df7c06ec09e95c274864958ccd2eb61d",
+    "semantic_hash": "df7c06ec09e95c274864958ccd2eb61d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1a/quad-w1a.config.ts": {
+    "mtime": 1780490369.6277263,
+    "ast_hash": "c3df177d3fb33f7246d9f5b204530994",
+    "semantic_hash": "c3df177d3fb33f7246d9f5b204530994"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1a/quad-w1a.test.ts": {
+    "mtime": 1780647992.4455473,
+    "ast_hash": "db22ae441ee771e0f87acc67768ae51d",
+    "semantic_hash": "db22ae441ee771e0f87acc67768ae51d"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1a/quad-w1a.vis.tsx": {
+    "mtime": 1780973473.7837977,
+    "ast_hash": "23f657b41e7e26a460d59ecb8c5cea3f",
+    "semantic_hash": "23f657b41e7e26a460d59ecb8c5cea3f"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1a/route.ts": {
+    "mtime": 1780488116.8887796,
+    "ast_hash": "40902e0d17ce7fc6806ef48dd366760b",
+    "semantic_hash": "40902e0d17ce7fc6806ef48dd366760b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1b/quad-w1b.config.ts": {
+    "mtime": 1780490369.6286361,
+    "ast_hash": "33328526596ff2e7c0c982cf0dad3090",
+    "semantic_hash": "33328526596ff2e7c0c982cf0dad3090"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1b/quad-w1b.test.ts": {
+    "mtime": 1780648018.665958,
+    "ast_hash": "49f0dd2acf921b47dc0cbdd6b9c9bdec",
+    "semantic_hash": "49f0dd2acf921b47dc0cbdd6b9c9bdec"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1b/quad-w1b.vis.tsx": {
+    "mtime": 1780973475.3469005,
+    "ast_hash": "dffc4861e18808b67baf273360c83ba1",
+    "semantic_hash": "dffc4861e18808b67baf273360c83ba1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad-w1b/route.ts": {
+    "mtime": 1780488126.505401,
+    "ast_hash": "a430fee4e776ad3946b42fbcdf6dfbb0",
+    "semantic_hash": "a430fee4e776ad3946b42fbcdf6dfbb0"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/quad/quad.vis.tsx": {
+    "mtime": 1779700350.7004924,
+    "ast_hash": "ccd413e8e85dac14404f6247b05117a5",
+    "semantic_hash": "ccd413e8e85dac14404f6247b05117a5"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-ladder/quad-ladder.config.ts": {
+    "mtime": 1781049093.4780548,
+    "ast_hash": "d0b989b373920812e86abae86fa905ef",
+    "semantic_hash": "d0b989b373920812e86abae86fa905ef"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-ladder/quad-ladder.test.ts": {
+    "mtime": 1781043054.2837257,
+    "ast_hash": "b8c5fd84f8d112ffc39bc7c74d735aa1",
+    "semantic_hash": "b8c5fd84f8d112ffc39bc7c74d735aa1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-ladder/quad-ladder.vis.tsx": {
+    "mtime": 1781008242.2406147,
+    "ast_hash": "e116e88b86429a8f677331121c7346cf",
+    "semantic_hash": "e116e88b86429a8f677331121c7346cf"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-ladder/route.ts": {
+    "mtime": 1781000840.457275,
+    "ast_hash": "72a3a78673857f3c637e002668416357",
+    "semantic_hash": "72a3a78673857f3c637e002668416357"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-pole/quad-pole.config.ts": {
+    "mtime": 1781008026.4128423,
+    "ast_hash": "5f68afe3e0035110bb2c507a27e54cf5",
+    "semantic_hash": "5f68afe3e0035110bb2c507a27e54cf5"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-pole/quad-pole.test.ts": {
+    "mtime": 1781008026.413097,
+    "ast_hash": "982b95d2f084b15b0528eafa36fa5e26",
+    "semantic_hash": "982b95d2f084b15b0528eafa36fa5e26"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-pole/quad-pole.vis.tsx": {
+    "mtime": 1780577537.7361634,
+    "ast_hash": "1a7963312bc05290de48bec1d6dc3a53",
+    "semantic_hash": "1a7963312bc05290de48bec1d6dc3a53"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-pole/route.ts": {
+    "mtime": 1781007346.1544662,
+    "ast_hash": "a6bb28b93ee837fa4cd0541cbdee79c1",
+    "semantic_hash": "a6bb28b93ee837fa4cd0541cbdee79c1"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-rates/quad-rates.config.ts": {
+    "mtime": 1780490369.6305635,
+    "ast_hash": "3724fa188d9a80e171090c174a1180c7",
+    "semantic_hash": "3724fa188d9a80e171090c174a1180c7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-rates/quad-rates.vis.tsx": {
+    "mtime": 1780489669.2977405,
+    "ast_hash": "25eb4d5f5404439559b06689639b7853",
+    "semantic_hash": "25eb4d5f5404439559b06689639b7853"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/models/racing/quad-rates/route.ts": {
+    "mtime": 1780492301.8877423,
+    "ast_hash": "7d5e29f243ce9795489d609a52894347",
+    "semantic_hash": "7d5e29f243ce9795489d609a52894347"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/registry.ts": {
+    "mtime": 1780963955.8681772,
+    "ast_hash": "19b54656757dfad968473699eb807609",
+    "semantic_hash": "19b54656757dfad968473699eb807609"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/sceneUtils.ts": {
+    "mtime": 1778736766.806175,
+    "ast_hash": "37afb13c0af9b5fcbb1f8dffcc80b715",
+    "semantic_hash": "37afb13c0af9b5fcbb1f8dffcc80b715"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/useResolvedSimContext.ts": {
+    "mtime": 1779874540.5333865,
+    "ast_hash": "3e5f4a77ca8211227750f7b287d233cd",
+    "semantic_hash": "3e5f4a77ca8211227750f7b287d233cd"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/useSim.ts": {
+    "mtime": 1780265068.533317,
+    "ast_hash": "4ead163d45a38d0fdce0e6423f80b139",
+    "semantic_hash": "4ead163d45a38d0fdce0e6423f80b139"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/baseScene.ts": {
+    "mtime": 1779699476.769669,
+    "ast_hash": "a9161912312ed2ba40f8cfc952d43e99",
+    "semantic_hash": "a9161912312ed2ba40f8cfc952d43e99"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/cornerGroup.ts": {
+    "mtime": 1780524008.924384,
+    "ast_hash": "0e2e2119518632ca45a9e87fe1269356",
+    "semantic_hash": "0e2e2119518632ca45a9e87fe1269356"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/dynamicLabel.ts": {
+    "mtime": 1780056351.9395862,
+    "ast_hash": "f6c86f1a79e6e8602fd04a9d854c221f",
+    "semantic_hash": "f6c86f1a79e6e8602fd04a9d854c221f"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/flashBanner.ts": {
+    "mtime": 1780833476.9868038,
+    "ast_hash": "703841a9f98be5384ba3008fc122f0d9",
+    "semantic_hash": "703841a9f98be5384ba3008fc122f0d9"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/floaterMesh.ts": {
+    "mtime": 1779702968.5547671,
+    "ast_hash": "a7aef816ae3af8fcd471f28e79fb76bc",
+    "semantic_hash": "a7aef816ae3af8fcd471f28e79fb76bc"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/guideLine.ts": {
+    "mtime": 1780825194.3327417,
+    "ast_hash": "8fd6572ff0e4fc7e6ebf838da3116b2b",
+    "semantic_hash": "8fd6572ff0e4fc7e6ebf838da3116b2b"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/homePad.ts": {
+    "mtime": 1779699482.367699,
+    "ast_hash": "a266a1f941a9ed69f12f2e0f72d90fbd",
+    "semantic_hash": "a266a1f941a9ed69f12f2e0f72d90fbd"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/infoOverlay.ts": {
+    "mtime": 1780522171.6279583,
+    "ast_hash": "1a29db64ca2e33b3cea08849ee199d05",
+    "semantic_hash": "1a29db64ca2e33b3cea08849ee199d05"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/missionLogOverlay.ts": {
+    "mtime": 1780997722.6457918,
+    "ast_hash": "f9864181e201a385f937b90a1b08cc86",
+    "semantic_hash": "f9864181e201a385f937b90a1b08cc86"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/movingTarget.ts": {
+    "mtime": 1780819533.3923597,
+    "ast_hash": "3b94d6051851432048fb6f128ebe0994",
+    "semantic_hash": "3b94d6051851432048fb6f128ebe0994"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/pole.ts": {
+    "mtime": 1780046549.8572783,
+    "ast_hash": "193f5b74bc41267e760b7c6bf033a117",
+    "semantic_hash": "193f5b74bc41267e760b7c6bf033a117"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/quadMesh.ts": {
+    "mtime": 1780833449.485776,
+    "ast_hash": "e99686c12a23e3ce44b6a504bbcf31ae",
+    "semantic_hash": "e99686c12a23e3ce44b6a504bbcf31ae"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/sticksOverlay.ts": {
+    "mtime": 1780577622.4772487,
+    "ast_hash": "f51e22c4491982209ba7ffb67b004032",
+    "semantic_hash": "f51e22c4491982209ba7ffb67b004032"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/textLabel.ts": {
+    "mtime": 1779945634.285643,
+    "ast_hash": "96360f31f48edb564e62cfc9375cd1b7",
+    "semantic_hash": "96360f31f48edb564e62cfc9375cd1b7"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/toggleOverlay.ts": {
+    "mtime": 1780973518.207038,
+    "ast_hash": "81cdda9be051a5a550551a94fd80e49e",
+    "semantic_hash": "81cdda9be051a5a550551a94fd80e49e"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/trail.ts": {
+    "mtime": 1780816903.8352625,
+    "ast_hash": "e9a9453506198e2d8c962c10e4ec99e8",
+    "semantic_hash": "e9a9453506198e2d8c962c10e4ec99e8"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/waypointTracker.ts": {
+    "mtime": 1781001264.9567811,
+    "ast_hash": "a4f9747c13198747a0eee4db8389fd71",
+    "semantic_hash": "a4f9747c13198747a0eee4db8389fd71"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/windArrow.ts": {
+    "mtime": 1779699548.1117384,
+    "ast_hash": "9527be469bb570b42dc2b7d769910553",
+    "semantic_hash": "9527be469bb570b42dc2b7d769910553"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/windSock.ts": {
+    "mtime": 1780312378.1734993,
+    "ast_hash": "2cf1e88455f4cb8639da787fcb662967",
+    "semantic_hash": "2cf1e88455f4cb8639da787fcb662967"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/plugins/windowGate.ts": {
+    "mtime": 1780651980.4909074,
+    "ast_hash": "9fc446930a9c039421fbe23adef5005e",
+    "semantic_hash": "9fc446930a9c039421fbe23adef5005e"
+  },
+  "/home/ak/projects/backyard-flyer/src/sim/vis/scenePlugin.ts": {
+    "mtime": 1780285108.5650735,
+    "ast_hash": "c36f42d06a562328195be18c2b9d54b4",
+    "semantic_hash": "c36f42d06a562328195be18c2b9d54b4"
+  },
+  "/home/ak/projects/backyard-flyer/src/test/setup.ts": {
+    "mtime": 1779864187.745785,
+    "ast_hash": "ff278987a7d4b7bbf012dc3484a4dffe",
+    "semantic_hash": "ff278987a7d4b7bbf012dc3484a4dffe"
+  },
+  "/home/ak/projects/backyard-flyer/src/widgets/SimCatalog.astro": {
+    "mtime": 1780529597.994712,
+    "ast_hash": "776776795faf90fbcc7b4b350505ba28",
+    "semantic_hash": "776776795faf90fbcc7b4b350505ba28"
+  },
+  "/home/ak/projects/backyard-flyer/src/widgets/SimCharts.astro": {
+    "mtime": 1780529596.9873228,
+    "ast_hash": "74be5088d71fdbc59623cf3b96f35383",
+    "semantic_hash": "74be5088d71fdbc59623cf3b96f35383"
+  },
+  "/home/ak/projects/backyard-flyer/src/widgets/SimSource.astro": {
+    "mtime": 1780529594.9509242,
+    "ast_hash": "863ee9483a8c810828e523e63414a7ba",
+    "semantic_hash": "863ee9483a8c810828e523e63414a7ba"
+  },
+  "/home/ak/projects/backyard-flyer/src/widgets/SimVis.astro": {
+    "mtime": 1780529595.978632,
+    "ast_hash": "709f4256c6437f606ffd4b266d3e6f30",
+    "semantic_hash": "709f4256c6437f606ffd4b266d3e6f30"
+  },
+  "/home/ak/projects/backyard-flyer/tsconfig.json": {
+    "mtime": 1778301336.164931,
+    "ast_hash": "a94519945f584b0e67f3f674808769a7",
+    "semantic_hash": "a94519945f584b0e67f3f674808769a7"
+  },
+  "/home/ak/projects/backyard-flyer/vitest.config.ts": {
+    "mtime": 1779864194.1708531,
+    "ast_hash": "1ca3db61af80ceeb17b78923a892b943",
+    "semantic_hash": "1ca3db61af80ceeb17b78923a892b943"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/CLAUDE.md": {
+    "mtime": 1781662541.0920434,
+    "ast_hash": "db73b0edd7ffbc61ceac177130730865",
+    "semantic_hash": "db73b0edd7ffbc61ceac177130730865"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/MEMORY.md": {
+    "mtime": 1781068627.9510791,
+    "ast_hash": "f406f8498bc0cc6dd6caae5fc935ac11",
+    "semantic_hash": "f406f8498bc0cc6dd6caae5fc935ac11"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/adding-new-model.md": {
+    "mtime": 1780782175.361859,
+    "ast_hash": "572be19f5bd529c0b84b100de5daa020",
+    "semantic_hash": "572be19f5bd529c0b84b100de5daa020"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/anti-hallucination.md": {
+    "mtime": 1780780848.2280195,
+    "ast_hash": "4312cc1b4d3c7b192909fcd56dd0beea",
+    "semantic_hash": "4312cc1b4d3c7b192909fcd56dd0beea"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/c1-chase-family.md": {
+    "mtime": 1780821590.1307302,
+    "ast_hash": "313e713bd01019165f8cb79f368a9777",
+    "semantic_hash": "313e713bd01019165f8cb79f368a9777"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/c2-chase-family.md": {
+    "mtime": 1780963955.8680034,
+    "ast_hash": "9d3b07fb4fa2a18eb4432138a21b1037",
+    "semantic_hash": "9d3b07fb4fa2a18eb4432138a21b1037"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/context-map.md": {
+    "mtime": 1780834633.7642548,
+    "ast_hash": "e2093cd41d386840373bb6ea783855c0",
+    "semantic_hash": "e2093cd41d386840373bb6ea783855c0"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/engine-static-dynamic-state-split.md": {
+    "mtime": 1780780848.2280424,
+    "ast_hash": "c9e16c7167a231759444676abd2b7f67",
+    "semantic_hash": "c9e16c7167a231759444676abd2b7f67"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/improvement-backlog.md": {
+    "mtime": 1781068612.7873077,
+    "ast_hash": "012f06d5e61df06413e984d433a930f7",
+    "semantic_hash": "012f06d5e61df06413e984d433a930f7"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/quad-block-library-consts.md": {
+    "mtime": 1780780848.2280831,
+    "ast_hash": "47f43711a20c94be181e0e167510c2fc",
+    "semantic_hash": "47f43711a20c94be181e0e167510c2fc"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/quad-on-the-fly-tuning-plan.md": {
+    "mtime": 1780780848.2281432,
+    "ast_hash": "91394299e8e6a847b253d119179d9c67",
+    "semantic_hash": "91394299e8e6a847b253d119179d9c67"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/sim-block-editing-strips-imports.md": {
+    "mtime": 1780780848.2280645,
+    "ast_hash": "9718b4f6533c4b177c2864a1aeff2f0c",
+    "semantic_hash": "9718b4f6533c4b177c2864a1aeff2f0c"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/sim-components-api.md": {
+    "mtime": 1780782164.3485043,
+    "ast_hash": "2670aab91b05bdfc681a65d94a67f1fb",
+    "semantic_hash": "2670aab91b05bdfc681a65d94a67f1fb"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/use-pnpm-exec-for-node-tools.md": {
+    "mtime": 1780780848.228124,
+    "ast_hash": "99a823ec7cb20a91260e632460746bf5",
+    "semantic_hash": "99a823ec7cb20a91260e632460746bf5"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/memory/window-model-rebuild-pattern.md": {
+    "mtime": 1780780848.2281027,
+    "ast_hash": "f8b164a42d3398b1ec438dff4af61a08",
+    "semantic_hash": "f8b164a42d3398b1ec438dff4af61a08"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/SKILL.md": {
+    "mtime": 1781662541.0918963,
+    "ast_hash": "97c2755905a5a0e53b96b31c725a7010",
+    "semantic_hash": "97c2755905a5a0e53b96b31c725a7010"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/add-watch.md": {
+    "mtime": 1781662527.9751213,
+    "ast_hash": "0df0589623217ca38a12bdcabfb42f4c",
+    "semantic_hash": "0df0589623217ca38a12bdcabfb42f4c"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/exports.md": {
+    "mtime": 1781662527.9751213,
+    "ast_hash": "c04ddf8f1f5ef5e262ebec491a523c74",
+    "semantic_hash": "c04ddf8f1f5ef5e262ebec491a523c74"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/extraction-spec.md": {
+    "mtime": 1781662527.9751213,
+    "ast_hash": "24808b03abfeaf5f6435bb69c0125b2c",
+    "semantic_hash": "24808b03abfeaf5f6435bb69c0125b2c"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/github-and-merge.md": {
+    "mtime": 1781662527.9781213,
+    "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
+    "semantic_hash": "cde13df085e4c492aeb7ba298a996d0d"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/hooks.md": {
+    "mtime": 1781662527.9781213,
+    "ast_hash": "3f545db6ce646650bb9de588f5512a27",
+    "semantic_hash": "3f545db6ce646650bb9de588f5512a27"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/query.md": {
+    "mtime": 1781662527.9791212,
+    "ast_hash": "8b40ed8c9e9060fc215219a8fc964091",
+    "semantic_hash": "8b40ed8c9e9060fc215219a8fc964091"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/transcribe.md": {
+    "mtime": 1781662527.9791212,
+    "ast_hash": "70f6aa30d6211f3a2c7e9fc45479f50c",
+    "semantic_hash": "70f6aa30d6211f3a2c7e9fc45479f50c"
+  },
+  "/home/ak/projects/backyard-flyer/.claude/skills/graphify/references/update.md": {
+    "mtime": 1781662527.9791212,
+    "ast_hash": "0dad167a95bdb389f02fecffb60b1bc8",
+    "semantic_hash": "0dad167a95bdb389f02fecffb60b1bc8"
+  },
+  "/home/ak/projects/backyard-flyer/.github/workflows/deploy-pages.yml": {
+    "mtime": 1780460532.5192332,
+    "ast_hash": "aa8f5f19dd4b7bc117bc7dd440e671a3",
+    "semantic_hash": "aa8f5f19dd4b7bc117bc7dd440e671a3"
+  },
+  "/home/ak/projects/backyard-flyer/AGENTS.md": {
+    "mtime": 1781662541.0925303,
+    "ast_hash": "38cd1fa6c6939e7d51a6752e1f33cd57",
+    "semantic_hash": "38cd1fa6c6939e7d51a6752e1f33cd57"
+  },
+  "/home/ak/projects/backyard-flyer/CLAUDE.md": {
+    "mtime": 1781662541.0925303,
+    "ast_hash": "38cd1fa6c6939e7d51a6752e1f33cd57",
+    "semantic_hash": "38cd1fa6c6939e7d51a6752e1f33cd57"
+  },
+  "/home/ak/projects/backyard-flyer/README.md": {
+    "mtime": 1780315313.4955142,
+    "ast_hash": "4b9d152312f4d426aada852fd0e7fb43",
+    "semantic_hash": "4b9d152312f4d426aada852fd0e7fb43"
+  },
+  "/home/ak/projects/backyard-flyer/pnpm-workspace.yaml": {
+    "mtime": 1781427935.7300773,
+    "ast_hash": "f64de4e0c685899a3e2de37d4162b5e8",
+    "semantic_hash": "f64de4e0c685899a3e2de37d4162b5e8"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/default.mdx": {
+    "mtime": 1780951014.3967054,
+    "ast_hash": "5fb6009c00b5ee90a3cb36f9dfb8d70c",
+    "semantic_hash": "5fb6009c00b5ee90a3cb36f9dfb8d70c"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/floater-pid.mdx": {
+    "mtime": 1780529614.9918554,
+    "ast_hash": "083766c6e00b37b5c9c1a94c260863f2",
+    "semantic_hash": "083766c6e00b37b5c9c1a94c260863f2"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/floater.mdx": {
+    "mtime": 1780529614.992667,
+    "ast_hash": "f86c474447c2ddefc155fdef014a6f9b",
+    "semantic_hash": "f86c474447c2ddefc155fdef014a6f9b"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-c1a.mdx": {
+    "mtime": 1780810850.7338257,
+    "ast_hash": "bedaf91fdc96750717e4b267d7cf6d71",
+    "semantic_hash": "bedaf91fdc96750717e4b267d7cf6d71"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-c1b.mdx": {
+    "mtime": 1780819159.8447561,
+    "ast_hash": "a2b381d5f7a47edbbc158325d0d882fe",
+    "semantic_hash": "a2b381d5f7a47edbbc158325d0d882fe"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-c2a.mdx": {
+    "mtime": 1780950575.8704097,
+    "ast_hash": "05b4bc2bf9ecacefd948a2db998c6cf9",
+    "semantic_hash": "05b4bc2bf9ecacefd948a2db998c6cf9"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-l1.mdx": {
+    "mtime": 1780529614.991527,
+    "ast_hash": "19a2d4870d7953d652c583cdb85a9cd3",
+    "semantic_hash": "19a2d4870d7953d652c583cdb85a9cd3"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-l2.mdx": {
+    "mtime": 1780529614.9903393,
+    "ast_hash": "fcc268725b130a98b564d33818791f77",
+    "semantic_hash": "fcc268725b130a98b564d33818791f77"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-l3.mdx": {
+    "mtime": 1780529614.991701,
+    "ast_hash": "25653aebb4d9f08160ae941e502c71bc",
+    "semantic_hash": "25653aebb4d9f08160ae941e502c71bc"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-l4.mdx": {
+    "mtime": 1780529614.9923658,
+    "ast_hash": "ddd920bcc4a7e21fa3fd0c19181701ad",
+    "semantic_hash": "ddd920bcc4a7e21fa3fd0c19181701ad"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-noise.mdx": {
+    "mtime": 1780529614.9913807,
+    "ast_hash": "aed3c2201e2f1d8cdc5243b7dd615953",
+    "semantic_hash": "aed3c2201e2f1d8cdc5243b7dd615953"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-w1-combined.mdx": {
+    "mtime": 1780529614.9920838,
+    "ast_hash": "d9dc1c9e1f1427662f189ef4e5b27c94",
+    "semantic_hash": "d9dc1c9e1f1427662f189ef4e5b27c94"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-w1a.mdx": {
+    "mtime": 1780529614.992855,
+    "ast_hash": "440dc15fe80290e18659ba32fd1f8295",
+    "semantic_hash": "440dc15fe80290e18659ba32fd1f8295"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Backyard-Flyer/quad-w1b.mdx": {
+    "mtime": 1780529614.9909582,
+    "ast_hash": "63174f46d8e84b98f3b82cb1eb0353d6",
+    "semantic_hash": "63174f46d8e84b98f3b82cb1eb0353d6"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Overview.mdx": {
+    "mtime": 1780950600.5234563,
+    "ast_hash": "c8e5b7f5b97d34558464ca813790da3d",
+    "semantic_hash": "c8e5b7f5b97d34558464ca813790da3d"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Racing/default.mdx": {
+    "mtime": 1780492461.1961093,
+    "ast_hash": "13ae8d57ca626e6f52bf2a0e618c4297",
+    "semantic_hash": "13ae8d57ca626e6f52bf2a0e618c4297"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Racing/quad-ladder.mdx": {
+    "mtime": 1781008026.4134185,
+    "ast_hash": "e95001f7c08300d66d46b00b81c52227",
+    "semantic_hash": "e95001f7c08300d66d46b00b81c52227"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Racing/quad-pole.mdx": {
+    "mtime": 1781008026.413097,
+    "ast_hash": "f1346e708dec8dbf0a265f0b52bfe358",
+    "semantic_hash": "f1346e708dec8dbf0a265f0b52bfe358"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Racing/quad-rates.mdx": {
+    "mtime": 1780577782.654402,
+    "ast_hash": "1e91f9e50b752a4df005021fa395723e",
+    "semantic_hash": "1e91f9e50b752a4df005021fa395723e"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/Release-Notes.mdx": {
+    "mtime": 1779845875.5196505,
+    "ast_hash": "03f9991e3e4d33a2fda3a9783e33cdb2",
+    "semantic_hash": "03f9991e3e4d33a2fda3a9783e33cdb2"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/control/default.mdx": {
+    "mtime": 1780015609.2448335,
+    "ast_hash": "149a71fcdb272495078a86bf0adac9a6",
+    "semantic_hash": "149a71fcdb272495078a86bf0adac9a6"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/control/pid-tune-relay.mdx": {
+    "mtime": 1780529614.9922218,
+    "ast_hash": "6c7d2f59641cc802f11c66f6b955f278",
+    "semantic_hash": "6c7d2f59641cc802f11c66f6b955f278"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/control/pid-tune-str.mdx": {
+    "mtime": 1780529614.992506,
+    "ast_hash": "1a847d15dcbddf3047647de204dd3431",
+    "semantic_hash": "1a847d15dcbddf3047647de204dd3431"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/control/pid-tutorial.mdx": {
+    "mtime": 1780529614.9919674,
+    "ast_hash": "b3ef4a32a47aff0513e17fa8f0e7bd45",
+    "semantic_hash": "b3ef4a32a47aff0513e17fa8f0e7bd45"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/sim-demo/catalog.mdx": {
+    "mtime": 1780529614.9912205,
+    "ast_hash": "d9c2afe1e47d0aeed110561f621a3479",
+    "semantic_hash": "d9c2afe1e47d0aeed110561f621a3479"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/sim-demo/default.mdx": {
+    "mtime": 1780015620.942137,
+    "ast_hash": "1718e5724f2a9156843573b6cc2dc936",
+    "semantic_hash": "1718e5724f2a9156843573b6cc2dc936"
+  },
+  "/home/ak/projects/backyard-flyer/src/content/pages/sim-demo/inc.mdx": {
+    "mtime": 1780529614.991062,
+    "ast_hash": "4e75b5304a57f20b7af601317d720573",
+    "semantic_hash": "4e75b5304a57f20b7af601317d720573"
+  },
+  "/home/ak/projects/backyard-flyer/public/favicon.svg": {
+    "mtime": 1778742214.169966,
+    "ast_hash": "38e543907c0f8e8828978f9c1075c2f1",
+    "semantic_hash": "38e543907c0f8e8828978f9c1075c2f1"
+  },
+  "/home/ak/projects/backyard-flyer/public/preview.png": {
+    "mtime": 1779947940.80164,
+    "ast_hash": "32416a8567240aa3a78c0da65bb588ac",
+    "semantic_hash": "32416a8567240aa3a78c0da65bb588ac"
+  }
+}
